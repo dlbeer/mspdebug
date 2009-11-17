@@ -24,6 +24,7 @@
 #include "fet.h"
 
 static const struct fet_transport *fet_transport;
+static int fet_is_rf2500;
 
 /*********************************************************************
  * Checksum calculation
@@ -88,7 +89,7 @@ static u_int16_t calc_checksum(const char *data, int len)
  *
  * No checksums are included.
  */
-static int fet_send_data(const char *data, int len)
+static int send_rf2500_data(const char *data, int len)
 {
 	int offset = 0;
 
@@ -119,7 +120,7 @@ static int fet_len;
 #define BUFFER_BYTE(b, x) ((int)((u_int8_t *)(b))[x])
 #define BUFFER_WORD(b, x) ((BUFFER_BYTE(b, x + 1) << 8) | BUFFER_BYTE(b, x))
 
-static const char *fet_recv_packet(int *pktlen)
+static const char *recv_packet(int *pktlen)
 {
 	int plen = BUFFER_WORD(fet_buf, 0);
 
@@ -144,7 +145,7 @@ static const char *fet_recv_packet(int *pktlen)
 				*pktlen = plen - 2;
 
 			if (c != r) {
-				fprintf(stderr, "fet_fecv_packet: checksum "
+				fprintf(stderr, "recv_packet: checksum "
 					"error (calc %04x, recv %04x)\n",
 					c, r);
 				return NULL;
@@ -163,22 +164,36 @@ static const char *fet_recv_packet(int *pktlen)
 	return NULL;
 }
 
-static int fet_send_command(const char *data, int len)
+static int send_command(const char *data, int datalen,
+			const char *extra, int exlen)
 {
 	char datapkt[256];
+	int len = 0;
+
 	char buf[256];
-	u_int16_t cksum = calc_checksum(data, len);
+	u_int16_t cksum;
 	int i = 0;
 	int j;
 
-	assert (len + 4 <= sizeof(buf));
-	assert (len + 2 <= sizeof(datapkt));
+	assert (len + exlen + 2 <= sizeof(datapkt));
 	assert (fet_transport != NULL);
 
-	memcpy(datapkt, data, len);
+	/* Assemble the unescaped undelimeted packet into datapkt. */
+	memcpy(datapkt, data, datalen);
+	len += datalen;
+
+	if (extra) {
+		memcpy(datapkt + len, extra, exlen);
+		len += exlen;
+	}
+
+	cksum = calc_checksum(datapkt, len);
 	datapkt[len++] = cksum & 0xff;
 	datapkt[len++] = cksum >> 8;
 
+	/* Copy into buf, escaping special characters and adding
+	 * delimeters.
+	 */
 	buf[i++] = 0x7e;
 	for (j = 0; j < len; j++) {
 		char c = datapkt[j];
@@ -197,19 +212,26 @@ static int fet_send_command(const char *data, int len)
 	return fet_transport->send(buf, i);
 }
 
-static const char *fet_send_recv(const char *data, int len, int *recvlen)
+static const char *xfer(const char *command, int len,
+			const char *data, int datalen,
+			int *recvlen)
 {
 	const char *buf;
 
-	if (fet_send_command(data, len) < 0)
+	if (data && fet_is_rf2500) {
+		if (send_rf2500_data(data, datalen) < 0)
+			return NULL;
+		if (send_command(command, len, NULL, 0) < 0)
+			return NULL;
+	} else if (send_command(command, len, data, datalen) < 0)
 		return NULL;
 
-	buf = fet_recv_packet(recvlen);
+	buf = recv_packet(recvlen);
 	if (!buf)
 		return NULL;
 
-	if (data[0] != buf[0]) {
-		fprintf(stderr, "fet_send_recv: reply type mismatch\n");
+	if (command[0] != buf[0]) {
+		fprintf(stderr, "xfer: reply type mismatch\n");
 		return NULL;
 	}
 
@@ -232,56 +254,58 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 	};
 
 	fet_transport = tr;
+	fet_is_rf2500 = proto_flags & FET_PROTO_RF2500;
 	init_codes();
 
 	/* open */
-	if (!fet_send_recv("\x01\x01", 2, NULL)) {
-		fprintf(stderr, "fet_startup: open failed\n");
+	if (!xfer("\x01\x01", 2, NULL, 0, NULL)) {
+		fprintf(stderr, "fet_open: open failed\n");
 		return -1;
 	}
 
 	/* init */
-	if (!fet_send_recv("\x27\x02\x01\x00\x04\x00\x00\x00\x00", 8, NULL)) {
-		fprintf(stderr, "fet_startup: init failed\n");
+	if (!xfer("\x27\x02\x01\x00\x04\x00\x00\x00\x00", 8, NULL, 0, NULL)) {
+		fprintf(stderr, "fet_open: init failed\n");
 		return -1;
 	}
 
 	/* configure: Spy-Bi-Wire or JTAG */
 	config[8] = (proto_flags & FET_PROTO_SPYBIWIRE) ? 1 : 0;
-	if (!fet_send_recv(config, 12, NULL)) {
-		fprintf(stderr, "fet_startup: configure failed\n");
+	if (!xfer(config, 12, NULL, 0, NULL)) {
+		fprintf(stderr, "fet_open: configure failed\n");
 		return -1;
 	}
 
 	/* I don't know what this is. It's RF2500-specific. It may have
 	 * something to do with flash -- 0x1d is sent before an erase.
 	 */
-	if (!fet_send_recv("\x1e\x01", 2, NULL)) {
-		fprintf(stderr, "fet_startup: command 0x1e failed\n");
+	if (fet_is_rf2500 && !xfer("\x1e\x01", 2, NULL, 0, NULL)) {
+		fprintf(stderr, "fet_open: command 0x1e failed\n");
 		return -1;
 	}
 
 	/* set VCC */
 	vcc[4] = vcc_mv & 0xff;
 	vcc[5] = vcc_mv >> 8;
-	if (!fet_send_recv(vcc, 8, NULL)) {
-		fprintf(stderr, "fet_startup: set VCC failed\n");
+	if (!xfer(vcc, 8, NULL, 0, NULL)) {
+		fprintf(stderr, "fet_open: set VCC failed\n");
 		return -1;
 	}
 
 	/* I don't know what this is, but it appears to halt the MSP. Without
 	 * it, memory reads return garbage. This is RF2500-specific.
 	 */
-	if (!fet_send_recv("\x28\x02\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-			   12, NULL)) {
-		fprintf(stderr, "fet_startup: command 0x28 failed\n");
+	if (fet_is_rf2500 &&
+	    !xfer("\x28\x02\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+		  12, NULL, 0, NULL)) {
+		fprintf(stderr, "fet_open: command 0x28 failed\n");
 		return -1;
 	}
 
 	/* Who knows what this is. Without it, register reads don't work.
 	 * This is RF2500-specific.
 	 */
-	{
+	if (fet_is_rf2500) {
 		static char data[] = {
 			0x00, 0x80, 0xff, 0xff, 0x00, 0x00, 0x00, 0x10,
 			0xff, 0x10, 0x40, 0x00, 0x00, 0x02, 0xff, 0x05,
@@ -295,11 +319,10 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 			0xff, 0xff,
 		};
 
-		if (fet_send_data(data, sizeof(data)) < 0 ||
-		    !fet_send_recv("\x29\x02\x04\x00\x00\x00\x00\x00"
-				   "\x39\x00\x00\x00\x31\x00\x00\x00"
-			           "\x4a\x00\x00\x00", 20, NULL)) {
-			fprintf(stderr, "fet_startup: command 0x29 failed\n");
+		if (!xfer("\x29\x02\x04\x00\x00\x00\x00\x00"
+			  "\x39\x00\x00\x00\x31\x00\x00\x00"
+			  "\x4a\x00\x00\x00", 20, data, sizeof(data), NULL)) {
+			fprintf(stderr, "fet_open: command 0x29 failed\n");
 			return -1;
 		}
 	}
@@ -326,7 +349,7 @@ int fet_reset(int flags)
 		reset[12] = 1;
 	}
 
-	if (!fet_send_recv(reset, 16, NULL)) {
+	if (!xfer(reset, 16, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_reset: reset failed\n");
 		return -1;
 	}
@@ -336,7 +359,7 @@ int fet_reset(int flags)
 
 int fet_close(void)
 {
-	if (!fet_send_recv("\x02\x02\x01\x00", 4, NULL)) {
+	if (!xfer("\x02\x02\x01\x00", 4, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_shutdown: close command failed\n");
 		return -1;
 	}
@@ -353,7 +376,7 @@ int fet_get_context(u_int16_t *regs)
 	int i;
 	const char *buf;
 
-	buf = fet_send_recv("\x08\x01", 2, &len);
+	buf = xfer("\x08\x01", 2, NULL, 0, &len);
 	if (len < 72) {
 		fprintf(stderr, "fet_get_context: short reply (%d bytes)\n",
 			len);
@@ -378,9 +401,21 @@ int fet_set_context(u_int16_t *regs)
 		buf[i * 4 + 1] = regs[i] >> 8;
 	}
 
-	if (fet_send_data(buf, sizeof(buf)) < 0 ||
-	    !fet_send_recv("\x09\x02\x02\x00\xff\xff\x00\x00"
-			   "\x40\x00\x00\x00", 12, NULL)) {
+	static char cmd[] = {
+		0x09, 0x00, 0x00, 0x00,
+		0xff, 0xff, 0x00, 0x00,
+		0x40, 0x00, 0x00, 0x00
+	};
+
+	if (fet_is_rf2500) {
+		cmd[1] = 0x02;
+		cmd[2] = 0x02;
+	} else {
+		cmd[1] = 0x04;
+		cmd[2] = 0x01;
+	}
+
+	if (!xfer(cmd, 12, buf, sizeof(buf), NULL)) {
 		fprintf(stderr, "fet_set_context: context set failed\n");
 		return -1;
 	}
@@ -404,7 +439,7 @@ int fet_read_mem(u_int16_t addr, char *buffer, int count)
 		readmem[5] = addr >> 8;
 		readmem[8] = plen;
 
-		buf = fet_send_recv(readmem, 12, &len);
+		buf = xfer(readmem, 12, NULL, 0, &len);
 		if (!buf) {
 			fprintf(stderr, "fet_read_mem: failed to read "
 				"from 0x%04x\n", addr);
@@ -432,16 +467,23 @@ int fet_write_mem(u_int16_t addr, char *buffer, int count)
 		int plen = count > 128 ? 128 : count;
 
 		static char writemem[] = {
-			0x0e, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00
 		};
+
+		if (fet_is_rf2500) {
+			writemem[1] = 0x02;
+			writemem[2] = 0x02;
+		} else {
+			writemem[1] = 0x04;
+			writemem[2] = 0x01;
+		}
 
 		writemem[4] = addr & 0xff;
 		writemem[5] = addr >> 8;
 		writemem[8] = plen;
 
-		if (fet_send_data(buffer, plen) < 0 ||
-		    !fet_send_recv(writemem, 12, NULL)) {
+		if (!xfer(writemem, 12, buffer, plen, NULL)) {
 			fprintf(stderr, "fet_write_mem: failed to write "
 				"to 0x%04x\n", addr);
 			return -1;
@@ -489,24 +531,24 @@ int fet_erase(int type, u_int16_t addr)
 		break;
 	}
 
-	if (!fet_send_recv("\x1d\x01", 2, NULL)) {
+	if (!xfer("\x1d\x01", 2, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_erase: command 1d failed\n");
 		return -1;
 	}
 
-	if (!fet_send_recv("\x05\x02\x02\x00\x02\x00\x00\x00\x26\x00\x00\x00",
-			   12, NULL)) {
+	if (!xfer("\x05\x02\x02\x00\x02\x00\x00\x00\x26\x00\x00\x00",
+		  12, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_erase: config (1) failed\n");
 		return -1;
 	}
 
-	if (!fet_send_recv("\x05\x02\x02\x00\x05\x00\x00\x00\x00\x00\x00\x00",
-			   12, NULL)) {
+	if (!xfer("\x05\x02\x02\x00\x05\x00\x00\x00\x00\x00\x00\x00",
+		  12, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_erase: config (2) failed\n");
 		return -1;
 	}
 
-	if (!fet_send_recv(erase, 16, NULL)) {
+	if (!xfer(erase, 16, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_erase: erase command failed\n");
 		return -1;
 	}
@@ -523,7 +565,7 @@ int fet_poll(void)
 	if (usleep(500000) < 0)
 		return -1;
 
-	reply = fet_send_recv("\x12\x02\x01\x00\x00\x00\x00\x00", 8, &len);
+	reply = xfer("\x12\x02\x01\x00\x00\x00\x00\x00", 8, NULL, 0, &len);
 	if (!reply) {
 		fprintf(stderr, "fet_poll: polling failed\n");
 		return -1;
@@ -534,8 +576,8 @@ int fet_poll(void)
 
 int fet_step(void)
 {
-	if (!fet_send_recv("\x11\x02\x02\x00\x02\x00\x00\x00\x00\x00\x00\x00",
-			12, NULL)) {
+	if (!xfer("\x11\x02\x02\x00\x02\x00\x00\x00\x00\x00\x00\x00",
+		  12, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_step: failed to single-step\n");
 		return -1;
 	}
@@ -545,8 +587,8 @@ int fet_step(void)
 
 int fet_run(void)
 {
-	if (!fet_send_recv("\x11\x02\x02\x00\x03\x00\x00\x00\x00\x00\x00\x00",
-			   12, NULL)) {
+	if (!xfer("\x11\x02\x02\x00\x03\x00\x00\x00\x00\x00\x00\x00",
+		  12, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_run: run failed\n");
 		return -1;
 	}
@@ -556,7 +598,7 @@ int fet_run(void)
 
 int fet_stop(void)
 {
-	if (!fet_send_recv("\x12\x02\x01\x00\x01\x00\x00\x00", 8, NULL)) {
+	if (!xfer("\x12\x02\x01\x00\x01\x00\x00\x00", 8, NULL, 0, NULL)) {
 		fprintf(stderr, "fet_stop: stop failed\n");
 		return -1;
 	}
@@ -593,13 +635,12 @@ int fet_break(int enable, u_int16_t addr)
 		buf[52] = 1;
 	}
 
-	if (fet_send_data(buf, sizeof(buf)) < 0 ||
-	    !fet_send_recv("\x2a\x02\x04\x00\x08\x00\x00\x00\xb0\x00\x00\x00"
-			   "\x00\x00\x00\x00\x40\x00\x00\x00", 20, NULL)) {
+	if (!xfer("\x2a\x02\x04\x00\x08\x00\x00\x00\xb0\x00\x00\x00"
+		  "\x00\x00\x00\x00\x40\x00\x00\x00", 20,
+		  buf, sizeof(buf), NULL)) {
 		fprintf(stderr, "fet_break: set breakpoint failed\n");
 		return -1;
 	}
 
 	return 0;
 }
-

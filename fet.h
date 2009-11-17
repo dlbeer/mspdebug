@@ -36,6 +36,7 @@ struct fet_transport {
  * millivolts and a set of protocol mode flags.
  */
 #define FET_PROTO_SPYBIWIRE	0x01
+#define FET_PROTO_RF2500	0x02
 
 int fet_open(const struct fet_transport *transport,
 	     int proto_flags, int vcc_mv);

@@ -22,6 +22,8 @@
 
 #include "fet.h"
 
+void hexdump(int addr, const char *data, int len);
+
 /*********************************************************************
  * USB transport
  *
@@ -195,7 +197,8 @@ int rf2500_open(void)
 				usbtr_flush();
 
 				if (fet_open(&usbtr_transport,
-					     FET_PROTO_SPYBIWIRE, 3000) < 0) {
+					 FET_PROTO_SPYBIWIRE |
+					 FET_PROTO_RF2500, 3000) < 0) {
 					usbtr_close();
 					return -1;
 				}

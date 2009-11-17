@@ -22,12 +22,14 @@
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "dis.h"
 #include "fet.h"
 #include "rf2500.h"
+#include "uif.h"
 
-static void hexdump(int addr, const char *data, int len)
+void hexdump(int addr, const char *data, int len)
 {
 	int offset = 0;
 
@@ -542,24 +544,15 @@ static void sigint_handler(int signum)
 {
 }
 
-int main(void)
+static void reader_loop(void)
 {
 	const static struct sigaction siga = {
 		.sa_handler = sigint_handler,
 		.sa_flags = 0
 	};
 
-	puts(
-"MSPDebug version 0.1+ - debugging tool for the eZ430\n"
-"Copyright (C) 2009 Daniel Beer <dlbeer@gmail.com>\n"
-"This is free software; see the source for copying conditions.  There is NO\n"
-"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
-
-	if (rf2500_open() < 0)
-		return -1;
-
-	sigaction(SIGINT, &siga, NULL);
 	cmd_help(NULL);
+	sigaction(SIGINT, &siga, NULL);
 
 	for (;;) {
 		char buf[128];
@@ -595,6 +588,49 @@ int main(void)
 	}
 
 	printf("\n");
+}
+
+static void usage(const char *progname)
+{
+	fprintf(stderr, "Usage: %s [-u device]\n"
+"By default, the first RF2500 device on the USB bus is opened. If -u is\n"
+"given, then a UIF device attached to the specified serial port is\n"
+"opened.\n", progname);
+}
+
+int main(int argc, char **argv)
+{
+	const char *uif_device = NULL;
+	int opt;
+	int result;
+
+	puts(
+"MSPDebug version 0.1+ - debugging tool for the eZ430\n"
+"Copyright (C) 2009 Daniel Beer <dlbeer@gmail.com>\n"
+"This is free software; see the source for copying conditions.  There is NO\n"
+"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
+
+	while ((opt = getopt(argc, argv, "u:")) >= 0)
+		switch (opt) {
+		case 'u':
+			uif_device = optarg;
+			break;
+
+		default:
+			usage(argv[0]);
+			return -1;
+		}
+
+	/* Open the appropriate device */
+	if (uif_device)
+		result = uif_open(uif_device);
+	else
+		result = rf2500_open();
+
+	if (result < 0)
+		return -1;
+
+        reader_loop();
 	fet_run();
 	fet_close();
 
