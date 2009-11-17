@@ -544,6 +544,22 @@ static void sigint_handler(int signum)
 {
 }
 
+static void process_command(char *arg)
+{
+	const char *cmd_text;
+
+	cmd_text = get_arg(&arg);
+	if (cmd_text) {
+		const struct command *cmd = find_command(cmd_text);
+
+		if (cmd)
+			cmd->func(&arg);
+		else
+			fprintf(stderr, "unknown command: %s (try \"help\")\n",
+				cmd_text);
+	}
+}
+
 static void reader_loop(void)
 {
 	const static struct sigaction siga = {
@@ -557,8 +573,6 @@ static void reader_loop(void)
 	for (;;) {
 		char buf[128];
 		int len;
-		char *arg = buf;
-		char *cmd_text;
 
 		printf("(mspdebug) ");
 		fflush(stdout);
@@ -574,17 +588,7 @@ static void reader_loop(void)
 			len--;
 		buf[len] = 0;
 
-		cmd_text = get_arg(&arg);
-		if (cmd_text) {
-			const struct command *cmd = find_command(cmd_text);
-
-			if (cmd)
-				cmd->func(&arg);
-			else
-				fprintf(stderr, "unknown command: %s "
-						"(try \"help\")\n",
-					cmd_text);
-		}
+		process_command(buf);
 	}
 
 	printf("\n");
@@ -592,10 +596,15 @@ static void reader_loop(void)
 
 static void usage(const char *progname)
 {
-	fprintf(stderr, "Usage: %s [-u device]\n"
+	fprintf(stderr, "Usage: %s [-u device] [command ...]\n"
+"\n"
 "By default, the first RF2500 device on the USB bus is opened. If -u is\n"
 "given, then a UIF device attached to the specified serial port is\n"
-"opened.\n", progname);
+"opened.\n"
+"\n"
+"If commands are given, they will be executed. Otherwise, an interactive\n"
+"command reader is started.\n",
+	progname);
 }
 
 int main(int argc, char **argv)
@@ -630,7 +639,13 @@ int main(int argc, char **argv)
 	if (result < 0)
 		return -1;
 
-        reader_loop();
+	if (optind < argc) {
+		while (optind < argc)
+			process_command(argv[optind++]);
+	} else {
+		reader_loop();
+	}
+
 	fet_run();
 	fet_close();
 
