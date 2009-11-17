@@ -284,6 +284,13 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 		return -1;
 	}
 
+	if (!fet_is_rf2500 &&
+	    !xfer("\x03\x02\x02\x00\x50\x00\x00\x00\x00\x00\x00\x00", 12,
+	    NULL, 0, NULL)) {
+		fprintf(stderr, "fet_open: identify failed\n");
+		return -1;
+	}
+
 	/* set VCC */
 	vcc[4] = vcc_mv & 0xff;
 	vcc[5] = vcc_mv >> 8;
