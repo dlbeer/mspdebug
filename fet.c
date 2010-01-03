@@ -170,7 +170,7 @@ static int send_command(const char *data, int datalen,
 	char datapkt[256];
 	int len = 0;
 
-	char buf[256];
+	char buf[512];
 	u_int16_t cksum;
 	int i = 0;
 	int j;
