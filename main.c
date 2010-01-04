@@ -619,7 +619,7 @@ int main(int argc, char **argv)
 	int want_jtag = 0;
 
 	puts(
-"MSPDebug version 0.2 - debugging tool for the eZ430\n"
+"MSPDebug version 0.3 - debugging tool for the eZ430\n"
 "Copyright (C) 2009, 2010 Daniel Beer <dlbeer@gmail.com>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
