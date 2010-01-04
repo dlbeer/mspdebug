@@ -445,7 +445,7 @@ static int cmd_prog(char **arg)
 	}
 
 	printf("Erasing...\n");
-	if (fet_erase(FET_ERASE_ALL, 0, 0) < 0) {
+	if (fet_erase(FET_ERASE_ALL, 0x1000, 0x100) < 0) {
 		fclose(in);
 		return -1;
 	}
@@ -567,6 +567,7 @@ static void reader_loop(void)
 		.sa_flags = 0
 	};
 
+	printf("\n");
 	cmd_help(NULL);
 	sigaction(SIGINT, &siga, NULL);
 
@@ -646,7 +647,7 @@ int main(int argc, char **argv)
 		reader_loop();
 	}
 
-	fet_run(FET_RUN_FREE);
+	fet_run(FET_RUN_FREE | FET_RUN_RELEASE);
 	fet_close();
 
 	return 0;

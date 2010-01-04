@@ -50,11 +50,12 @@ int fet_close(void);
  * of three methods, and you can choose whether or not to leave the CPU
  * halted after reset.
  */
-#define FET_RESET_PUC   0x01
-#define FET_RESET_RST   0x02
-#define FET_RESET_VCC   0x04
-#define FET_RESET_ALL   0x07
-#define FET_RESET_HALT	0x10
+#define FET_RESET_PUC		0x01
+#define FET_RESET_RST		0x02
+#define FET_RESET_VCC		0x04
+#define FET_RESET_ALL		0x07
+#define FET_RESET_HALT		0x10
+#define FET_RESET_RELEASE	0x20
 
 int fet_reset(int flags);
 
@@ -92,11 +93,12 @@ int fet_poll(void);
 
 /* CPU run/step/stop control. While the CPU is running, memory and
  * registers are inaccessible (only fet_poll() or fet_stop()) will
- * work. fet_step() is used to single-step the CPU.
+ * work.
  */
 #define FET_RUN_FREE		1
 #define FET_RUN_STEP		2
 #define FET_RUN_BREAKPOINT	3
+#define FET_RUN_RELEASE		0x10
 
 int fet_run(int type);
 int fet_stop(void);

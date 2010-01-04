@@ -503,6 +503,18 @@ static const struct {
 			  0x00, 0x00, 0x01, 0x61, 0x01, 0x00, 0xD1, 0x4D,
 			  0x80, 0x00},
 		.idtext = "MSP430F1611"
+	},
+	{
+		.reply = {0xf2, 0x27, 0x40, 0x40, 0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x02, 0x01, 0x01, 0x04, 0xb1, 0x62,
+			  0x80, 0x00},
+		.idtext = "MSP430F2274"
+	},
+	{
+		.reply = {0xf2, 0x01, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00,
+			  0x00, 0x00},
+		.idtext = "MSP430F2013"
 	}
 };
 
@@ -630,9 +642,10 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 
 int fet_reset(int flags)
 {
-	int wh = flags & FET_RESET_HALT ? 1 : 0;
+	int wh = flags & FET_RESET_HALT ? 0 : 1;
+	int wr = flags & FET_RESET_RELEASE ? 1 : 0;
 
-	if (xfer(C_RESET, NULL, 3, flags & FET_RESET_ALL, wh, wh) < 0) {
+	if (xfer(C_RESET, NULL, 0, 3, flags & FET_RESET_ALL, wh, wr) < 0) {
 		fprintf(stderr, "fet_reset: reset failed\n");
 		return -1;
 	}
@@ -789,7 +802,10 @@ int fet_poll(void)
 
 int fet_run(int type)
 {
-	if (xfer(C_RUN, NULL, 0, 2, type, 0) < 0) {
+	int wr = type & FET_RUN_RELEASE ? 1 : 0;
+
+	type &= ~FET_RUN_RELEASE;
+	if (xfer(C_RUN, NULL, 0, 2, type, wr) < 0) {
 		fprintf(stderr, "fet_run: run failed\n");
 		return -1;
 	}
