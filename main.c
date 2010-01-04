@@ -259,12 +259,12 @@ static int cmd_run(char **arg)
 		unsigned int addr = 0;
 
 		sscanf(bp_text, "%x", &addr);
-		fet_break(1, addr);
+		fet_break(0, addr);
 	} else {
 		fet_break(0, 0);
 	}
 
-	if (fet_run() < 0)
+	if (fet_run(bp_text ? FET_RUN_BREAKPOINT : FET_RUN_FREE) < 0)
 		return -1;
 
 	printf("Running. Press Ctrl+C to interrupt...");
@@ -319,7 +319,7 @@ static int cmd_set(char **arg)
 
 static int cmd_step(char **arg)
 {
-	if (fet_step() < 0)
+	if (fet_run(FET_RUN_STEP) < 0)
 		return -1;
 	if (fet_poll() < 0)
 		return -1;
@@ -445,7 +445,7 @@ static int cmd_prog(char **arg)
 	}
 
 	printf("Erasing...\n");
-	if (fet_erase(FET_ERASE_ALL, 0) < 0) {
+	if (fet_erase(FET_ERASE_ALL, 0, 0) < 0) {
 		fclose(in);
 		return -1;
 	}
@@ -646,7 +646,7 @@ int main(int argc, char **argv)
 		reader_loop();
 	}
 
-	fet_run();
+	fet_run(FET_RUN_FREE);
 	fet_close();
 
 	return 0;
