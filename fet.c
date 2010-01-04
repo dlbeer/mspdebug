@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for the eZ430
- * Copyright (C) 2009 Daniel Beer
+ * Copyright (C) 2009, 2010 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@
 #include <unistd.h>
 
 #include "fet.h"
+
+#define ARRAY_LEN(a) ((sizeof(a)) / sizeof((a)[0]))
 
 static const struct fet_transport *fet_transport;
 static int fet_is_rf2500;
@@ -281,8 +283,7 @@ static int parse_packet(int plen)
 	if (error) {
 		fprintf(stderr, "parse_packet: FET returned error code %d\n",
 			error);
-		if (error > 0 && error <
-			sizeof(error_strings) / sizeof(error_strings[0])) {
+		if (error > 0 && error < ARRAY_LEN(error_strings)) {
 			fprintf(stderr, "    (%s)\n", error_strings[error]);
 		}
 		return -1;
@@ -476,6 +477,79 @@ static int xfer(int command_code, const char *data, int datalen,
  * MSP430 high-level control functions
  */
 
+static int fet_version;
+
+/* Reply data taken from fet430uif */
+#define ID_REPLY_LEN	18
+
+static const struct {
+	const u_int8_t	reply[ID_REPLY_LEN];
+	const char	*idtext;
+} id_table[] = {
+	{
+		.reply = {0xF2, 0x49, 0x02, 0x60, 0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x02, 0x02, 0x01, 0x00, 0xF3, 0x2B,
+			  0x80, 0x00},
+		.idtext = "MSP430F249"
+	},
+	{
+		.reply = {0xF1, 0x49, 0x00, 0x43, 0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0xF0, 0x1A,
+			  0x10, 0x00},
+		.idtext = "MSP430F149"
+	},
+	{
+		.reply = {0xF1, 0x6C, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x01, 0x61, 0x01, 0x00, 0xD1, 0x4D,
+			  0x80, 0x00},
+		.idtext = "MSP430F1611"
+	}
+};
+
+extern void hexdump(int addr, const char *data, int len);
+
+static int do_identify(void)
+{
+	int i;
+
+	if (fet_version < 20300000) {
+		char idtext[64];
+
+		if (xfer(C_IDENTIFY, NULL, 0, 2, 70, 0) < 0)
+			return -1;
+
+		if (!fet_reply.data) {
+			fprintf(stderr, "do_indentify: missing info\n");
+			return -1;
+		}
+
+		memcpy(idtext, fet_reply.data + 4, 32);
+		idtext[32] = 0;
+		printf("Device is %s\n", idtext);
+		return 0;
+	}
+
+	if (xfer(40, NULL, 0, 2, 0, 0) < 0)
+		return -1;
+
+	if (!fet_reply.data) {
+		fprintf(stderr, "do_indentify: missing info\n");
+		return -1;
+	}
+
+	if (fet_reply.datalen >= ID_REPLY_LEN)
+		for (i = 0; i < ARRAY_LEN(id_table); i++)
+			if (!memcmp(id_table[i].reply, fet_reply.data,
+				    ID_REPLY_LEN)) {
+				printf("Device is %s\n", id_table[i].idtext);
+				return 0;
+			}
+
+	printf("warning: unknown device data:\n");
+	hexdump(0, fet_reply.data, fet_reply.datalen);
+	return 0;
+}
+
 int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 {
 	fet_transport = tr;
@@ -486,6 +560,9 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 		fprintf(stderr, "fet_open: open failed\n");
 		return -1;
 	}
+
+	fet_version = fet_reply.argv[0];
+	printf("FET protocol version is %d\n", fet_version);
 
 	if (xfer(39, NULL, 0, 1, 4) < 0) {
 		fprintf(stderr, "fet_open: init failed\n");
@@ -499,7 +576,11 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 		return -1;
 	}
 
-	if (!fet_is_rf2500 && xfer(C_IDENTIFY, NULL, 0, 2, 0x50, 0) < 0) {
+	printf("Configured for %s\n",
+		(proto_flags & FET_PROTO_SPYBIWIRE) ? "Spy-Bi-Wire" : "JTAG");
+
+	/* Identify the chip */
+	if (do_identify() < 0) {
 		fprintf(stderr, "fet_open: identify failed\n");
 		return -1;
 	}
@@ -509,6 +590,8 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 		fprintf(stderr, "fet_open: set VCC failed\n");
 		return -1;
 	}
+
+	printf("Set Vcc: %d mV\n", vcc_mv);
 
 	/* I don't know what this is, but it appears to halt the MSP. Without
 	 * it, memory reads return garbage. This is RF2500-specific.
@@ -542,9 +625,6 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 		}
 	}
 
-	printf("FET initialized: %s (VCC = %d mV)\n",
-		(proto_flags & FET_PROTO_SPYBIWIRE) ?
-		"Spy-Bi-Wire" : "JTAG", vcc_mv);
 	return 0;
 }
 

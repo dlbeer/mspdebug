@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for the eZ430
- * Copyright (C) 2009 Daniel Beer
+ * Copyright (C) 2009, 2010 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -615,7 +615,7 @@ int main(int argc, char **argv)
 
 	puts(
 "MSPDebug version 0.2 - debugging tool for the eZ430\n"
-"Copyright (C) 2009 Daniel Beer <dlbeer@gmail.com>\n"
+"Copyright (C) 2009, 2010 Daniel Beer <dlbeer@gmail.com>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
 
