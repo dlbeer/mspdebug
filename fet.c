@@ -409,6 +409,16 @@ static int send_command(int command_code,
 
 	/* Extra data */
 	if (extra) {
+		int x = exlen;
+
+		datapkt[len++] = x & 0xff;
+		x >>= 8;
+		datapkt[len++] = x & 0xff;
+		x >>= 8;
+		datapkt[len++] = x & 0xff;
+		x >>= 8;
+		datapkt[len++] = x & 0xff;
+
 		memcpy(datapkt + len, extra, exlen);
 		len += exlen;
 	}
