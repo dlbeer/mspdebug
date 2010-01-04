@@ -162,10 +162,112 @@ static int send_rf2500_data(const char *data, int len)
 static char fet_buf[65538];
 static int fet_len;
 
+#define MAX_REPLY_PARAMS	16
+
+/* Recieved packet is parsed into this struct */
+static struct {
+	int		command_code;
+	int		state;
+
+	int		argc;
+	u_int32_t	argv[MAX_REPLY_PARAMS];
+
+	char		*data;
+	int		datalen;
+} fet_reply;
+
 #define BUFFER_BYTE(b, x) ((int)((u_int8_t *)(b))[x])
 #define BUFFER_WORD(b, x) ((BUFFER_BYTE(b, x + 1) << 8) | BUFFER_BYTE(b, x))
+#define BUFFER_LONG(b, x) ((BUFFER_WORD(b, x + 2) << 16) | BUFFER_WORD(b, x))
 
-static const char *recv_packet(int *pktlen)
+#define PTYPE_ACK		0
+#define PTYPE_CMD		1
+#define PTYPE_PARAM		2
+#define PTYPE_DATA		3
+#define PTYPE_MIXED		4
+#define PTYPE_NAK		5
+#define PTYPE_FLASH_ACK		6
+
+static int parse_packet(int plen)
+{
+	u_int16_t c = calc_checksum(fet_buf + 2, plen - 2);
+	u_int16_t r = BUFFER_WORD(fet_buf, plen);
+	int i = 2;
+	int type;
+	int error;
+
+	if (c != r) {
+		fprintf(stderr, "parse_packet: checksum error (calc %04x,"
+			" recv %04x)\n", c, r);
+		return -1;
+	}
+
+	if (plen < 6)
+		goto too_short;
+
+	fet_reply.command_code = fet_buf[i++];
+	type = fet_buf[i++];
+	fet_reply.state = fet_buf[i++];
+	error = fet_buf[i++];
+
+	if (error) {
+		fprintf(stderr, "parse_packet: FET returned error code %d\n",
+			error);
+		return -1;
+	}
+
+	/* Parse packet parameters */
+	if (type == PTYPE_PARAM || type == PTYPE_MIXED) {
+		int j;
+
+		if (i + 2 > plen)
+			goto too_short;
+
+		fet_reply.argc = BUFFER_WORD(fet_buf, i);
+		i += 2;
+
+		if (fet_reply.argc >= MAX_REPLY_PARAMS) {
+			fprintf(stderr, "parse_packet: too many params: %d\n",
+				fet_reply.argc);
+			return -1;
+		}
+
+		for (j = 0; j < fet_reply.argc; j++) {
+			if (i + 4 > plen)
+				goto too_short;
+			fet_reply.argv[j] = BUFFER_LONG(fet_buf, i);
+			i += 4;
+		}
+	} else {
+		fet_reply.argc = 0;
+	}
+
+	/* Extract a pointer to the data */
+	if (type == PTYPE_DATA || type == PTYPE_MIXED) {
+		if (i + 4 > plen)
+			goto too_short;
+
+		fet_reply.datalen = BUFFER_LONG(fet_buf, i);
+		i += 4;
+
+		if (i + fet_reply.datalen > plen)
+			goto too_short;
+
+		fet_reply.data = fet_buf + i;
+	} else {
+		fet_reply.data = NULL;
+		fet_reply.datalen = 0;
+	}
+
+	return 0;
+
+too_short:
+	fprintf(stderr, "parse_packet: too short (%d bytes)\n",
+		plen);
+	return -1;
+}
+
+static int recv_packet(void)
 {
 	int plen = BUFFER_WORD(fet_buf, 0);
 
@@ -182,31 +284,17 @@ static const char *recv_packet(int *pktlen)
 		int len;
 
 		plen = BUFFER_WORD(fet_buf, 0);
-		if (fet_len >= plen + 2) {
-			u_int16_t c = calc_checksum(fet_buf + 2, plen - 2);
-			u_int16_t r = BUFFER_WORD(fet_buf, plen);
-
-			if (pktlen)
-				*pktlen = plen - 2;
-
-			if (c != r) {
-				fprintf(stderr, "recv_packet: checksum "
-					"error (calc %04x, recv %04x)\n",
-					c, r);
-				return NULL;
-			}
-
-			return fet_buf + 2;
-		}
+		if (fet_len >= plen + 2)
+			return parse_packet(plen);
 
 		len = fet_transport->recv(fet_buf + fet_len,
 					  sizeof(fet_buf) - fet_len);
 		if (len < 0)
-			return NULL;
+			return -1;
 		fet_len += len;
 	}
 
-	return NULL;
+	return -1;
 }
 
 static int send_command(int command_code,
@@ -278,32 +366,27 @@ static int send_command(int command_code,
 	return fet_transport->send(buf, i);
 }
 
-static const char *xfer(int command_code,
-			const u_int32_t *params, int nparams,
-			const char *data, int datalen,
-			int *recvlen)
+static int xfer(int command_code, const u_int32_t *params, int nparams,
+		const char *data, int datalen)
 {
-	const char *buf;
-
 	if (data && fet_is_rf2500) {
 		if (send_rf2500_data(data, datalen) < 0)
-			return NULL;
+			return -1;
 		if (send_command(command_code, params, nparams, NULL, 0) < 0)
-			return NULL;
+			return -1;
 	} else if (send_command(command_code, params, nparams,
 				data, datalen) < 0)
-		return NULL;
+		return -1;
 
-	buf = recv_packet(recvlen);
-	if (!buf)
-		return NULL;
+	if (recv_packet() < 0)
+		return -1;
 
-	if (command_code != buf[0]) {
+	if (fet_reply.command_code != command_code) {
 		fprintf(stderr, "xfer: reply type mismatch\n");
-		return NULL;
+		return -1;
 	}
 
-	return buf;
+	return 0;
 }
 
 /**********************************************************************
@@ -318,13 +401,13 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 	fet_is_rf2500 = proto_flags & FET_PROTO_RF2500;
 	init_codes();
 
-	if (!xfer(C_INITIALIZE, NULL, 0, NULL, 0, NULL)) {
+	if (xfer(C_INITIALIZE, NULL, 0, NULL, 0) < 0) {
 		fprintf(stderr, "fet_open: open failed\n");
 		return -1;
 	}
 
 	parm[0] = 4;
-	if (!xfer(39, parm, 1, NULL, 0, NULL)) {
+	if (xfer(39, parm, 1, NULL, 0) < 0) {
 		fprintf(stderr, "fet_open: init failed\n");
 		return -1;
 	}
@@ -332,21 +415,21 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 	/* configure: Spy-Bi-Wire or JTAG */
 	parm[0] = 8;
 	parm[1] = (proto_flags & FET_PROTO_SPYBIWIRE) ? 1 : 0;
-	if (!xfer(C_CONFIGURE, parm, 2, NULL, 0, NULL)) {
+	if (xfer(C_CONFIGURE, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_open: configure failed\n");
 		return -1;
 	}
 
 	parm[0] = 0x50;
 	parm[1] = 0;
-	if (!fet_is_rf2500 && !xfer(C_IDENTIFY, parm, 2, NULL, 0, NULL)) {
+	if (!fet_is_rf2500 && xfer(C_IDENTIFY, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_open: identify failed\n");
 		return -1;
 	}
 
 	/* set VCC */
 	parm[0] = vcc_mv;
-	if (!xfer(C_VCC, parm, 2, NULL, 0, NULL)) {
+	if (xfer(C_VCC, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_open: set VCC failed\n");
 		return -1;
 	}
@@ -356,7 +439,7 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 	 */
 	parm[0] = 0;
 	parm[1] = 0;
-	if (fet_is_rf2500 && !xfer(0x28, parm, 2, NULL, 0, NULL)) {
+	if (fet_is_rf2500 && xfer(0x28, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_open: command 0x28 failed\n");
 		return -1;
 	}
@@ -383,7 +466,7 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 		parm[2] = 0x31;
 		parm[3] = sizeof(data);
 
-		if (!xfer(0x29, parm, 4, data, sizeof(data), NULL)) {
+		if (xfer(0x29, parm, 4, data, sizeof(data)) < 0) {
 			fprintf(stderr, "fet_open: command 0x29 failed\n");
 			return -1;
 		}
@@ -403,7 +486,7 @@ int fet_reset(int flags)
 		flags & FET_RESET_HALT ? 1 : 0
 	};
 
-	if (!xfer(C_RESET, parm, 3, NULL, 0, NULL)) {
+	if (xfer(C_RESET, parm, 3, NULL, 0) < 0) {
 		fprintf(stderr, "fet_reset: reset failed\n");
 		return -1;
 	}
@@ -415,7 +498,7 @@ int fet_close(void)
 {
 	u_int32_t parm = 0;
 
-	if (!xfer(C_CLOSE, &parm, 1, NULL, 0, NULL)) {
+	if (xfer(C_CLOSE, &parm, 1, NULL, 0) < 0) {
 		fprintf(stderr, "fet_shutdown: close command failed\n");
 		return -1;
 	}
@@ -428,19 +511,19 @@ int fet_close(void)
 
 int fet_get_context(u_int16_t *regs)
 {
-	int len;
 	int i;
-	const char *buf;
 
-	buf = xfer(C_READREGISTERS, NULL, 0, NULL, 0, &len);
-	if (len < 72) {
+	if (xfer(C_READREGISTERS, NULL, 0, NULL, 0) < 0)
+		return -1;
+
+	if (fet_reply.datalen < FET_NUM_REGS * 4) {
 		fprintf(stderr, "fet_get_context: short reply (%d bytes)\n",
-			len);
+			fet_reply.datalen);
 		return -1;
 	}
 
 	for (i = 0; i < FET_NUM_REGS; i++)
-		regs[i] = BUFFER_WORD(buf, i * 4 + 8);
+		regs[i] = BUFFER_WORD(fet_reply.data, i * 4);
 
 	return 0;
 }
@@ -461,8 +544,8 @@ int fet_set_context(u_int16_t *regs)
 		buf[i * 4 + 1] = regs[i] >> 8;
 	}
 
-	if (!xfer(C_WRITEREGISTERS, parm, fet_is_rf2500 ? 2 : 1,
-		  buf, sizeof(buf), NULL)) {
+	if (xfer(C_WRITEREGISTERS, parm, fet_is_rf2500 ? 2 : 1,
+		  buf, sizeof(buf)) < 0) {
 		fprintf(stderr, "fet_set_context: context set failed\n");
 		return -1;
 	}
@@ -476,25 +559,22 @@ int fet_read_mem(u_int16_t addr, char *buffer, int count)
 
 	while (count) {
 		int plen = count > 128 ? 128 : count;
-		const char *buf;
-		int len;
 
 		parm[0] = addr;
 		parm[1] = plen;
-		buf = xfer(C_READMEMORY, parm, 2, NULL, 0, &len);
-		if (!buf) {
+		if (xfer(C_READMEMORY, parm, 2, NULL, 0) < 0) {
 			fprintf(stderr, "fet_read_mem: failed to read "
 				"from 0x%04x\n", addr);
 			return -1;
 		}
 
-		if (len < plen + 8) {
-			fprintf(stderr, "fet_read_mem: short read "
-				"(%d bytes)\n", len);
+		if (fet_reply.datalen < plen) {
+			fprintf(stderr, "fet_read_mem: short data: "
+				"%d bytes\n", fet_reply.datalen);
 			return -1;
 		}
 
-		memcpy(buffer, buf + 8, plen);
+		memcpy(buffer, fet_reply.data, plen);
 		buffer += plen;
 		count -= plen;
 		addr += plen;
@@ -512,8 +592,8 @@ int fet_write_mem(u_int16_t addr, char *buffer, int count)
 
 		parm[0] = addr;
 		parm[1] = plen;
-		if (!xfer(C_WRITEMEMORY, parm, fet_is_rf2500 ? 2 : 1,
-			  buffer, plen, NULL)) {
+		if (xfer(C_WRITEMEMORY, parm, fet_is_rf2500 ? 2 : 1,
+			  buffer, plen) < 0) {
 			fprintf(stderr, "fet_write_mem: failed to write "
 				"to 0x%04x\n", addr);
 			return -1;
@@ -533,14 +613,14 @@ int fet_erase(int type, u_int16_t addr)
 
 	parm[0] = 2;
 	parm[1] = 0x26;
-	if (!xfer(C_CONFIGURE, parm, 2, NULL, 0, NULL)) {
+	if (xfer(C_CONFIGURE, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_erase: config (1) failed\n");
 		return -1;
 	}
 
 	parm[0] = 5;
 	parm[1] = 0;
-	if (!xfer(C_CONFIGURE, parm, 2, NULL, 0, NULL)) {
+	if (xfer(C_CONFIGURE, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_erase: config (2) failed\n");
 		return -1;
 	}
@@ -569,7 +649,7 @@ int fet_erase(int type, u_int16_t addr)
 	}
 
 	parm[1] = addr;
-	if (!xfer(C_ERASE, parm, 2, NULL, 0, NULL)) {
+	if (xfer(C_ERASE, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_erase: erase command failed\n");
 		return -1;
 	}
@@ -579,21 +659,18 @@ int fet_erase(int type, u_int16_t addr)
 
 int fet_poll(void)
 {
-	const char *reply;
-	int len;
 	u_int32_t parm = 0;
 
 	/* Without this delay, breakpoints can get lost. */
 	if (usleep(500000) < 0)
 		return -1;
 
-	reply = xfer(C_STATE, &parm, 1, NULL, 0, &len);
-	if (!reply) {
+	if (xfer(C_STATE, &parm, 1, NULL, 0) < 0) {
 		fprintf(stderr, "fet_poll: polling failed\n");
 		return -1;
 	}
 
-	return reply[6];
+	return fet_reply.argv[0];
 }
 
 int fet_step(void)
@@ -602,7 +679,7 @@ int fet_step(void)
 		2, 0
 	};
 
-	if (!xfer(C_RUN, parm, 2, NULL, 0, NULL)) {
+	if (xfer(C_RUN, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_step: failed to single-step\n");
 		return -1;
 	}
@@ -616,7 +693,7 @@ int fet_run(void)
 		fet_breakpoint_enable ? 3 : 1, 0
 	};
 
-	if (!xfer(C_RUN, parm, 2, NULL, 0, NULL)) {
+	if (xfer(C_RUN, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_run: run failed\n");
 		return -1;
 	}
@@ -628,7 +705,7 @@ int fet_stop(void)
 {
 	u_int32_t parm = 1;
 
-	if (!xfer(C_STATE, &parm, 1, NULL, 0, NULL)) {
+	if (xfer(C_STATE, &parm, 1, NULL, 0) < 0) {
 		fprintf(stderr, "fet_stop: stop failed\n");
 		return -1;
 	}
@@ -641,7 +718,7 @@ int fet_break(int enable, u_int16_t addr)
 	u_int32_t parm[2] = { 0, addr };
 
 	fet_breakpoint_enable = enable;
-	if (!xfer(C_BREAKPOINT, parm, 2, NULL, 0, NULL)) {
+	if (xfer(C_BREAKPOINT, parm, 2, NULL, 0) < 0) {
 		fprintf(stderr, "fet_break: set breakpoint failed\n");
 		return -1;
 	}
