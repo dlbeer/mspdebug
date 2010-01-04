@@ -23,6 +23,6 @@
  * a kernel-supported serial interface. The argument given should be the
  * filename of the relevant tty device.
  */
-int uif_open(const char *device);
+int uif_open(const char *device, int want_jtag);
 
 #endif

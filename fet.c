@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * Various constants and tables come from fet430uif, written by Robert
+ * Various constants and tables come from uif430, written by Robert
  * Kavaler (kavaler@diva.com). This is available under the same license
  * as this program, from www.relavak.com.
  */
@@ -36,7 +36,7 @@ static int fet_is_rf2500;
 /**********************************************************************
  * FET command codes.
  *
- * These come from fet430uif by Robert Kavaler (kavaler@diva.com).
+ * These come from uif430 by Robert Kavaler (kavaler@diva.com).
  * www.relavak.com
  */
 
@@ -194,7 +194,7 @@ static struct {
 #define PTYPE_NAK		5
 #define PTYPE_FLASH_ACK		6
 
-/* This table is taken from fet430uif */
+/* This table is taken from uif430 */
 static const char *error_strings[] =
 {
         "No error",                                                     // 0
@@ -489,7 +489,7 @@ static int xfer(int command_code, const char *data, int datalen,
 
 static int fet_version;
 
-/* Reply data taken from fet430uif */
+/* Reply data taken from uif430 */
 #define ID_REPLY_LEN	18
 
 static const struct {

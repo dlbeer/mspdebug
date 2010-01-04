@@ -94,7 +94,7 @@ static const struct fet_transport serial_transport = {
 	.close = serial_close
 };
 
-int uif_open(const char *device)
+int uif_open(const char *device, int want_jtag)
 {
 	struct termios attr;
 
@@ -116,7 +116,8 @@ int uif_open(const char *device)
 		return -1;
 	}
 
-	if (fet_open(&serial_transport, FET_PROTO_SPYBIWIRE, 3000) < 0) {
+	if (fet_open(&serial_transport, want_jtag ? 0 : FET_PROTO_SPYBIWIRE,
+			3000) < 0) {
 		close(serial_fd);
 		return -1;
 	}
