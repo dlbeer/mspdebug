@@ -183,16 +183,32 @@ static int token_len;
 static int token_mult;
 static int token_sum;
 
-static void token_add(void)
+static int token_add(void)
 {
 	int low = 0;
 	int high = by_name.len - 1;
+	int i;
 
 	if (!token_len)
-		return;
+		return 0;
 
 	token_buf[token_len] = 0;
 	token_len = 0;
+
+	/* Is it a decimal? */
+	i = 0;
+	while (token_buf[i] && isdigit(token_buf[i]))
+		i++;
+	if (!token_buf[i]) {
+		token_sum += token_mult * atoi(token_buf);
+		return 0;
+	}
+
+	/* Is it hex? */
+	if (token_buf[0] == '0' && tolower(token_buf[1]) == 'x') {
+		token_sum += token_mult * strtol(token_buf + 2, NULL, 16);
+		return 0;
+	}
 
 	/* Look up the name in the symbol table */
 	while (low <= high) {
@@ -202,7 +218,7 @@ static void token_add(void)
 
 		if (!cmp) {
 			token_sum += token_mult * (int)sym->addr;
-			return;
+			return 0;
 		}
 
 		if (cmp < 0)
@@ -211,8 +227,8 @@ static void token_add(void)
 			high = mid - 1;
 	}
 
-	/* Not found? Try to parse it the old way */
-	token_sum += token_mult * strtol(token_buf, NULL, 16);
+	fprintf(stderr, "stab: unknown token: %s\n", token_buf);
+	return -1;
 }
 
 int stab_parse(const char *text, int *addr)
@@ -228,7 +244,8 @@ int stab_parse(const char *text, int *addr)
 			if (token_len + 1 < sizeof(token_buf))
 				token_buf[token_len++] = *text;
 		} else {
-			token_add();
+			if (token_add() < 0)
+				return -1;
 			if (*text == '+')
 				token_mult = 1;
 			if (*text == '-')
@@ -238,7 +255,9 @@ int stab_parse(const char *text, int *addr)
 		text++;
 	}
 
-	token_add();
+	if (token_add() < 0)
+		return -1;
+
 	*addr = token_sum;
 	return 0;
 }

@@ -483,7 +483,7 @@ static int cmd_eval(char **arg)
 		return -1;
 	}
 
-	printf("%04x", addr);
+	printf("0x%04x", addr);
 	offset = addr;
 	if (!stab_find(&offset, &name)) {
 		printf(" = %s", name);
