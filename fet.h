@@ -21,6 +21,18 @@
 
 #include <sys/types.h>
 
+/* This function is for opening an eZ430-F2013 or FET430UIF device via
+ * a kernel-supported serial interface. The argument given should be the
+ * filename of the relevant tty device.
+ */
+int uif_open(const char *device, int want_jtag);
+
+/* Search the USB bus for the first eZ430-RF2500, and initialize it. If
+ * successful, 0 is returned and the fet_* functions are ready for use.
+ * If an error occurs, -1 is returned.
+ */
+int rf2500_open(void);
+
 /* This structure is used to provide an interface to a lower-level
  * transport. The transport mechanism is viewed as a stream by the FET
  * controller, which handles packet encapsulation, checksums and other

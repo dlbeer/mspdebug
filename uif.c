@@ -26,7 +26,6 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "uif.h"
 #include "fet.h"
 
 void hexdump(int addr, const char *data, int len);

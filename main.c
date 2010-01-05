@@ -26,8 +26,6 @@
 
 #include "dis.h"
 #include "fet.h"
-#include "rf2500.h"
-#include "uif.h"
 
 void hexdump(int addr, const char *data, int len)
 {
