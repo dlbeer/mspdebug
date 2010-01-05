@@ -32,5 +32,6 @@ int ihex_extract(FILE *in, imgfunc_t cb);
 /* ELF32 file support */
 int elf32_check(FILE *in);
 int elf32_extract(FILE *in, imgfunc_t cb);
+int elf32_syms(FILE *in);
 
 #endif

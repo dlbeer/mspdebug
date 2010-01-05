@@ -20,6 +20,7 @@
 #include <string.h>
 #include <elf.h>
 #include "binfile.h"
+#include "stab.h"
 
 #define EM_MSP430	0x69
 
@@ -94,12 +95,12 @@ static int read_shdr(FILE *in)
 	for (i = 0; i < file_ehdr.e_shnum; i++) {
 		if (fseek(in, i * file_ehdr.e_shentsize + file_ehdr.e_shoff,
 			  SEEK_SET) < 0) {
-			fprintf(stderr, "elf32: can't seek to phdr %d\n", i);
+			fprintf(stderr, "elf32: can't seek to shdr %d\n", i);
 			return -1;
 		}
 
 		if (fread(&file_shdrs[i], sizeof(file_shdrs[0]), 1, in) < 0) {
-			fprintf(stderr, "elf32: can't read phdr %d: %s\n",
+			fprintf(stderr, "elf32: can't read shdr %d: %s\n",
 				i, strerror(errno));
 			return -1;
 		}
@@ -152,10 +153,8 @@ static int feed_section(FILE *in, int offset, int size, imgfunc_t cb)
 	return 0;
 }
 
-int elf32_extract(FILE *in, imgfunc_t cb)
+static int read_all(FILE *in)
 {
-	int i;
-
 	if (read_ehdr(in) < 0)
 		return -1;
 	if (file_ehdr.e_machine != EM_MSP430) {
@@ -166,6 +165,16 @@ int elf32_extract(FILE *in, imgfunc_t cb)
 	if (read_phdr(in) < 0)
 		return -1;
 	if (read_shdr(in) < 0)
+		return -1;
+
+	return 0;
+}
+
+int elf32_extract(FILE *in, imgfunc_t cb)
+{
+	int i;
+
+	if (read_all(in) < 0)
 		return -1;
 
 	for (i = 0; i < file_ehdr.e_shnum; i++) {
@@ -189,4 +198,118 @@ int elf32_check(FILE *in)
 			return 0;
 
 	return 1;
+}
+
+static Elf32_Shdr *find_shdr(Elf32_Word type)
+{
+	int i;
+
+	for (i = 0; i < file_ehdr.e_shnum; i++) {
+		Elf32_Shdr *s = &file_shdrs[i];
+
+		if (s->sh_type == type)
+			return s;
+	}
+
+	return NULL;
+}
+
+static int syms_load_strings(FILE *in, Elf32_Shdr *s)
+{
+	int len = s->sh_size;
+	char buf[1024];
+
+	if (fseek(in, s->sh_offset, SEEK_SET) < 0) {
+		perror("elf32: can't seek to strings");
+		return -1;
+	}
+
+	while (len) {
+		int req = sizeof(buf) > len ? len : sizeof(buf);
+		int count = fread(buf, 1, req, in);
+
+		if (!count) {
+			fprintf(stderr, "elf32: eof reading strings\n");
+			return -1;
+		}
+
+		if (count < 0) {
+			perror("elf32: error reading strings");
+			return -1;
+		}
+
+		if (stab_add_string(buf, count) < 0)
+			return -1;
+		len -= count;
+	}
+
+	return 0;
+}
+
+#define N_SYMS	128
+
+static int syms_load_syms(FILE *in, Elf32_Shdr *s, int soff)
+{
+	Elf32_Sym syms[N_SYMS];
+	int len = s->sh_size / sizeof(syms[0]);
+
+	if (fseek(in, s->sh_offset, SEEK_SET) < 0) {
+		perror("elf32: can't seek to symbols");
+		return -1;
+	}
+
+	while (len) {
+		int req = N_SYMS > len ? len : N_SYMS;
+		int count = fread(syms, sizeof(syms[0]), req, in);
+		int i;
+
+		if (!count) {
+			fprintf(stderr, "elf32: eof reading symbols\n");
+			return -1;
+		}
+
+		if (count < 0) {
+			perror("elf32: error reading symbols");
+			return -1;
+		}
+
+		for (i = 0; i < count; i++) {
+			Elf32_Sym *y = &syms[i];
+
+			if (stab_add_symbol(y->st_name + soff,
+					    y->st_value) < 0)
+				return -1;
+		}
+		len -= count;
+	}
+
+	return 0;
+}
+
+int elf32_syms(FILE *in)
+{
+	Elf32_Shdr *s;
+	int soff;
+
+	if (read_all(in) < 0)
+		return -1;
+
+	s = find_shdr(SHT_SYMTAB);
+	if (!s) {
+		fprintf(stderr, "elf32: no symbol table\n");
+		return -1;
+	}
+
+	if (s->sh_link <= 0 || s->sh_link >= file_ehdr.e_shnum) {
+		fprintf(stderr, "elf32: no string table\n");
+		return -1;
+	}
+
+	soff = stab_add_string(NULL, 0);
+	if (syms_load_strings(in, &file_shdrs[s->sh_link]) < 0)
+		return -1;
+	if (syms_load_syms(in, s, soff) < 0)
+		return -1;
+
+	return 0;
 }

@@ -27,6 +27,7 @@
 #include "dis.h"
 #include "fet.h"
 #include "binfile.h"
+#include "stab.h"
 
 void hexdump(int addr, const u_int8_t *data, int len)
 {
@@ -431,7 +432,55 @@ static int cmd_prog(char **arg)
 	return result;
 }
 
+static int cmd_nosyms(char **arg)
+{
+	stab_clear();
+	return 0;
+}
+
+static int cmd_eval(char **arg)
+{
+	u_int16_t addr;
+	const char *name;
+
+	if (stab_parse(*arg, &addr) < 0) {
+		fprintf(stderr, "eval: can't parse: %s\n", *arg);
+		return -1;
+	}
+
+	printf("%04x", addr);
+	if (!stab_find(&addr, &name))
+		printf(" = %s+%x", name, addr);
+	printf("\n");
+
+	return 0;
+}
+
+static int cmd_syms(char **arg)
+{
+	FILE *in = fopen(*arg, "r");
+	int result = 0;
+
+	if (!in) {
+		fprintf(stderr, "syms: %s: %s\n", *arg, strerror(errno));
+		return -1;
+	}
+
+	stab_clear();
+
+	if (elf32_check(in))
+		result = elf32_syms(in);
+	else
+		fprintf(stderr, "%s: unknown file type\n", *arg);
+
+	fclose(in);
+	return result;
+}
+
 static const struct command all_commands[] = {
+	{"=",		cmd_eval,
+"= <expression>\n"
+"    Evaluate an expression using the symbol table.\n"},
 	{"dis",		cmd_dis,
 "dis <address> <range>\n"
 "    Disassemble a section of memory.\n"},
@@ -443,9 +492,12 @@ static const struct command all_commands[] = {
 "md <address> <length>\n"
 "    Read the specified number of bytes from memory at the given address,\n"
 "    and display a hexdump.\n"},
+	{"nosyms",	cmd_nosyms,
+"nosyms\n"
+"    Clear the symbol table.\n"},
 	{"prog",	cmd_prog,
 "prog <filename.hex>\n"
-"    Erase the device and flash the data contained in an Intel HEX file.\n"},
+"    Erase the device and flash the data contained in a binary file.\n"},
 	{"regs",	cmd_regs,
 "regs\n"
 "    Read and display the current register contents.\n"},
@@ -462,6 +514,9 @@ static const struct command all_commands[] = {
 	{"step",	cmd_step,
 "step\n"
 "    Single-step the CPU, and display the register state.\n"},
+	{"syms",	cmd_syms,
+"syms <filename>\n"
+"    Load symbols from the given file.\n"},
 };
 
 #define NUM_COMMANDS (sizeof(all_commands) / sizeof(all_commands[0]))

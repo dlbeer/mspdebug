@@ -25,7 +25,7 @@ clean:
 
 .SUFFIXES: .c .o
 
-mspdebug: main.o fet.o rf2500.o dis.o uif.o ihex.o elf32.o
+mspdebug: main.o fet.o rf2500.o dis.o uif.o ihex.o elf32.o stab.o
 	$(CC) $(CFLAGS) -o $@ $^ -lusb
 
 .c.o:
