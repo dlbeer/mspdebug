@@ -215,7 +215,7 @@ static void token_add(void)
 	token_sum += token_mult * strtol(token_buf, NULL, 16);
 }
 
-int stab_parse(const char *text, u_int16_t *addr)
+int stab_parse(const char *text, int *addr)
 {
 	token_len = 0;
 	token_mult = 1;

@@ -127,21 +127,25 @@ static int cmd_md(char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
-	unsigned int offset = 0;
-	unsigned int length = 0;
+	int offset = 0;
+	int length = 0x40;
 
 	if (!off_text) {
 		fprintf(stderr, "md: offset must be specified\n");
 		return -1;
 	}
 
-	sscanf(off_text, "%x", &offset);
-	if (len_text)
-		sscanf(len_text, "%x", &length);
-	else
-		length = 0x80;
-	if (offset >= 0x10000 || length > 0x10000 ||
-	    (offset + length) > 0x10000) {
+	if (stab_parse(off_text, &offset) < 0) {
+		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
+		return -1;
+	}
+
+	if (len_text && stab_parse(len_text, &length) < 0) {
+		fprintf(stderr, "md: can't parse length: %s\n", len_text);
+		return -1;
+	}
+
+	if (offset < 0 || length <= 0 || (offset + length) > 0x10000) {
 		fprintf(stderr, "md: memory out of range\n");
 		return -1;
 	}
@@ -163,11 +167,23 @@ static int cmd_md(char **arg)
 
 static void disassemble(u_int16_t offset, u_int8_t *data, int length)
 {
+	int first_line = 1;
+
 	while (length) {
 		struct msp430_instruction insn;
 		int retval;
 		int count;
 		int i;
+		u_int16_t oboff = offset;
+		const char *obname;
+
+		if (stab_find(&oboff, &obname) >= 0) {
+			if (!oboff)
+				printf("%s:\n", obname);
+			else if (first_line)
+				printf("%s+0x%x:\n", obname, oboff);
+		}
+		first_line = 0;
 
 		retval = dis_decode(data, offset, length, &insn);
 		count = retval > 0 ? retval : 2;
@@ -202,8 +218,8 @@ static int cmd_dis(char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
-	unsigned int offset = 0;
-	unsigned int length = 0;
+	int offset = 0;
+	int length = 0x40;
 	u_int8_t buf[128];
 
 	if (!off_text) {
@@ -211,12 +227,17 @@ static int cmd_dis(char **arg)
 		return -1;
 	}
 
-	sscanf(off_text, "%x", &offset);
-	if (len_text)
-		sscanf(len_text, "%x", &length);
-	else
-		length = 0x40;
-	if (offset >= 0x10000 || length > sizeof(buf) ||
+	if (stab_parse(off_text, &offset) < 0) {
+		fprintf(stderr, "dis: can't parse offset: %s\n", off_text);
+		return -1;
+	}
+
+	if (len_text && stab_parse(len_text, &length) < 0) {
+		fprintf(stderr, "dis: can't parse length: %s\n", len_text);
+		return -1;
+	}
+
+	if (offset < 0 || length <= 0 || length > sizeof(buf) ||
 	    (offset + length) > 0x10000) {
 		fprintf(stderr, "dis: memory out of range\n");
 		return -1;
@@ -256,9 +277,14 @@ static int cmd_run(char **arg)
 	char *bp_text = get_arg(arg);
 
 	if (bp_text) {
-		unsigned int addr = 0;
+		int addr = 0;
 
-		sscanf(bp_text, "%x", &addr);
+		if (stab_parse(bp_text, &addr) < 0) {
+			fprintf(stderr, "run: can't parse breakpoint: %s\n",
+				bp_text);
+			return -1;
+		}
+
 		fet_break(0, addr);
 	} else {
 		fet_break(0, 0);
@@ -289,7 +315,7 @@ static int cmd_set(char **arg)
 	char *reg_text = get_arg(arg);
 	char *val_text = get_arg(arg);
 	int reg;
-	unsigned int value = 0;
+	int value = 0;
 	u_int16_t regs[FET_NUM_REGS];
 
 	if (!(reg_text && val_text)) {
@@ -300,7 +326,11 @@ static int cmd_set(char **arg)
 	while (*reg_text && !isdigit(*reg_text))
 		reg_text++;
 	reg = atoi(reg_text);
-	sscanf(val_text, "%x", &value);
+
+	if (stab_parse(val_text, &value) < 0) {
+		fprintf(stderr, "set: can't parse value: %s\n", val_text);
+		return -1;
+	}
 
 	if (reg < 0 || reg >= FET_NUM_REGS) {
 		fprintf(stderr, "set: register out of range: %d\n", reg);
@@ -418,12 +448,16 @@ static int cmd_prog(char **arg)
 	}
 
 	prog_init();
-	if (elf32_check(in))
+
+	if (elf32_check(in)) {
 		result = elf32_extract(in, prog_feed);
-	else if (ihex_check(in))
+		stab_clear();
+		elf32_syms(in);
+	} else if (ihex_check(in)) {
 		result = ihex_extract(in, prog_feed);
-	else
+	} else {
 		fprintf(stderr, "%s: unknown file type\n", *arg);
+	}
 
 	if (!result)
 		result = prog_flush();
@@ -440,7 +474,8 @@ static int cmd_nosyms(char **arg)
 
 static int cmd_eval(char **arg)
 {
-	u_int16_t addr;
+	int addr;
+	u_int16_t offset;
 	const char *name;
 
 	if (stab_parse(*arg, &addr) < 0) {
@@ -449,8 +484,12 @@ static int cmd_eval(char **arg)
 	}
 
 	printf("%04x", addr);
-	if (!stab_find(&addr, &name))
-		printf(" = %s+%x", name, addr);
+	offset = addr;
+	if (!stab_find(&offset, &name)) {
+		printf(" = %s", name);
+		if (offset)
+			printf("+0x%x", offset);
+	}
 	printf("\n");
 
 	return 0;

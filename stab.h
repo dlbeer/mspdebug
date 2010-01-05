@@ -49,7 +49,7 @@ int stab_add_symbol(int name, u_int16_t addr);
  *
  * Returns 0 if parsed successfully, -1 if an error occurs.
  */
-int stab_parse(const char *text, u_int16_t *addr);
+int stab_parse(const char *text, int *addr);
 
 /* Take an address and find the nearest symbol. */
 int stab_find(u_int16_t *addr, const char **name);
