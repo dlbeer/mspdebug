@@ -39,8 +39,8 @@ int rf2500_open(void);
  * high-level functions.
  */
 struct fet_transport {
-	int (*send)(const char *data, int len);
-	int (*recv)(char *data, int max_len);
+	int (*send)(const u_int8_t *data, int len);
+	int (*recv)(u_int8_t *data, int max_len);
 	void (*close)(void);
 };
 
@@ -90,8 +90,8 @@ int fet_erase(int type, u_int16_t addr, int len);
 /* Read and write memory. fet_write_mem can be used to reflash the
  * device, but only after an erase.
  */
-int fet_read_mem(u_int16_t addr, char *buffer, int count);
-int fet_write_mem(u_int16_t addr, char *buffer, int count);
+int fet_read_mem(u_int16_t addr, u_int8_t *buffer, int count);
+int fet_write_mem(u_int16_t addr, const u_int8_t *buffer, int count);
 
 /* Fetch the device status. If the device is currently running, then
  * the FET_POLL_RUNNING flag will be set. FET_POLL_BREAKPOINT is set

@@ -26,8 +26,9 @@
 
 #include "dis.h"
 #include "fet.h"
+#include "binfile.h"
 
-void hexdump(int addr, const char *data, int len)
+void hexdump(int addr, const u_int8_t *data, int len)
 {
 	int offset = 0;
 
@@ -145,7 +146,7 @@ static int cmd_md(char **arg)
 	}
 
 	while (length) {
-		char buf[128];
+		u_int8_t buf[128];
 		int blen = length > sizeof(buf) ? sizeof(buf) : length;
 
 		if (fet_read_mem(offset, buf, blen) < 0)
@@ -202,7 +203,7 @@ static int cmd_dis(char **arg)
 	char *len_text = get_arg(arg);
 	unsigned int offset = 0;
 	unsigned int length = 0;
-	char buf[128];
+	u_int8_t buf[128];
 
 	if (!off_text) {
 		fprintf(stderr, "md: offset must be specified\n");
@@ -235,7 +236,7 @@ static int cmd_reset(char **arg)
 static int cmd_regs(char **arg)
 {
 	u_int16_t regs[FET_NUM_REGS];
-	char code[16];
+	u_int8_t code[16];
 
 	if (fet_get_context(regs) < 0)
 		return -1;
@@ -325,107 +326,76 @@ static int cmd_step(char **arg)
 	return cmd_regs(NULL);
 }
 
-static int hexval(const char *text, int len)
-{
-	int value = 0;
+/************************************************************************
+ * Flash image programming state machine.
+ */
 
-	while (len && *text) {
-		value <<= 4;
-
-		if (*text >= 'A' && *text <= 'F')
-			value += *text - 'A' + 10;
-		else if (*text >= 'a' && *text <= 'f')
-			value += *text - 'a' + 10;
-		else if (isdigit(*text))
-			value += *text - '0';
-
-		text++;
-		len--;
-	}
-
-	return value;
-}
-
-static char prog_buf[128];
+static u_int8_t prog_buf[128];
 static u_int16_t prog_addr;
 static int prog_len;
+static int prog_have_erased;
+
+static void prog_init(void)
+{
+	prog_len = 0;
+	prog_have_erased = 0;
+}
 
 static int prog_flush(void)
 {
-	int wlen = prog_len;
+	while (prog_len) {
+		int wlen = prog_len;
 
-	if (!prog_len)
-		return 0;
+		/* Writing across this address seems to cause a hang */
+		if (prog_addr < 0x999a && wlen + prog_addr > 0x999a)
+			wlen = 0x999a - prog_addr;
 
-	/* Writing across this address seems to cause a hang */
-	if (prog_addr < 0x999a && wlen + prog_addr > 0x999a)
-		wlen = 0x999a - prog_addr;
+		if (!prog_have_erased) {
+			printf("Erasing...\n");
+			if (fet_erase(FET_ERASE_ALL, 0x1000, 0x100) < 0)
+				return -1;
+			prog_have_erased = 1;
+		}
 
-	printf("Writing %3d bytes to %04x...\n", wlen, prog_addr);
+		printf("Writing %3d bytes to %04x...\n", wlen, prog_addr);
+		if (fet_write_mem(prog_addr, prog_buf, wlen) < 0)
+		        return -1;
 
-	if (fet_write_mem(prog_addr, prog_buf, wlen) < 0)
-		return -1;
-
-	memmove(prog_buf, prog_buf + wlen, prog_len - wlen);
-	prog_len -= wlen;
-	prog_addr += wlen;
-
-	return 0;
-}
-
-static int prog_hex(int lno, const char *hex)
-{
-	int len = strlen(hex);
-	int count, address, type, cksum = 0;
-	int i;
-
-	if (*hex != ':')
-		return 0;
-
-	hex++;
-	len--;
-
-	while (len && isspace(hex[len - 1]))
-		len--;
-
-	if (len < 10)
-		return 0;
-
-	count = hexval(hex, 2);
-	address = hexval(hex + 2, 4);
-	type = hexval(hex + 6, 2);
-
-	if (type)
-		return 0;
-
-	for (i = 0; i + 2 < len; i += 2)
-		cksum = (cksum + hexval(hex + i, 2))
-			& 0xff;
-	cksum = ~(cksum - 1) & 0xff;
-
-	if (count * 2 + 10 != len) {
-		fprintf(stderr, "warning: length mismatch at line %d\n", lno);
-		count = (len - 10) / 2;
+		memmove(prog_buf, prog_buf + wlen, prog_len - wlen);
+		prog_len -= wlen;
+		prog_addr += wlen;
 	}
 
-	if (cksum != hexval(hex + len - 2, 2))
-		fprintf(stderr, "warning: invalid checksum at line %d\n", lno);
+        return 0;
+}
 
-	for (i = 0; i < count; i++) {
-		int offset;
+static int prog_feed(u_int16_t addr, const u_int8_t *data, int len)
+{
+	/* Flush if this section is discontiguous */
+	if (prog_len && prog_addr + prog_len != addr && prog_flush() < 0)
+		return -1;
 
-		offset = address + i - prog_addr;
-		if (offset < 0 || offset >= sizeof(prog_buf))
+	if (!prog_len)
+		prog_addr = addr;
+
+	/* Add the buffer in piece by piece, flushing when it gets
+	 * full.
+	 */
+	while (len) {
+		int count = sizeof(prog_buf) - prog_len;
+
+		if (count > len)
+			count = len;
+
+		if (!count) {
 			if (prog_flush() < 0)
 				return -1;
-
-		if (!prog_len)
-			prog_addr = address + i;
-
-		offset = address + i - prog_addr;
-		prog_buf[offset] = hexval(hex + 8 + i * 2, 2);
-		if (offset + 1 > prog_len)
-			prog_len = offset + 1;
+		} else {
+			memcpy(prog_buf + prog_len, data, count);
+			prog_len += count;
+			data += count;
+			len -= count;
+		}
 	}
 
 	return 0;
@@ -434,35 +404,31 @@ static int prog_hex(int lno, const char *hex)
 static int cmd_prog(char **arg)
 {
 	FILE *in = fopen(*arg, "r");
-	char text[256];
-	int lno = 1;
+	int result = 0;
 
 	if (!in) {
 		fprintf(stderr, "prog: %s: %s\n", *arg, strerror(errno));
 		return -1;
 	}
 
-	printf("Erasing...\n");
-	if (fet_erase(FET_ERASE_ALL, 0x1000, 0x100) < 0) {
+	if (fet_reset(FET_RESET_ALL | FET_RESET_HALT) < 0) {
 		fclose(in);
 		return -1;
 	}
 
-	if (fet_reset(FET_RESET_ALL | FET_RESET_HALT) < 0)
-		return -1;
+	prog_init();
+	if (elf32_check(in))
+		result = elf32_extract(in, prog_feed);
+	else if (ihex_check(in))
+		result = ihex_extract(in, prog_feed);
+	else
+		fprintf(stderr, "%s: unknown file type\n", *arg);
 
-	prog_len = 0;
-	while (fgets(text, sizeof(text), in))
-		if (prog_hex(lno++, text) < 0) {
-			fclose(in);
-			return -1;
-		}
+	if (!result)
+		result = prog_flush();
+
 	fclose(in);
-
-	if (prog_flush() < 0)
-		return -1;
-
-	return fet_reset(FET_RESET_ALL | FET_RESET_HALT);
+	return result;
 }
 
 static const struct command all_commands[] = {

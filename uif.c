@@ -28,11 +28,11 @@
 
 #include "fet.h"
 
-void hexdump(int addr, const char *data, int len);
+extern void hexdump(int addr, const u_int8_t *data, int len);
 
 static int serial_fd = -1;
 
-static int serial_send(const char *data, int len)
+static int serial_send(const u_int8_t *data, int len)
 {
 	int result;
 
@@ -60,7 +60,7 @@ static int serial_send(const char *data, int len)
 	return 0;
 }
 
-static int serial_recv(char *data, int max_len)
+static int serial_recv(u_int8_t *data, int max_len)
 {
 	int len;
 

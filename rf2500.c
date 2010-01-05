@@ -22,7 +22,7 @@
 
 #include "fet.h"
 
-void hexdump(int addr, const char *data, int len);
+extern void hexdump(int addr, const u_int8_t *data, int len);
 
 /*********************************************************************
  * USB transport
@@ -87,10 +87,10 @@ static int usbtr_open_device(struct usb_device *dev)
 	return -1;
 }
 
-static int usbtr_send(const char *data, int len)
+static int usbtr_send(const u_int8_t *data, int len)
 {
 	while (len) {
-		char pbuf[256];
+		u_int8_t pbuf[256];
 		int plen = len > 255 ? 255 : len;
 		int txlen = plen + 1;
 
@@ -112,7 +112,7 @@ static int usbtr_send(const char *data, int len)
 		hexdump(0, pbuf, txlen);
 #endif
 		if (usb_bulk_write(usbtr_handle, USB_FET_OUT_EP,
-			pbuf, txlen, 10000) < 0) {
+			(const char *)pbuf, txlen, 10000) < 0) {
 			perror("usbtr_send");
 			return -1;
 		}
@@ -124,7 +124,7 @@ static int usbtr_send(const char *data, int len)
 	return 0;
 }
 
-static char usbtr_buf[64];
+static u_int8_t usbtr_buf[64];
 static int usbtr_len;
 static int usbtr_offset;
 
@@ -136,13 +136,14 @@ static void usbtr_flush(void)
 			buf, sizeof(buf), 100) >= 0);
 }
 
-static int usbtr_recv(char *databuf, int max_len)
+static int usbtr_recv(u_int8_t *databuf, int max_len)
 {
 	int rlen;
 
 	if (usbtr_offset >= usbtr_len) {
 		if (usb_bulk_read(usbtr_handle, USB_FET_IN_EP,
-				usbtr_buf, sizeof(usbtr_buf), 10000) < 0) {
+				(char *)usbtr_buf, sizeof(usbtr_buf),
+				10000) < 0) {
 			perror("usbtr_recv");
 			return -1;
 		}

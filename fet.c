@@ -105,7 +105,7 @@ static void init_codes(void)
  * needs to be stored in little-endian format at the end of the payload.
  */
 
-static u_int16_t calc_checksum(const char *data, int len)
+static u_int16_t calc_checksum(const u_int8_t *data, int len)
 {
 	int i;
 	u_int16_t cksum = 0xffff;
@@ -140,13 +140,13 @@ static u_int16_t calc_checksum(const char *data, int len)
  *
  * No checksums are included.
  */
-static int send_rf2500_data(const char *data, int len)
+static int send_rf2500_data(const u_int8_t *data, int len)
 {
 	int offset = 0;
 
 	assert (fet_transport != NULL);
 	while (len) {
-		char pbuf[63];
+		u_int8_t pbuf[63];
 		int plen = len > 59 ? 59 : len;
 
 		pbuf[0] = 0x83;
@@ -165,7 +165,7 @@ static int send_rf2500_data(const char *data, int len)
 	return 0;
 }
 
-static char fet_buf[65538];
+static u_int8_t fet_buf[65538];
 static int fet_len;
 
 #define MAX_PARAMS		16
@@ -178,7 +178,7 @@ static struct {
 	int		argc;
 	u_int32_t	argv[MAX_PARAMS];
 
-	char		*data;
+	u_int8_t	*data;
 	int		datalen;
 } fet_reply;
 
@@ -372,12 +372,12 @@ static int recv_packet(void)
 
 static int send_command(int command_code,
 		        const u_int32_t *params, int nparams,
-			const char *extra, int exlen)
+			const u_int8_t *extra, int exlen)
 {
-	char datapkt[256];
+	u_int8_t datapkt[256];
 	int len = 0;
 
-	char buf[512];
+	u_int8_t buf[512];
 	u_int16_t cksum;
 	int i = 0;
 	int j;
@@ -449,7 +449,7 @@ static int send_command(int command_code,
 	return fet_transport->send(buf, i);
 }
 
-static int xfer(int command_code, const char *data, int datalen,
+static int xfer(int command_code, const u_int8_t *data, int datalen,
 		int nparams, ...)
 {
 	u_int32_t params[MAX_PARAMS];
@@ -534,7 +534,7 @@ static const struct {
 	}
 };
 
-extern void hexdump(int addr, const char *data, int len);
+extern void hexdump(int addr, const u_int8_t *data, int len);
 
 static int do_identify(void)
 {
@@ -633,7 +633,7 @@ int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
 	 * This is RF2500-specific.
 	 */
 	if (fet_is_rf2500) {
-		static const char data[] = {
+		static const u_int8_t data[] = {
 			0x00, 0x80, 0xff, 0xff, 0x00, 0x00, 0x00, 0x10,
 			0xff, 0x10, 0x40, 0x00, 0x00, 0x02, 0xff, 0x05,
 			0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00,
@@ -703,7 +703,7 @@ int fet_get_context(u_int16_t *regs)
 
 int fet_set_context(u_int16_t *regs)
 {
-	char buf[FET_NUM_REGS * 4];
+	u_int8_t buf[FET_NUM_REGS * 4];;
 	int i;
 	int ret;
 
@@ -729,7 +729,7 @@ int fet_set_context(u_int16_t *regs)
 	return 0;
 }
 
-int fet_read_mem(u_int16_t addr, char *buffer, int count)
+int fet_read_mem(u_int16_t addr, u_int8_t *buffer, int count)
 {
 	while (count) {
 		int plen = count > 128 ? 128 : count;
@@ -755,7 +755,7 @@ int fet_read_mem(u_int16_t addr, char *buffer, int count)
 	return 0;
 }
 
-int fet_write_mem(u_int16_t addr, char *buffer, int count)
+int fet_write_mem(u_int16_t addr, const u_int8_t *buffer, int count)
 {
 	while (count) {
 		int plen = count > 128 ? 128 : count;
