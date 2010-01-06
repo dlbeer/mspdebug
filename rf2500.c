@@ -20,7 +20,7 @@
 #include <string.h>
 #include <usb.h>
 
-#include "fet.h"
+#include "transport.h"
 
 extern void hexdump(int addr, const u_int8_t *data, int len);
 
@@ -180,7 +180,7 @@ static const struct fet_transport usbtr_transport = {
 	.close = usbtr_close
 };
 
-int rf2500_open(void)
+const struct fet_transport *rf2500_open(void)
 {
 	struct usb_bus *bus;
 
@@ -196,19 +196,11 @@ int rf2500_open(void)
 			    dev->descriptor.idProduct == USB_FET_PRODUCT &&
 			    !usbtr_open_device(dev)) {
 				usbtr_flush();
-
-				if (fet_open(&usbtr_transport,
-					 FET_PROTO_SPYBIWIRE |
-					 FET_PROTO_RF2500, 3000) < 0) {
-					usbtr_close();
-					return -1;
-				}
-
-				return 0;
+				return &usbtr_transport;
 			}
 		}
 	}
 
 	fprintf(stderr, "usbtr_open: no devices could be found\n");
-	return -1;
+	return NULL;
 }

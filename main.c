@@ -671,9 +671,10 @@ static void usage(const char *progname)
 
 int main(int argc, char **argv)
 {
+	const struct fet_transport *trans;
 	const char *uif_device = NULL;
 	int opt;
-	int result;
+	int flags = 0;
 	int want_jtag = 0;
 
 	puts(
@@ -697,13 +698,20 @@ int main(int argc, char **argv)
 			return -1;
 		}
 
-	/* Open the appropriate device */
+	/* Open the appropriate transport */
 	if (uif_device)
-		result = uif_open(uif_device, want_jtag);
-	else
-		result = rf2500_open();
+		trans = uif_open(uif_device);
+	else {
+		trans = rf2500_open();
+		flags |= FET_PROTO_RF2500;
+	}
+	if (!trans)
+		return -1;
 
-	if (result < 0)
+	/* Then initialize the device */
+	if (!want_jtag)
+		flags |= FET_PROTO_SPYBIWIRE;
+	if (fet_open(trans, flags, 3000) < 0)
 		return -1;
 
 	if (optind < argc) {

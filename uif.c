@@ -26,7 +26,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "fet.h"
+#include "transport.h"
 
 extern void hexdump(int addr, const u_int8_t *data, int len);
 
@@ -93,7 +93,7 @@ static const struct fet_transport serial_transport = {
 	.close = serial_close
 };
 
-int uif_open(const char *device, int want_jtag)
+const struct fet_transport *uif_open(const char *device)
 {
 	struct termios attr;
 
@@ -103,7 +103,7 @@ int uif_open(const char *device, int want_jtag)
 	if (serial_fd < 0) {
 		fprintf(stderr, "uif_open: open: %s: %s\n",
 			device, strerror(errno));
-		return -1;
+		return NULL;
 	}
 
 	tcgetattr(serial_fd, &attr);
@@ -112,14 +112,8 @@ int uif_open(const char *device, int want_jtag)
 	if (tcsetattr(serial_fd, TCSAFLUSH, &attr) < 0) {
 		fprintf(stderr, "uif_open: tcsetattr: %s: %s\n",
 			device, strerror(errno));
-		return -1;
+		return NULL;
 	}
 
-	if (fet_open(&serial_transport, want_jtag ? 0 : FET_PROTO_SPYBIWIRE,
-			3000) < 0) {
-		close(serial_fd);
-		return -1;
-	}
-
-	return 0;
+	return &serial_transport;
 }
