@@ -26,7 +26,7 @@
 #include <assert.h>
 #include <unistd.h>
 
-#include "fet.h"
+#include "device.h"
 
 #define ARRAY_LEN(a) ((sizeof(a)) / sizeof((a)[0]))
 
@@ -76,6 +76,23 @@ static int fet_is_rf2500;
 #define C_READI2C               34
 #define C_WRITEI2C              35
 #define C_ENTERBOOTLOADER       36
+
+/* Constants for parameters of various FET commands */
+#define FET_RUN_FREE           1
+#define FET_RUN_STEP           2
+#define FET_RUN_BREAKPOINT     3
+
+#define FET_RESET_PUC          0x01
+#define FET_RESET_RST          0x02
+#define FET_RESET_VCC          0x04
+#define FET_RESET_ALL          0x07
+
+#define FET_ERASE_SEGMENT      0
+#define FET_ERASE_MAIN         1
+#define FET_ERASE_ALL          2
+
+#define FET_POLL_RUNNING        0x01
+#define FET_POLL_BREAKPOINT     0x02
 
 /*********************************************************************
  * Checksum calculation
@@ -578,138 +595,158 @@ static int do_identify(void)
 	return 0;
 }
 
-int fet_open(const struct fet_transport *tr, int proto_flags, int vcc_mv)
+static void fet_close(void)
 {
-	fet_transport = tr;
-	fet_is_rf2500 = proto_flags & FET_PROTO_RF2500;
-	init_codes();
+	if (xfer(C_RUN, NULL, 0, 2, FET_RUN_FREE, 1) < 0)
+		fprintf(stderr, "fet: failed to restart CPU\n");
 
-	if (xfer(C_INITIALIZE, NULL, 0, 0) < 0) {
-		fprintf(stderr, "fet_open: open failed\n");
-		return -1;
-	}
-
-	fet_version = fet_reply.argv[0];
-	printf("FET protocol version is %d\n", fet_version);
-
-	if (xfer(39, NULL, 0, 1, 4) < 0) {
-		fprintf(stderr, "fet_open: init failed\n");
-		return -1;
-	}
-
-	/* configure: Spy-Bi-Wire or JTAG */
-	if (xfer(C_CONFIGURE, NULL, 0,
-		 2, 8, (proto_flags & FET_PROTO_SPYBIWIRE) ? 1 : 0) < 0) {
-		fprintf(stderr, "fet_open: configure failed\n");
-		return -1;
-	}
-
-	printf("Configured for %s\n",
-		(proto_flags & FET_PROTO_SPYBIWIRE) ? "Spy-Bi-Wire" : "JTAG");
-
-	/* Identify the chip */
-	if (do_identify() < 0) {
-		fprintf(stderr, "fet_open: identify failed\n");
-		return -1;
-	}
-
-	/* set VCC */
-	if (xfer(C_VCC, NULL, 0, 2, vcc_mv, 0) < 0) {
-		fprintf(stderr, "fet_open: set VCC failed\n");
-		return -1;
-	}
-
-	printf("Set Vcc: %d mV\n", vcc_mv);
-
-	/* I don't know what this is, but it appears to halt the MSP. Without
-	 * it, memory reads return garbage. This is RF2500-specific.
-	 */
-	if (fet_is_rf2500 && xfer(0x28, NULL, 0, 2, 0, 0) < 0) {
-		fprintf(stderr, "fet_open: command 0x28 failed\n");
-		return -1;
-	}
-
-	/* Who knows what this is. Without it, register reads don't work.
-	 * This is RF2500-specific.
-	 */
-	if (fet_is_rf2500) {
-		static const u_int8_t data[] = {
-			0x00, 0x80, 0xff, 0xff, 0x00, 0x00, 0x00, 0x10,
-			0xff, 0x10, 0x40, 0x00, 0x00, 0x02, 0xff, 0x05,
-			0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00,
-			0x01, 0x00, 0xd7, 0x60, 0x00, 0x00, 0x00, 0x00,
-			0x08, 0x07, 0x10, 0x0e, 0xc4, 0x09, 0x70, 0x17,
-			0x58, 0x1b, 0x01, 0x00, 0x03, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
-			0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x33, 0x0f, 0x1f, 0x0f,
-			0xff, 0xff
-		};
-
-		if (xfer(0x29, data, sizeof(data), 4, 0, 0x39, 0x31,
-			 sizeof(data)) < 0) {
-			fprintf(stderr, "fet_open: command 0x29 failed\n");
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
-int fet_reset(int flags)
-{
-	int wh = flags & FET_RESET_HALT ? 0 : 1;
-	int wr = flags & FET_RESET_RELEASE ? 1 : 0;
-
-	if (xfer(C_RESET, NULL, 0, 3, flags & FET_RESET_ALL, wh, wr) < 0) {
-		fprintf(stderr, "fet_reset: reset failed\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-int fet_close(void)
-{
-	if (xfer(C_CLOSE, NULL, 0, 1, 0) < 0) {
-		fprintf(stderr, "fet_shutdown: close command failed\n");
-		return -1;
-	}
+	if (xfer(C_CLOSE, NULL, 0, 1, 0) < 0)
+		fprintf(stderr, "fet: close command failed\n");
 
 	fet_transport->close();
 	fet_transport = NULL;
+}
+
+static int do_reset(void) {
+	if (xfer(C_RESET, NULL, 0, 3, FET_RESET_ALL, 0, 0) < 0) {
+		fprintf(stderr, "fet: reset failed\n");
+		return -1;
+	}
 
 	return 0;
 }
 
-int fet_get_context(u_int16_t *regs)
+static int do_run(int type)
+{
+	if (xfer(C_RUN, NULL, 0, 2, type, 0) < 0) {
+		fprintf(stderr, "fet: failed to restart CPU\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int do_halt(void)
+{
+	if (xfer(C_STATE, NULL, 0, 1, 1) < 0) {
+		fprintf(stderr, "fet: failed to halt CPU\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int do_erase(void)
+{
+	if (xfer(C_RESET, NULL, 0, 3, FET_RESET_ALL, 0, 0) < 0) {
+		fprintf(stderr, "fet: reset before erase failed\n");
+		return -1;
+	}
+
+	if (xfer(C_CONFIGURE, NULL, 0, 2, 2, 0x26) < 0) {
+		fprintf(stderr, "fet: config (1) failed\n");
+		return -1;
+	}
+
+	if (xfer(C_CONFIGURE, NULL, 0, 2, 5, 0) < 0) {
+		fprintf(stderr, "fet: config (2) failed\n");
+		return -1;
+	}
+
+	if (xfer(C_ERASE, NULL, 0, 3, FET_ERASE_ALL, 0x1000, 0x100) < 0) {
+		fprintf(stderr, "fet: erase command failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int fet_wait(void)
+{
+	for (;;) {
+		/* Without this delay, breakpoints can get lost. */
+		if (usleep(500000) < 0)
+			break;
+
+		if (xfer(C_STATE, NULL, 0, 1, 0) < 0) {
+			fprintf(stderr, "fet: polling failed\n");
+			return -1;
+		}
+
+		if (!(fet_reply.argv[0] & FET_POLL_RUNNING))
+			return 0;
+	}
+
+	return 1;
+}
+
+static int fet_control(device_ctl_t action)
+{
+	switch (action) {
+	case DEVICE_CTL_RESET:
+		return do_reset();
+
+	case DEVICE_CTL_RUN:
+		return do_run(FET_RUN_FREE);
+
+	case DEVICE_CTL_RUN_BP:
+		return do_run(FET_RUN_BREAKPOINT);
+
+	case DEVICE_CTL_HALT:
+		return do_halt();
+
+	case DEVICE_CTL_STEP:
+		if (do_run(FET_RUN_STEP) < 0)
+			return -1;
+		if (fet_wait() < 0)
+			return -1;
+		return 0;
+
+	case DEVICE_CTL_ERASE:
+		return do_erase();
+	}
+
+	return 0;
+}
+
+static int fet_breakpoint(u_int16_t addr)
+{
+	if (xfer(C_BREAKPOINT, NULL, 0, 2, 0, addr) < 0) {
+		fprintf(stderr, "fet: set breakpoint failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int fet_getregs(u_int16_t *regs)
 {
 	int i;
 
 	if (xfer(C_READREGISTERS, NULL, 0, 0) < 0)
 		return -1;
 
-	if (fet_reply.datalen < FET_NUM_REGS * 4) {
-		fprintf(stderr, "fet_get_context: short reply (%d bytes)\n",
+	if (fet_reply.datalen < DEVICE_NUM_REGS * 4) {
+		fprintf(stderr, "fet: short reply (%d bytes)\n",
 			fet_reply.datalen);
 		return -1;
 	}
 
-	for (i = 0; i < FET_NUM_REGS; i++)
+	for (i = 0; i < DEVICE_NUM_REGS; i++)
 		regs[i] = BUFFER_WORD(fet_reply.data, i * 4);
 
 	return 0;
 }
 
-int fet_set_context(u_int16_t *regs)
+static int fet_setregs(const u_int16_t *regs)
 {
-	u_int8_t buf[FET_NUM_REGS * 4];;
+	u_int8_t buf[DEVICE_NUM_REGS * 4];;
 	int i;
 	int ret;
 
 	memset(buf, 0, sizeof(buf));
 
-	for (i = 0; i < FET_NUM_REGS; i++) {
+	for (i = 0; i < DEVICE_NUM_REGS; i++) {
 		buf[i * 4] = regs[i] & 0xff;
 		buf[i * 4 + 1] = regs[i] >> 8;
 	}
@@ -722,14 +759,14 @@ int fet_set_context(u_int16_t *regs)
 			   1, 0xffff);
 
 	if (ret < 0) {
-		fprintf(stderr, "fet_set_context: context set failed\n");
+		fprintf(stderr, "fet: context set failed\n");
 		return -1;
 	}
 
 	return 0;
 }
 
-int fet_read_mem(u_int16_t addr, u_int8_t *buffer, int count)
+int fet_readmem(u_int16_t addr, u_int8_t *buffer, int count)
 {
 	while (count) {
 		int plen = count > 128 ? 128 : count;
@@ -755,7 +792,7 @@ int fet_read_mem(u_int16_t addr, u_int8_t *buffer, int count)
 	return 0;
 }
 
-int fet_write_mem(u_int16_t addr, const u_int8_t *buffer, int count)
+int fet_writemem(u_int16_t addr, const u_int8_t *buffer, int count)
 {
 	while (count) {
 		int plen = count > 128 ? 128 : count;
@@ -769,8 +806,8 @@ int fet_write_mem(u_int16_t addr, const u_int8_t *buffer, int count)
 				   1, addr);
 
 		if (ret < 0) {
-			fprintf(stderr, "fet_write_mem: failed to write "
-				"to 0x%04x\n", addr);
+			fprintf(stderr, "fet: failed to write to 0x%04x\n",
+				addr);
 			return -1;
 		}
 
@@ -782,69 +819,92 @@ int fet_write_mem(u_int16_t addr, const u_int8_t *buffer, int count)
 	return 0;
 }
 
-int fet_erase(int type, u_int16_t addr, int len)
+const static struct device fet_device = {
+	.close		= fet_close,
+	.control	= fet_control,
+	.wait		= fet_wait,
+	.breakpoint	= fet_breakpoint,
+	.getregs	= fet_getregs,
+	.setregs	= fet_setregs,
+	.readmem	= fet_readmem,
+	.writemem	= fet_writemem
+};
+
+const struct device *fet_open(const struct fet_transport *tr,
+			      int proto_flags, int vcc_mv)
 {
-	if (xfer(C_CONFIGURE, NULL, 0, 2, 2, 0x26) < 0) {
-		fprintf(stderr, "fet_erase: config (1) failed\n");
-		return -1;
+	fet_transport = tr;
+	fet_is_rf2500 = proto_flags & FET_PROTO_RF2500;
+	init_codes();
+
+	if (xfer(C_INITIALIZE, NULL, 0, 0) < 0) {
+		fprintf(stderr, "fet: open failed\n");
+		return NULL;
 	}
 
-	if (xfer(C_CONFIGURE, NULL, 0, 2, 5, 0) < 0) {
-		fprintf(stderr, "fet_erase: config (2) failed\n");
-		return -1;
+	fet_version = fet_reply.argv[0];
+	printf("FET protocol version is %d\n", fet_version);
+
+	if (xfer(39, NULL, 0, 1, 4) < 0) {
+		fprintf(stderr, "fet: init failed\n");
+		return NULL;
 	}
 
-	if (xfer(C_ERASE, NULL, 0, 3, type, addr, len) < 0) {
-		fprintf(stderr, "fet_erase: erase command failed\n");
-		return -1;
+	/* configure: Spy-Bi-Wire or JTAG */
+	if (xfer(C_CONFIGURE, NULL, 0,
+		 2, 8, (proto_flags & FET_PROTO_SPYBIWIRE) ? 1 : 0) < 0) {
+		fprintf(stderr, "fet: configure failed\n");
+		return NULL;
 	}
 
-	return 0;
-}
+	printf("Configured for %s\n",
+		(proto_flags & FET_PROTO_SPYBIWIRE) ? "Spy-Bi-Wire" : "JTAG");
 
-int fet_poll(void)
-{
-	/* Without this delay, breakpoints can get lost. */
-	if (usleep(500000) < 0)
-		return -1;
-
-	if (xfer(C_STATE, NULL, 0, 1, 0) < 0) {
-		fprintf(stderr, "fet_poll: polling failed\n");
-		return -1;
+	/* Identify the chip */
+	if (do_identify() < 0) {
+		fprintf(stderr, "fet: identify failed\n");
+		return NULL;
 	}
 
-	return fet_reply.argv[0];
-}
-
-int fet_run(int type)
-{
-	int wr = type & FET_RUN_RELEASE ? 1 : 0;
-
-	type &= ~FET_RUN_RELEASE;
-	if (xfer(C_RUN, NULL, 0, 2, type, wr) < 0) {
-		fprintf(stderr, "fet_run: run failed\n");
-		return -1;
+	/* set VCC */
+	if (xfer(C_VCC, NULL, 0, 2, vcc_mv, 0) < 0) {
+		fprintf(stderr, "fet: set VCC failed\n");
+		return NULL;
 	}
 
-	return 0;
-}
+	printf("Set Vcc: %d mV\n", vcc_mv);
 
-int fet_stop(void)
-{
-	if (xfer(C_STATE, NULL, 0, 1, 1) < 0) {
-		fprintf(stderr, "fet_stop: stop failed\n");
-		return -1;
+	/* I don't know what this is, but it appears to halt the MSP. Without
+	 * it, memory reads return garbage. This is RF2500-specific.
+	 */
+	if (fet_is_rf2500 && xfer(0x28, NULL, 0, 2, 0, 0) < 0) {
+		fprintf(stderr, "fet: command 0x28 failed\n");
+		return NULL;
 	}
 
-	return 0;
-}
+	/* Who knows what this is. Without it, register reads don't work.
+	 * This is RF2500-specific.
+	 */
+	if (fet_is_rf2500) {
+		static const u_int8_t data[] = {
+			0x00, 0x80, 0xff, 0xff, 0x00, 0x00, 0x00, 0x10,
+			0xff, 0x10, 0x40, 0x00, 0x00, 0x02, 0xff, 0x05,
+			0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00,
+			0x01, 0x00, 0xd7, 0x60, 0x00, 0x00, 0x00, 0x00,
+			0x08, 0x07, 0x10, 0x0e, 0xc4, 0x09, 0x70, 0x17,
+			0x58, 0x1b, 0x01, 0x00, 0x03, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+			0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x33, 0x0f, 0x1f, 0x0f,
+			0xff, 0xff
+		};
 
-int fet_break(int which, u_int16_t addr)
-{
-	if (xfer(C_BREAKPOINT, NULL, 0, 2, which, addr) < 0) {
-		fprintf(stderr, "fet_break: set breakpoint failed\n");
-		return -1;
+		if (xfer(0x29, data, sizeof(data), 4, 0, 0x39, 0x31,
+			 sizeof(data)) < 0) {
+			fprintf(stderr, "fet: command 0x29 failed\n");
+			return NULL;
+		}
 	}
 
-	return 0;
+	return &fet_device;
 }

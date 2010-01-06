@@ -25,9 +25,11 @@
 #include <unistd.h>
 
 #include "dis.h"
-#include "fet.h"
+#include "device.h"
 #include "binfile.h"
 #include "stab.h"
+
+static const struct device *msp430_dev;
 
 void hexdump(int addr, const u_int8_t *data, int len)
 {
@@ -93,7 +95,7 @@ char *get_arg(char **text)
 }
 
 #define REG_COLUMNS	4
-#define REG_ROWS	((FET_NUM_REGS + REG_COLUMNS - 1) / REG_COLUMNS)
+#define REG_ROWS	((DEVICE_NUM_REGS + REG_COLUMNS - 1) / REG_COLUMNS)
 
 static void show_regs(u_int16_t *regs)
 {
@@ -106,7 +108,7 @@ static void show_regs(u_int16_t *regs)
 		for (j = 0; j < REG_COLUMNS; j++) {
 			int k = j * REG_ROWS + i;
 
-			if (k < FET_NUM_REGS)
+			if (k < DEVICE_NUM_REGS)
 				printf("(r%02d: %04x)  ", k, regs[k]);
 		}
 		printf("\n");
@@ -154,7 +156,7 @@ static int cmd_md(char **arg)
 		u_int8_t buf[128];
 		int blen = length > sizeof(buf) ? sizeof(buf) : length;
 
-		if (fet_read_mem(offset, buf, blen) < 0)
+		if (msp430_dev->readmem(offset, buf, blen) < 0)
 			return -1;
 		hexdump(offset, buf, blen);
 
@@ -243,7 +245,7 @@ static int cmd_dis(char **arg)
 		return -1;
 	}
 
-	if (fet_read_mem(offset, buf, length) < 0)
+	if (msp430_dev->readmem(offset, buf, length) < 0)
 		return -1;
 
 	disassemble(offset, (u_int8_t *)buf, length);
@@ -252,20 +254,20 @@ static int cmd_dis(char **arg)
 
 static int cmd_reset(char **arg)
 {
-	return fet_reset(FET_RESET_ALL | FET_RESET_HALT);
+	return msp430_dev->control(DEVICE_CTL_RESET);
 }
 
 static int cmd_regs(char **arg)
 {
-	u_int16_t regs[FET_NUM_REGS];
+	u_int16_t regs[DEVICE_NUM_REGS];
 	u_int8_t code[16];
 
-	if (fet_get_context(regs) < 0)
+	if (msp430_dev->getregs(regs) < 0)
 		return -1;
 	show_regs(regs);
 
 	/* Try to disassemble the instruction at PC */
-	if (fet_read_mem(regs[0], code, sizeof(code)) < 0)
+	if (msp430_dev->readmem(regs[0], code, sizeof(code)) < 0)
 		return 0;
 
 	disassemble(regs[0], (u_int8_t *)code, sizeof(code));
@@ -285,26 +287,19 @@ static int cmd_run(char **arg)
 			return -1;
 		}
 
-		fet_break(0, addr);
-	} else {
-		fet_break(0, 0);
+		msp430_dev->breakpoint(addr);
 	}
 
-	if (fet_run(bp_text ? FET_RUN_BREAKPOINT : FET_RUN_FREE) < 0)
+	if (msp430_dev->control(bp_text ?
+		DEVICE_CTL_RUN_BP : DEVICE_CTL_RUN) < 0)
 		return -1;
 
 	printf("Running. Press Ctrl+C to interrupt...");
 	fflush(stdout);
-
-	for (;;) {
-		int r = fet_poll();
-
-		if (r < 0 || !(r & FET_POLL_RUNNING))
-			break;
-	}
-
+	msp430_dev->wait();
 	printf("\n");
-	if (fet_stop() < 0)
+
+	if (msp430_dev->control(DEVICE_CTL_HALT) < 0)
 		return -1;
 
 	return cmd_regs(NULL);
@@ -316,7 +311,7 @@ static int cmd_set(char **arg)
 	char *val_text = get_arg(arg);
 	int reg;
 	int value = 0;
-	u_int16_t regs[FET_NUM_REGS];
+	u_int16_t regs[DEVICE_NUM_REGS];
 
 	if (!(reg_text && val_text)) {
 		fprintf(stderr, "set: must specify a register and a value\n");
@@ -332,15 +327,15 @@ static int cmd_set(char **arg)
 		return -1;
 	}
 
-	if (reg < 0 || reg >= FET_NUM_REGS) {
+	if (reg < 0 || reg >= DEVICE_NUM_REGS) {
 		fprintf(stderr, "set: register out of range: %d\n", reg);
 		return -1;
 	}
 
-	if (fet_get_context(regs) < 0)
+	if (msp430_dev->getregs(regs) < 0)
 		return -1;
 	regs[reg] = value;
-	if (fet_set_context(regs) < 0)
+	if (msp430_dev->setregs(regs) < 0)
 		return -1;
 
 	show_regs(regs);
@@ -349,9 +344,7 @@ static int cmd_set(char **arg)
 
 static int cmd_step(char **arg)
 {
-	if (fet_run(FET_RUN_STEP) < 0)
-		return -1;
-	if (fet_poll() < 0)
+	if (msp430_dev->control(DEVICE_CTL_STEP) < 0)
 		return -1;
 
 	return cmd_regs(NULL);
@@ -383,13 +376,13 @@ static int prog_flush(void)
 
 		if (!prog_have_erased) {
 			printf("Erasing...\n");
-			if (fet_erase(FET_ERASE_ALL, 0x1000, 0x100) < 0)
+			if (msp430_dev->control(DEVICE_CTL_ERASE) < 0)
 				return -1;
 			prog_have_erased = 1;
 		}
 
 		printf("Writing %3d bytes to %04x...\n", wlen, prog_addr);
-		if (fet_write_mem(prog_addr, prog_buf, wlen) < 0)
+		if (msp430_dev->writemem(prog_addr, prog_buf, wlen) < 0)
 		        return -1;
 
 		memmove(prog_buf, prog_buf + wlen, prog_len - wlen);
@@ -442,7 +435,7 @@ static int cmd_prog(char **arg)
 		return -1;
 	}
 
-	if (fet_reset(FET_RESET_ALL | FET_RESET_HALT) < 0) {
+	if (msp430_dev->control(DEVICE_CTL_HALT) < 0) {
 		fclose(in);
 		return -1;
 	}
@@ -711,7 +704,8 @@ int main(int argc, char **argv)
 	/* Then initialize the device */
 	if (!want_jtag)
 		flags |= FET_PROTO_SPYBIWIRE;
-	if (fet_open(trans, flags, 3000) < 0)
+	msp430_dev = fet_open(trans, flags, 3000);
+	if (!msp430_dev)
 		return -1;
 
 	if (optind < argc) {
@@ -721,8 +715,6 @@ int main(int argc, char **argv)
 		reader_loop();
 	}
 
-	fet_run(FET_RUN_FREE | FET_RUN_RELEASE);
-	fet_close();
-
+	msp430_dev->close();
 	return 0;
 }
