@@ -194,7 +194,7 @@ static void disassemble(u_int16_t offset, u_int8_t *data, int length)
 		for (i = 0; i < count; i++)
 			printf(" %02x", data[i]);
 
-		while (i < 8) {
+		while (i < 7) {
 			printf("   ");
 			i++;
 		}
@@ -220,7 +220,7 @@ static int cmd_dis(char **arg)
 	char *len_text = get_arg(arg);
 	int offset = 0;
 	int length = 0x40;
-	u_int8_t buf[128];
+	u_int8_t buf[512];
 
 	if (!off_text) {
 		fprintf(stderr, "md: offset must be specified\n");
