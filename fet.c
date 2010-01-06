@@ -860,12 +860,6 @@ const struct device *fet_open(const struct fet_transport *tr,
 	printf("Configured for %s\n",
 		(proto_flags & FET_PROTO_SPYBIWIRE) ? "Spy-Bi-Wire" : "JTAG");
 
-	/* Identify the chip */
-	if (do_identify() < 0) {
-		fprintf(stderr, "fet: identify failed\n");
-		return NULL;
-	}
-
 	/* set VCC */
 	if (xfer(C_VCC, NULL, 0, 2, vcc_mv, 0) < 0) {
 		fprintf(stderr, "fet: set VCC failed\n");
@@ -873,6 +867,12 @@ const struct device *fet_open(const struct fet_transport *tr,
 	}
 
 	printf("Set Vcc: %d mV\n", vcc_mv);
+
+	/* Identify the chip */
+	if (do_identify() < 0) {
+		fprintf(stderr, "fet: identify failed\n");
+		return NULL;
+	}
 
 	/* I don't know what this is, but it appears to halt the MSP. Without
 	 * it, memory reads return garbage. This is RF2500-specific.
