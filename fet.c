@@ -574,7 +574,7 @@ static int do_identify(void)
 		return 0;
 	}
 
-	if (xfer(40, NULL, 0, 2, 0, 0) < 0)
+	if (xfer(0x28, NULL, 0, 2, 0, 0) < 0)
 		return -1;
 
 	if (!fet_reply.data) {
@@ -861,7 +861,7 @@ const struct device *fet_open(const struct fet_transport *tr,
 		(proto_flags & FET_PROTO_SPYBIWIRE) ? "Spy-Bi-Wire" : "JTAG");
 
 	/* set VCC */
-	if (xfer(C_VCC, NULL, 0, 2, vcc_mv, 0) < 0) {
+	if (xfer(C_VCC, NULL, 0, 1, vcc_mv) < 0) {
 		fprintf(stderr, "fet: set VCC failed\n");
 		return NULL;
 	}
@@ -871,14 +871,6 @@ const struct device *fet_open(const struct fet_transport *tr,
 	/* Identify the chip */
 	if (do_identify() < 0) {
 		fprintf(stderr, "fet: identify failed\n");
-		return NULL;
-	}
-
-	/* I don't know what this is, but it appears to halt the MSP. Without
-	 * it, memory reads return garbage. This is RF2500-specific.
-	 */
-	if (fet_is_rf2500 && xfer(0x28, NULL, 0, 2, 0, 0) < 0) {
-		fprintf(stderr, "fet: command 0x28 failed\n");
 		return NULL;
 	}
 
