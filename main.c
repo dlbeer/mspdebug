@@ -616,7 +616,7 @@ static void reader_loop(void)
 static void usage(const char *progname)
 {
 	fprintf(stderr,
-"Usage: %s [-u device] [-j] [-v voltage] [command ...]\n"
+"Usage: %s [-u device] [-j] [-B] [-v voltage] [command ...]\n"
 "\n"
 "    -u device\n"
 "        Open the given tty device (MSP430 UIF compatible devices).\n"
@@ -624,6 +624,8 @@ static void usage(const char *progname)
 "        Use JTAG, rather than spy-bi-wire (UIF devices only).\n"
 "    -v voltage\n"
 "        Set the supply voltage, in millivolts.\n"
+"    -B\n"
+"        Debug the FET itself through the bootloader.\n"
 "\n"
 "By default, the first RF2500 device on the USB bus is opened.\n"
 "\n"
@@ -639,6 +641,7 @@ int main(int argc, char **argv)
 	int opt;
 	int flags = 0;
 	int want_jtag = 0;
+	int want_bootloader = 0;
 	int vcc_mv = 3000;
 
 	puts(
@@ -647,7 +650,7 @@ int main(int argc, char **argv)
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
 
-	while ((opt = getopt(argc, argv, "u:jv:")) >= 0)
+	while ((opt = getopt(argc, argv, "u:jv:B")) >= 0)
 		switch (opt) {
 		case 'u':
 			uif_device = optarg;
@@ -659,6 +662,10 @@ int main(int argc, char **argv)
 
 		case 'j':
 			want_jtag = 1;
+			break;
+
+		case 'B':
+			want_bootloader = 1;
 			break;
 
 		default:
@@ -679,10 +686,14 @@ int main(int argc, char **argv)
 	/* Then initialize the device */
 	if (!want_jtag)
 		flags |= FET_PROTO_SPYBIWIRE;
-	msp430_dev = fet_open(trans, flags, vcc_mv);
+	if (want_bootloader)
+		msp430_dev = fet_open_bl(trans);
+	else
+		msp430_dev = fet_open(trans, flags, vcc_mv);
 	if (!msp430_dev)
 		return -1;
 
+	/* Process commands */
 	if (optind < argc) {
 		while (optind < argc)
 			process_command(argv[optind++]);

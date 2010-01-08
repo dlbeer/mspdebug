@@ -127,12 +127,14 @@ static u_int8_t usbtr_buf[64];
 static int usbtr_len;
 static int usbtr_offset;
 
-static void usbtr_flush(void)
+static int usbtr_flush(void)
 {
 	char buf[64];
 
 	while (usb_bulk_read(usbtr_handle, USB_FET_IN_EP,
 			buf, sizeof(buf), 100) >= 0);
+
+	return 0;
 }
 
 static int usbtr_recv(u_int8_t *databuf, int max_len)
@@ -174,6 +176,7 @@ static void usbtr_close(void)
 }
 
 static const struct fet_transport usbtr_transport = {
+	.flush = usbtr_flush,
 	.send = usbtr_send,
 	.recv = usbtr_recv,
 	.close = usbtr_close

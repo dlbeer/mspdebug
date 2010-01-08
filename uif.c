@@ -61,22 +61,41 @@ static int serial_send(const u_int8_t *data, int len)
 
 static int serial_recv(u_int8_t *data, int max_len)
 {
-	int len;
+	int r;
 
 	assert (serial_fd >= 0);
 
-	len = read(serial_fd, data, max_len);
+	do {
+		struct timeval tv = {
+			.tv_sec = 5,
+			.tv_usec = 0
+		};
 
-	if (len < 0) {
-		perror("serial_recv");
-		return -1;
-	}
+		fd_set set;
+
+		FD_ZERO(&set);
+		FD_SET(serial_fd, &set);
+
+		r = select(serial_fd + 1, &set, NULL, NULL, &tv);
+		if (r > 0)
+			r = read(serial_fd, data, max_len);
+
+		if (r < 0 && errno != EINTR) {
+			perror("bls: read error");
+			return -1;
+		}
+
+		if (!r) {
+			fprintf(stderr, "bls: read timeout\n");
+			return -1;
+		}
+	} while (r <= 0);
 
 #ifdef DEBUG_SERIAL
 	puts("Serial transfer in:");
-	hexdump(0, data, len);
+	hexdump(0, data, r);
 #endif
-	return len;
+	return r;
 }
 
 static void serial_close(void)
@@ -86,7 +105,18 @@ static void serial_close(void)
 	close(serial_fd);
 }
 
+static int serial_flush(void)
+{
+	if (tcflush(serial_fd, TCIFLUSH) < 0) {
+		perror("uif: tcflush");
+		return -1;
+	}
+
+	return 0;
+}
+
 static const struct fet_transport serial_transport = {
+	.flush = serial_flush,
 	.send = serial_send,
 	.recv = serial_recv,
 	.close = serial_close
@@ -100,7 +130,7 @@ const struct fet_transport *uif_open(const char *device)
 
 	serial_fd = open(device, O_RDWR | O_NOCTTY);
 	if (serial_fd < 0) {
-		fprintf(stderr, "uif_open: open: %s: %s\n",
+		fprintf(stderr, "uif: open: %s: %s\n",
 			device, strerror(errno));
 		return NULL;
 	}
@@ -109,7 +139,7 @@ const struct fet_transport *uif_open(const char *device)
 	cfmakeraw(&attr);
 	cfsetspeed(&attr, B460800);
 	if (tcsetattr(serial_fd, TCSAFLUSH, &attr) < 0) {
-		fprintf(stderr, "uif_open: tcsetattr: %s: %s\n",
+		fprintf(stderr, "uif: tcsetattr: %s: %s\n",
 			device, strerror(errno));
 		return NULL;
 	}

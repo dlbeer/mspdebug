@@ -27,6 +27,7 @@
  * high-level functions.
  */
 struct fet_transport {
+	int (*flush)(void);
 	int (*send)(const u_int8_t *data, int len);
 	int (*recv)(u_int8_t *data, int max_len);
 	void (*close)(void);
