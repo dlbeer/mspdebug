@@ -56,9 +56,10 @@ static struct {
 } id_table[] = {
 	{0xF249,	"MSP430F249"},
 	{0xF149,	"MSP430F149"},
-	{0xF16C,	"MSP430F1611"},
+	{0xF16C,	"MSP430F1612"},
 	{0xF227,	"MSP430F2274"},
-	{0xF201,	"MSP430F20x3"}
+	{0xF201,	"MSP430F20x3"},
+	{0xF413,	"MSP430F41x"}
 };
 
 void print_devid(u_int16_t id)
