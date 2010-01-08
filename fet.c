@@ -505,55 +505,8 @@ static int xfer(int command_code, const u_int8_t *data, int datalen,
 
 static int fet_version;
 
-/* Reply data taken from uif430 */
-#define ID_REPLY_LEN	18
-
-static const struct {
-	const u_int8_t	reply[ID_REPLY_LEN];
-	const char	*idtext;
-} id_table[] = {
-	{
-		.reply = {0xF2, 0x49, 0x02, 0x60, 0x00, 0x00, 0x00, 0x00,
-			  0x00, 0x00, 0x02, 0x02, 0x01, 0x00, 0xF3, 0x2B,
-			  0x80, 0x00},
-		.idtext = "MSP430F249"
-	},
-	{
-		.reply = {0xF1, 0x49, 0x00, 0x43, 0x00, 0x00, 0x00, 0x00,
-			  0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0xF0, 0x1A,
-			  0x10, 0x00},
-		.idtext = "MSP430F149"
-	},
-	{
-		.reply = {0xF1, 0x6C, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00,
-			  0x00, 0x00, 0x01, 0x61, 0x01, 0x00, 0xD1, 0x4D,
-			  0x80, 0x00},
-		.idtext = "MSP430F1611"
-	},
-	{
-		.reply = {0xf2, 0x27, 0x40, 0x40, 0x00, 0x00, 0x00, 0x00,
-			  0x00, 0x00, 0x02, 0x01, 0x01, 0x04, 0xb1, 0x62,
-			  0x80, 0x00},
-		.idtext = "MSP430F2274"
-	},
-	{
-		.reply = {0xf2, 0x27, 0x41, 0x40, 0x00, 0x00, 0x00, 0x00,
-			  0x00, 0x00, 0x02, 0x01, 0x01, 0x04, 0xb1, 0x61,
-			  0x80, 0x00},
-		.idtext = "MSP430F2274"
-	},
-	{
-		.reply = {0xf2, 0x01, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00,
-			  0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00,
-			  0x00, 0x00},
-		.idtext = "MSP430F20x3"
-	}
-};
-
 static int do_identify(void)
 {
-	int i;
-
 	if (fet_version < 20300000) {
 		char idtext[64];
 
@@ -561,34 +514,25 @@ static int do_identify(void)
 			return -1;
 
 		if (!fet_reply.data) {
-			fprintf(stderr, "do_indentify: missing info\n");
+			fprintf(stderr, "fet: missing info\n");
 			return -1;
 		}
 
 		memcpy(idtext, fet_reply.data + 4, 32);
 		idtext[32] = 0;
-		printf("Device is %s\n", idtext);
+		printf("Device: %s\n", idtext);
 		return 0;
 	}
 
 	if (xfer(0x28, NULL, 0, 2, 0, 0) < 0)
 		return -1;
 
-	if (!fet_reply.data) {
-		fprintf(stderr, "do_indentify: missing info\n");
+	if (fet_reply.datalen < 2) {
+		fprintf(stderr, "fet: missing info\n");
 		return -1;
 	}
 
-	if (fet_reply.datalen >= ID_REPLY_LEN)
-		for (i = 0; i < ARRAY_LEN(id_table); i++)
-			if (!memcmp(id_table[i].reply, fet_reply.data,
-				    ID_REPLY_LEN)) {
-				printf("Device is %s\n", id_table[i].idtext);
-				return 0;
-			}
-
-	printf("warning: unknown device data:\n");
-	hexdump(0, fet_reply.data, fet_reply.datalen);
+	print_devid((fet_reply.data[0] << 8) | fet_reply.data[1]);
 	return 0;
 }
 

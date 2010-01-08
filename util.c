@@ -49,3 +49,27 @@ void hexdump(int addr, const u_int8_t *data, int len)
 		offset += i;
 	}
 }
+
+static struct {
+	u_int16_t	id;
+	const char	*id_text;
+} id_table[] = {
+	{0xF249,	"MSP430F249"},
+	{0xF149,	"MSP430F149"},
+	{0xF16C,	"MSP430F1611"},
+	{0xF227,	"MSP430F2274"},
+	{0xF201,	"MSP430F20x3"}
+};
+
+void print_devid(u_int16_t id)
+{
+	int i = 0;
+
+	while (i < ARRAY_LEN(id_table) && id_table[i].id != id)
+		i++;
+
+	if (i < ARRAY_LEN(id_table))
+		printf("Device: %s\n", id_table[i].id_text);
+	else
+		printf("Unknown device ID: 0x%04x\n", id);
+}

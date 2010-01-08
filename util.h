@@ -25,4 +25,6 @@ void hexdump(int addr, const u_int8_t *data, int len);
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
+void print_devid(const u_int16_t id);
+
 #endif

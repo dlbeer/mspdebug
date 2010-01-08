@@ -81,12 +81,12 @@ static int serial_recv(u_int8_t *data, int max_len)
 			r = read(serial_fd, data, max_len);
 
 		if (r < 0 && errno != EINTR) {
-			perror("bls: read error");
+			perror("uif: read error");
 			return -1;
 		}
 
 		if (!r) {
-			fprintf(stderr, "bls: read timeout\n");
+			fprintf(stderr, "uif: read timeout\n");
 			return -1;
 		}
 	} while (r <= 0);

@@ -26,6 +26,7 @@
 #include <unistd.h>
 
 #include "device.h"
+#include "util.h"
 
 static const struct fet_transport *trans;
 
@@ -293,7 +294,26 @@ const struct device *fet_open_bl(const struct fet_transport *tr)
 		return NULL;
 	}
 
+	if (memcmp(buf, "\x06\x00\x24\x00\x00\x00\x61\x01", 8)) {
+		fprintf(stderr, "bsl: bootloader start returned error %d\n",
+			buf[5]);
+		return NULL;
+	}
+
 	usleep(500000);
 
+	/* Show chip info */
+	if (bsl_xfer(CMD_TX_DATA, 0xff0, NULL, 0x10) < 0) {
+		fprintf(stderr, "bsl: failed to read chip info\n");
+		return NULL;
+	}
+
+	if (reply_len < 0x16) {
+		fprintf(stderr, "bsl: missing chip info\n");
+		return NULL;
+	}
+
+	print_devid((reply_buf[4] << 8) | reply_buf[5]);
+	printf("BSL version is %d.%02d\n", reply_buf[16], reply_buf[17]);
 	return &bsl_device;
 }
