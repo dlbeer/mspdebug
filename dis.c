@@ -22,6 +22,7 @@
 
 #include "dis.h"
 #include "stab.h"
+#include "util.h"
 
 /**********************************************************************/
 /* Disassembler
@@ -428,8 +429,6 @@ int dis_decode(u_int8_t *code, u_int16_t offset, u_int16_t len,
 	insn->len = ret;
 	return ret;
 }
-
-#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 /* Return the mnemonic for an operation, if possible.
  *

@@ -28,40 +28,9 @@
 #include "device.h"
 #include "binfile.h"
 #include "stab.h"
+#include "util.h"
 
 static const struct device *msp430_dev;
-
-void hexdump(int addr, const u_int8_t *data, int len)
-{
-	int offset = 0;
-
-	while (offset < len) {
-		int i, j;
-
-		/* Address label */
-		printf("    %04x:", offset + addr);
-
-		/* Hex portion */
-		for (i = 0; i < 16 && offset + i < len; i++)
-			printf(" %02x",
-				((const unsigned char *)data)[offset + i]);
-		for (j = i; j < 16; j++)
-			printf("   ");
-
-		/* Printable characters */
-		printf(" |");
-		for (j = 0; j < i; j++) {
-			int c = ((const unsigned char *)data)[offset + j];
-
-			printf("%c", (c >= 32 && c <= 126) ? c : '.');
-		}
-		for (; j < 16; j++)
-			printf(" ");
-		printf("|\n");
-
-		offset += i;
-	}
-}
 
 /**********************************************************************
  * Command-line interface
@@ -551,13 +520,11 @@ static const struct command all_commands[] = {
 "    Load symbols from the given file.\n"},
 };
 
-#define NUM_COMMANDS (sizeof(all_commands) / sizeof(all_commands[0]))
-
 const struct command *find_command(const char *name)
 {
 	int i;
 
-	for (i = 0; i < NUM_COMMANDS; i++)
+	for (i = 0; i < ARRAY_LEN(all_commands); i++)
 		if (!strcasecmp(name, all_commands[i].name))
 			return &all_commands[i];
 
@@ -581,7 +548,7 @@ static int cmd_help(char **arg)
 		int i;
 
 		printf("Available commands:");
-		for (i = 0; i < NUM_COMMANDS; i++)
+		for (i = 0; i < ARRAY_LEN(all_commands); i++)
 			printf(" %s", all_commands[i].name);
 		printf("\n");
 		printf("Type \"help <command>\" for more information.\n");

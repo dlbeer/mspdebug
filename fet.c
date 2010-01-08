@@ -26,9 +26,8 @@
 #include <assert.h>
 #include <unistd.h>
 
+#include "util.h"
 #include "device.h"
-
-#define ARRAY_LEN(a) ((sizeof(a)) / sizeof((a)[0]))
 
 static const struct fet_transport *fet_transport;
 static int fet_is_rf2500;
@@ -550,8 +549,6 @@ static const struct {
 		.idtext = "MSP430F20x3"
 	}
 };
-
-extern void hexdump(int addr, const u_int8_t *data, int len);
 
 static int do_identify(void)
 {

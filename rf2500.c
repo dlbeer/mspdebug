@@ -21,8 +21,7 @@
 #include <usb.h>
 
 #include "transport.h"
-
-extern void hexdump(int addr, const u_int8_t *data, int len);
+#include "util.h"
 
 /*********************************************************************
  * USB transport

@@ -27,8 +27,7 @@
 #include <unistd.h>
 
 #include "transport.h"
-
-extern void hexdump(int addr, const u_int8_t *data, int len);
+#include "util.h"
 
 static int serial_fd = -1;
 
