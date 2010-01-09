@@ -54,4 +54,7 @@ const struct device *fet_open(const struct fet_transport *transport,
 /* MSP430 FET Bootloader implementation. */
 const struct device *fet_open_bl(const struct fet_transport *transport);
 
+/* Dummy/simulation implementation. */
+const struct device *sim_open(void);
+
 #endif

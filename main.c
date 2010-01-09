@@ -616,7 +616,7 @@ static void reader_loop(void)
 static void usage(const char *progname)
 {
 	fprintf(stderr,
-"Usage: %s [-u device] [-j] [-B] [-v voltage] [command ...]\n"
+"Usage: %s [-u device] [-j] [-B] [-s] [-v voltage] [command ...]\n"
 "\n"
 "    -u device\n"
 "        Open the given tty device (MSP430 UIF compatible devices).\n"
@@ -626,6 +626,8 @@ static void usage(const char *progname)
 "        Set the supply voltage, in millivolts.\n"
 "    -B\n"
 "        Debug the FET itself through the bootloader.\n"
+"    -s\n"
+"        Start in simulation mode (only memory IO is allowed).\n"
 "\n"
 "By default, the first RF2500 device on the USB bus is opened.\n"
 "\n"
@@ -642,6 +644,7 @@ int main(int argc, char **argv)
 	int flags = 0;
 	int want_jtag = 0;
 	int want_bootloader = 0;
+	int want_sim = 0;
 	int vcc_mv = 3000;
 
 	puts(
@@ -650,7 +653,8 @@ int main(int argc, char **argv)
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
 
-	while ((opt = getopt(argc, argv, "u:jv:B")) >= 0)
+	/* Parse arguments */
+	while ((opt = getopt(argc, argv, "u:jv:Bs")) >= 0)
 		switch (opt) {
 		case 'u':
 			uif_device = optarg;
@@ -668,28 +672,38 @@ int main(int argc, char **argv)
 			want_bootloader = 1;
 			break;
 
+		case 's':
+			want_sim = 1;
+			break;
+
 		default:
 			usage(argv[0]);
 			return -1;
 		}
 
-	/* Open the appropriate transport */
-	if (uif_device)
-		trans = uif_open(uif_device);
-	else {
-		trans = rf2500_open();
-		flags |= FET_PROTO_RF2500;
-	}
-	if (!trans)
-		return -1;
+	/* Open a device */
+	if (want_sim) {
+		msp430_dev = sim_open();
+	} else {
+		/* Open the appropriate transport */
+		if (uif_device)
+			trans = uif_open(uif_device);
+		else {
+			trans = rf2500_open();
+			flags |= FET_PROTO_RF2500;
+		}
+		if (!trans)
+			return -1;
 
-	/* Then initialize the device */
-	if (!want_jtag)
-		flags |= FET_PROTO_SPYBIWIRE;
-	if (want_bootloader)
-		msp430_dev = fet_open_bl(trans);
-	else
-		msp430_dev = fet_open(trans, flags, vcc_mv);
+		/* Then initialize the device */
+		if (!want_jtag)
+			flags |= FET_PROTO_SPYBIWIRE;
+		if (want_bootloader)
+			msp430_dev = fet_open_bl(trans);
+		else
+			msp430_dev = fet_open(trans, flags, vcc_mv);
+	}
+
 	if (!msp430_dev)
 		return -1;
 
