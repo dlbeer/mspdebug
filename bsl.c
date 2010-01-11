@@ -28,22 +28,7 @@
 #include "device.h"
 #include "util.h"
 
-static const struct fet_transport *trans;
-
-static int bufio_get_bytes(u_int8_t *data, int len)
-{
-	while (len) {
-		int r = trans->recv(data, len);
-
-		if (r < 0)
-			return -1;
-
-		data += r;
-		len -= r;
-	}
-
-	return 0;
-}
+static int serial_fd;
 
 #define DATA_HDR	0x80
 #define DATA_ACK	0x90
@@ -53,7 +38,7 @@ static int bsl_ack(void)
 {
 	u_int8_t reply;
 
-	if (trans->recv(&reply, 1) < 0) {
+	if (read_with_timeout(serial_fd, &reply, 1) < 0) {
 		fprintf(stderr, "bsl: failed to receive reply\n");
 		return -1;
 	}
@@ -76,10 +61,13 @@ static int bsl_sync(void)
 	static const u_int8_t c = DATA_HDR;
 	int tries = 2;
 
-	trans->flush();
+	if (tcflush(serial_fd, TCIFLUSH) < 0) {
+		perror("bsl: tcflush");
+		return -1;
+	}
 
 	while (tries--)
-		if (!trans->send(&c, 1) && !bsl_ack())
+		if (!(write_all(serial_fd, &c, 1) || bsl_ack()))
 			return 0;
 
 	fprintf(stderr, "bsl: sync failed\n");
@@ -120,7 +108,7 @@ static int send_command(int code, u_int16_t addr,
 	pktbuf[pktlen + 4] = cklow;
 	pktbuf[pktlen + 5] = ckhigh;
 
-	return trans->send(pktbuf, pktlen + 6);
+	return write_all(serial_fd, pktbuf, pktlen + 6);
 }
 
 static u_int8_t reply_buf[256];
@@ -152,7 +140,7 @@ static int fetch_reply(void)
 	reply_len = 0;
 
 	for (;;) {
-		int r = trans->recv(reply_buf + reply_len,
+		int r = read_with_timeout(serial_fd, reply_buf + reply_len,
 				sizeof(reply_buf) - reply_len);
 
 		if (r < 0)
@@ -204,11 +192,8 @@ static int bsl_xfer(int command_code, u_int16_t addr, const u_int8_t *txdata,
 
 static void bsl_close(void)
 {
-	if (trans) {
-		bsl_xfer(CMD_RESET, 0, NULL, 0);
-		trans->close();
-		trans = NULL;
-	}
+	bsl_xfer(CMD_RESET, 0, NULL, 0);
+	close(serial_fd);
 }
 
 static int bsl_control(device_ctl_t type)
@@ -281,24 +266,56 @@ const static struct device bsl_device = {
 	.readmem	= bsl_readmem
 };
 
-const struct device *fet_open_bl(const struct fet_transport *tr)
+#include <sys/ioctl.h>
+
+static int enter_via_fet(void)
 {
 	u_int8_t buf[16];
-
-	trans = tr;
+	u_int8_t *data = buf;
+	int len = 8;
 
 	/* Enter bootloader command */
-	if (trans->send((u_int8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6) < 0 ||
-	    bufio_get_bytes(buf, 8) < 0) {
-		fprintf(stderr, "bsl: failed to init bootloader\n");
-		return NULL;
+	if (write_all(serial_fd, (u_int8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6)) {
+		fprintf(stderr, "bsl: couldn't write bootloader transition "
+			"command\n");
+		return -1;
 	}
 
+	/* Wait for reply */
+	while (len) {
+		int r = read_with_timeout(serial_fd, data, len);
+
+		if (r < 0) {
+			fprintf(stderr, "bsl: couldn't read bootloader "
+				"transition acknowledgement\n");
+			return -1;
+		}
+
+	        data += r;
+		len -= r;
+	}
+
+	/* Check that it's what we expect */
 	if (memcmp(buf, "\x06\x00\x24\x00\x00\x00\x61\x01", 8)) {
 		fprintf(stderr, "bsl: bootloader start returned error %d\n",
 			buf[5]);
+		return -1;
+	}
+
+	return 0;
+}
+
+const struct device *bsl_open(const char *device)
+{
+	serial_fd = open_serial(device, B460800);
+	if (serial_fd < 0) {
+		fprintf(stderr, "bsl: can't open %s: %s\n",
+			device, strerror(errno));
 		return NULL;
 	}
+
+	if (enter_via_fet() < 0)
+		return NULL;
 
 	usleep(500000);
 

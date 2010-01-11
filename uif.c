@@ -21,10 +21,8 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
 #include <unistd.h>
+#include <termios.h>
 
 #include "transport.h"
 #include "util.h"
@@ -33,8 +31,6 @@ static int serial_fd = -1;
 
 static int serial_send(const u_int8_t *data, int len)
 {
-	int result;
-
 	assert (serial_fd >= 0);
 
 #ifdef DEBUG_SERIAL
@@ -42,18 +38,9 @@ static int serial_send(const u_int8_t *data, int len)
 	hexdump(0, data, len);
 #endif
 
-	while (len) {
-		result = write(serial_fd, data, len);
-		if (result < 0) {
-			if (errno == EINTR)
-				continue;
-
-			perror("serial_send");
-			return -1;
-		}
-
-		data += result;
-		len -= result;
+	if (write_all(serial_fd, data, len) < 0) {
+		perror("uif: write error");
+		return -1;
 	}
 
 	return 0;
@@ -65,31 +52,11 @@ static int serial_recv(u_int8_t *data, int max_len)
 
 	assert (serial_fd >= 0);
 
-	do {
-		struct timeval tv = {
-			.tv_sec = 5,
-			.tv_usec = 0
-		};
-
-		fd_set set;
-
-		FD_ZERO(&set);
-		FD_SET(serial_fd, &set);
-
-		r = select(serial_fd + 1, &set, NULL, NULL, &tv);
-		if (r > 0)
-			r = read(serial_fd, data, max_len);
-
-		if (r < 0 && errno != EINTR) {
-			perror("uif: read error");
-			return -1;
-		}
-
-		if (!r) {
-			fprintf(stderr, "uif: read timeout\n");
-			return -1;
-		}
-	} while (r <= 0);
+	r = read_with_timeout(serial_fd, data, max_len);
+	if (r < 0) {
+		perror("uif: read error");
+		return -1;
+	}
 
 #ifdef DEBUG_SERIAL
 	puts("Serial transfer in:");
@@ -124,22 +91,11 @@ static const struct fet_transport serial_transport = {
 
 const struct fet_transport *uif_open(const char *device)
 {
-	struct termios attr;
-
 	printf("Trying to open UIF on %s...\n", device);
 
-	serial_fd = open(device, O_RDWR | O_NOCTTY);
+	serial_fd = open_serial(device, B460800);
 	if (serial_fd < 0) {
-		fprintf(stderr, "uif: open: %s: %s\n",
-			device, strerror(errno));
-		return NULL;
-	}
-
-	tcgetattr(serial_fd, &attr);
-	cfmakeraw(&attr);
-	cfsetspeed(&attr, B460800);
-	if (tcsetattr(serial_fd, TCSAFLUSH, &attr) < 0) {
-		fprintf(stderr, "uif: tcsetattr: %s: %s\n",
+		fprintf(stderr, "uif: can't open serial device: %s: %s\n",
 			device, strerror(errno));
 		return NULL;
 	}

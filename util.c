@@ -17,6 +17,11 @@
  */
 
 #include <stdio.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <unistd.h>
+#include <errno.h>
 #include "util.h"
 
 void hexdump(int addr, const u_int8_t *data, int len)
@@ -73,4 +78,65 @@ void print_devid(u_int16_t id)
 		printf("Device: %s\n", id_table[i].id_text);
 	else
 		printf("Unknown device ID: 0x%04x\n", id);
+}
+
+int read_with_timeout(int fd, u_int8_t *data, int max_len)
+{
+	int r;
+
+	do {
+		struct timeval tv = {
+			.tv_sec = 5,
+			.tv_usec = 0
+		};
+
+		fd_set set;
+
+		FD_ZERO(&set);
+		FD_SET(fd, &set);
+
+		r = select(fd + 1, &set, NULL, NULL, &tv);
+		if (r > 0)
+			r = read(fd, data, max_len);
+
+		if (!r)
+			errno = ETIMEDOUT;
+		if (r <= 0 && errno != EINTR)
+			return -1;
+	} while (r <= 0);
+
+	return r;
+}
+
+int write_all(int fd, const u_int8_t *data, int len)
+{
+	while (len) {
+		int result = write(fd, data, len);
+
+		if (result < 0) {
+			if (errno == EINTR)
+				continue;
+			return -1;
+		}
+
+		data += result;
+		len -= result;
+	}
+
+	return 0;
+}
+
+int open_serial(const char *device, int rate)
+{
+	int fd = open(device, O_RDWR | O_NOCTTY);
+	struct termios attr;
+
+	tcgetattr(fd, &attr);
+	cfmakeraw(&attr);
+	cfsetspeed(&attr, rate);
+
+	if (tcsetattr(fd, TCSAFLUSH, &attr) < 0)
+		return -1;
+
+	return fd;
 }

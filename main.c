@@ -624,7 +624,7 @@ static void usage(const char *progname)
 "        Use JTAG, rather than spy-bi-wire (UIF devices only).\n"
 "    -v voltage\n"
 "        Set the supply voltage, in millivolts.\n"
-"    -B\n"
+"    -B device\n"
 "        Debug the FET itself through the bootloader.\n"
 "    -s\n"
 "        Start in simulation mode (only memory IO is allowed).\n"
@@ -640,10 +640,10 @@ int main(int argc, char **argv)
 {
 	const struct fet_transport *trans;
 	const char *uif_device = NULL;
+	const char *bsl_device = NULL;
 	int opt;
 	int flags = 0;
 	int want_jtag = 0;
-	int want_bootloader = 0;
 	int want_sim = 0;
 	int vcc_mv = 3000;
 
@@ -654,7 +654,7 @@ int main(int argc, char **argv)
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
 
 	/* Parse arguments */
-	while ((opt = getopt(argc, argv, "u:jv:Bs")) >= 0)
+	while ((opt = getopt(argc, argv, "u:jv:B:s")) >= 0)
 		switch (opt) {
 		case 'u':
 			uif_device = optarg;
@@ -669,7 +669,7 @@ int main(int argc, char **argv)
 			break;
 
 		case 'B':
-			want_bootloader = 1;
+			bsl_device = optarg;
 			break;
 
 		case 's':
@@ -684,22 +684,23 @@ int main(int argc, char **argv)
 	/* Open a device */
 	if (want_sim) {
 		msp430_dev = sim_open();
+	} else if (bsl_device) {
+		msp430_dev = bsl_open(bsl_device);
 	} else {
 		/* Open the appropriate transport */
-		if (uif_device)
+		if (uif_device) {
 			trans = uif_open(uif_device);
-		else {
+		} else {
 			trans = rf2500_open();
 			flags |= FET_PROTO_RF2500;
 		}
+
 		if (!trans)
 			return -1;
 
 		/* Then initialize the device */
 		if (!want_jtag)
 			flags |= FET_PROTO_SPYBIWIRE;
-		if (want_bootloader)
-			msp430_dev = fet_open_bl(trans);
 		else
 			msp430_dev = fet_open(trans, flags, vcc_mv);
 	}
