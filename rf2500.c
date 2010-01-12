@@ -52,16 +52,16 @@ static int usbtr_open_interface(struct usb_device *dev, int ino)
 
 	usbtr_handle = usb_open(dev);
 	if (!usbtr_handle) {
-		perror("usbtr_open_interface: can't open device");
+		perror("rf2500: can't open device");
 		return -1;
 	}
 
 	if (usb_detach_kernel_driver_np(usbtr_handle, usbtr_int_number) < 0)
-		perror("usbtr_open_interface: warning: can't "
+		perror("rf2500: warning: can't "
 			"detach kernel driver");
 
 	if (usb_claim_interface(usbtr_handle, usbtr_int_number) < 0) {
-		perror("usbtr_open_interface: can't claim interface");
+		perror("rf2500: can't claim interface");
 		usb_close(usbtr_handle);
 		return -1;
 	}
@@ -112,7 +112,7 @@ static int usbtr_send(const u_int8_t *data, int len)
 #endif
 		if (usb_bulk_write(usbtr_handle, USB_FET_OUT_EP,
 			(const char *)pbuf, txlen, 10000) < 0) {
-			perror("usbtr_send");
+			perror("rf2500: can't send data");
 			return -1;
 		}
 
@@ -145,7 +145,7 @@ static int usbtr_recv(u_int8_t *databuf, int max_len)
 		if (usb_bulk_read(usbtr_handle, USB_FET_IN_EP,
 				(char *)usbtr_buf, sizeof(usbtr_buf),
 				10000) < 0) {
-			perror("usbtr_recv");
+			perror("rf2500: can't receive data");
 			return -1;
 		}
 
@@ -203,6 +203,6 @@ const struct fet_transport *rf2500_open(void)
 		}
 	}
 
-	fprintf(stderr, "usbtr_open: no devices could be found\n");
+	fprintf(stderr, "rf2500: no devices could be found\n");
 	return NULL;
 }

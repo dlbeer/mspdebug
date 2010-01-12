@@ -570,7 +570,7 @@ static int cmd_eval(char **arg)
 	const char *name;
 
 	if (stab_parse(*arg, &addr) < 0) {
-		fprintf(stderr, "eval: can't parse: %s\n", *arg);
+		fprintf(stderr, "=: can't parse: %s\n", *arg);
 		return -1;
 	}
 
@@ -601,7 +601,7 @@ static int cmd_syms(char **arg)
 	if (elf32_check(in))
 		result = elf32_syms(in);
 	else
-		fprintf(stderr, "%s: unknown file type\n", *arg);
+		fprintf(stderr, "syms: %s: unknown file type\n", *arg);
 
 	fclose(in);
 	return result;

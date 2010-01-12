@@ -283,7 +283,7 @@ static int parse_packet(int plen)
 	int error;
 
 	if (c != r) {
-		fprintf(stderr, "parse_packet: checksum error (calc %04x,"
+		fprintf(stderr, "fet: checksum error (calc %04x,"
 			" recv %04x)\n", c, r);
 		return -1;
 	}
@@ -297,7 +297,7 @@ static int parse_packet(int plen)
 	error = fet_buf[i++];
 
 	if (error) {
-		fprintf(stderr, "parse_packet: FET returned error code %d\n",
+		fprintf(stderr, "fet: FET returned error code %d\n",
 			error);
 		if (error > 0 && error < ARRAY_LEN(error_strings)) {
 			fprintf(stderr, "    (%s)\n", error_strings[error]);
@@ -316,7 +316,7 @@ static int parse_packet(int plen)
 		i += 2;
 
 		if (fet_reply.argc >= MAX_PARAMS) {
-			fprintf(stderr, "parse_packet: too many params: %d\n",
+			fprintf(stderr, "fet: too many params: %d\n",
 				fet_reply.argc);
 			return -1;
 		}
@@ -351,7 +351,7 @@ static int parse_packet(int plen)
 	return 0;
 
 too_short:
-	fprintf(stderr, "parse_packet: too short (%d bytes)\n",
+	fprintf(stderr, "fet: too short (%d bytes)\n",
 		plen);
 	return -1;
 }
@@ -492,7 +492,7 @@ static int xfer(int command_code, const u_int8_t *data, int datalen,
 		return -1;
 
 	if (fet_reply.command_code != command_code) {
-		fprintf(stderr, "xfer: reply type mismatch\n");
+		fprintf(stderr, "fet: reply type mismatch\n");
 		return -1;
 	}
 
@@ -713,13 +713,13 @@ int fet_readmem(u_int16_t addr, u_int8_t *buffer, int count)
 		int plen = count > 128 ? 128 : count;
 
 		if (xfer(C_READMEMORY, NULL, 0, 2, addr, plen) < 0) {
-			fprintf(stderr, "fet_read_mem: failed to read "
+			fprintf(stderr, "fet: failed to read "
 				"from 0x%04x\n", addr);
 			return -1;
 		}
 
 		if (fet_reply.datalen < plen) {
-			fprintf(stderr, "fet_read_mem: short data: "
+			fprintf(stderr, "fet: short data: "
 				"%d bytes\n", fet_reply.datalen);
 			return -1;
 		}
