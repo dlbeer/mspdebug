@@ -221,6 +221,135 @@ static int cmd_dis(char **arg)
 	return 0;
 }
 
+/************************************************************************
+ * Hex dumper
+ */
+
+static FILE *hexout_file;
+static u_int16_t hexout_addr;
+static u_int8_t hexout_buf[16];
+static int hexout_len;
+
+static int hexout_start(const char *filename)
+{
+	hexout_file = fopen(filename, "w");
+	if (!hexout_file) {
+		perror("hexout: couldn't open output file");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int hexout_flush(void)
+{
+	int i;
+	int cksum = 0;
+
+	if (!hexout_len)
+		return 0;
+
+	if (fprintf(hexout_file, ":%02X%04X00", hexout_len, hexout_addr) < 0)
+		goto fail;
+	cksum += hexout_len;
+	cksum += hexout_addr & 0xff;
+	cksum += hexout_addr >> 8;
+
+	for (i = 0; i < hexout_len; i++) {
+		if (fprintf(hexout_file, "%02X", hexout_buf[i]) < 0)
+			goto fail;
+		cksum += hexout_buf[i];
+	}
+
+	if (fprintf(hexout_file, "%02X\n", ~(cksum - 1) & 0xff) < 0)
+		goto fail;
+
+	hexout_len = 0;
+	return 0;
+
+fail:
+	perror("hexout: can't write HEX data");
+	return -1;
+}
+
+static int hexout_feed(u_int16_t addr, const u_int8_t *buf, int len)
+{
+	while (len) {
+		int count;
+
+		if ((hexout_addr + hexout_len != addr ||
+		     hexout_len >= sizeof(hexout_buf)) &&
+		    hexout_flush() < 0)
+			return -1;
+
+		if (!hexout_len)
+			hexout_addr = addr;
+
+		count = sizeof(hexout_buf) - hexout_len;
+		if (count > len)
+			count = len;
+
+		memcpy(hexout_buf + hexout_len, buf, count);
+		hexout_len += count;
+
+		addr += count;
+		buf += count;
+		len -= count;
+	}
+
+	return 0;
+}
+
+static int cmd_hexout(char **arg)
+{
+	char *off_text = get_arg(arg);
+	char *len_text = get_arg(arg);
+	char *filename = *arg;
+	int off;
+	int length;
+
+	if (!(off_text && len_text && *filename)) {
+		fprintf(stderr, "hexout: need offset, length and filename\n");
+		return -1;
+	}
+
+	if (stab_parse(off_text, &off) < 0 ||
+	    stab_parse(len_text, &length) < 0)
+		return -1;
+
+	if (hexout_start(filename) < 0)
+		return -1;
+
+	while (length) {
+		u_int8_t buf[128];
+		int count = length;
+
+		if (count > sizeof(buf))
+			count = sizeof(buf);
+
+		printf("Reading %d bytes from 0x%04x...\n", count, off);
+		if (msp430_dev->readmem(off, buf, count) < 0) {
+			perror("hexout: can't read memory");
+			goto fail;
+		}
+
+		if (hexout_feed(off, buf, count) < 0)
+			goto fail;
+
+		length -= count;
+		off += count;
+	}
+
+	hexout_flush();
+	fclose(hexout_file);
+	return 0;
+
+fail:
+	fclose(hexout_file);
+	unlink(filename);
+	return -1;
+}
+
 static int cmd_reset(char **arg)
 {
 	return msp430_dev->control(DEVICE_CTL_RESET);
@@ -489,6 +618,9 @@ static const struct command all_commands[] = {
 "help [command]\n"
 "    Without arguments, displays a list of commands. With a command name as\n"
 "    an argument, displays help for that command.\n"},
+	{"hexout",	cmd_hexout,
+"hexout <address> <length> <filename.hex>\n"
+"    Save a region of memory into an HEX file.\n"},
 	{"md",		cmd_md,
 "md <address> <length>\n"
 "    Read the specified number of bytes from memory at the given address,\n"
