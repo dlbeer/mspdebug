@@ -375,25 +375,29 @@ static int cmd_regs(char **arg)
 static int cmd_run(char **arg)
 {
 	char *bp_text = get_arg(arg);
+	int bp_addr;
 
 	if (bp_text) {
-		int addr = 0;
-
-		if (stab_parse(bp_text, &addr) < 0) {
+		if (stab_parse(bp_text, &bp_addr) < 0) {
 			fprintf(stderr, "run: can't parse breakpoint: %s\n",
 				bp_text);
 			return -1;
 		}
 
-		msp430_dev->breakpoint(addr);
+		msp430_dev->breakpoint(bp_addr);
 	}
 
 	if (msp430_dev->control(bp_text ?
 		DEVICE_CTL_RUN_BP : DEVICE_CTL_RUN) < 0)
 		return -1;
 
-	printf("Running. Press Ctrl+C to interrupt...");
+	if (bp_text)
+		printf("Running to 0x%04x.", bp_addr);
+	else
+		printf("Running.");
+	printf(" Press Ctrl+C to interrupt...");
 	fflush(stdout);
+
 	msp430_dev->wait();
 	printf("\n");
 
@@ -833,8 +837,8 @@ int main(int argc, char **argv)
 		/* Then initialize the device */
 		if (!want_jtag)
 			flags |= FET_PROTO_SPYBIWIRE;
-		else
-			msp430_dev = fet_open(trans, flags, vcc_mv);
+
+		msp430_dev = fet_open(trans, flags, vcc_mv);
 	}
 
 	if (!msp430_dev)
