@@ -624,7 +624,7 @@ static const struct command all_commands[] = {
 "    an argument, displays help for that command.\n"},
 	{"hexout",	cmd_hexout,
 "hexout <address> <length> <filename.hex>\n"
-"    Save a region of memory into an HEX file.\n"},
+"    Save a region of memory into a HEX file.\n"},
 	{"md",		cmd_md,
 "md <address> <length>\n"
 "    Read the specified number of bytes from memory at the given address,\n"
@@ -633,8 +633,9 @@ static const struct command all_commands[] = {
 "nosyms\n"
 "    Clear the symbol table.\n"},
 	{"prog",	cmd_prog,
-"prog <filename.hex>\n"
-"    Erase the device and flash the data contained in a binary file.\n"},
+"prog <filename>\n"
+"    Erase the device and flash the data contained in a binary file. This\n"
+"    command also loads symbols from the file, if available.\n"},
 	{"regs",	cmd_regs,
 "regs\n"
 "    Read and display the current register contents.\n"},
@@ -682,11 +683,40 @@ static int cmd_help(char **arg)
 		fputs(cmd->help, stdout);
 	} else {
 		int i;
+		int max_len = 0;
+		int rows, cols;
 
-		printf("Available commands:");
-		for (i = 0; i < ARRAY_LEN(all_commands); i++)
-			printf(" %s", all_commands[i].name);
-		printf("\n");
+		for (i = 0; i < ARRAY_LEN(all_commands); i++) {
+			int len = strlen(all_commands[i].name);
+
+			if (len > max_len)
+				max_len = len;
+		}
+
+		max_len += 2;
+		cols = 72 / max_len;
+		rows = (ARRAY_LEN(all_commands) + cols - 1) / cols;
+
+		printf("Available commands:\n");
+		for (i = 0; i < rows; i++) {
+			int j;
+
+			printf("    ");
+			for (j = 0; j < cols; j++) {
+				int k = j * rows + i;
+				const struct command *cmd = &all_commands[k];
+
+				if (k >= ARRAY_LEN(all_commands))
+					break;
+
+				printf("%s", cmd->name);
+				for (k = strlen(cmd->name); k < max_len; k++)
+					printf(" ");
+			}
+
+			printf("\n");
+		}
+
 		printf("Type \"help <command>\" for more information.\n");
 		printf("Press Ctrl+D to quit.\n");
 	}
