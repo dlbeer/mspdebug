@@ -39,11 +39,6 @@ struct fet_transport {
  */
 const struct fet_transport *uif_open(const char *device);
 
-/* This function opens the bootstrap loader on a FET430UIF by using
- * the TIUSB's modem control pins to generate the BSL entry sequence.
- */
-const struct fet_transport *uif_open_bsl(const char *device);
-
 /* Search the USB bus for the first eZ430-RF2500, and initialize it. If
  * successful, 0 is returned and the fet_* functions are ready for use.
  * If an error occurs, -1 is returned.
