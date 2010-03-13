@@ -331,6 +331,6 @@ const struct device *bsl_open(const char *device)
 	}
 
 	print_devid((reply_buf[4] << 8) | reply_buf[5]);
-	printf("BSL version is %d.%02d\n", reply_buf[16], reply_buf[17]);
+	printf("BSL version is %x.%02x\n", reply_buf[14], reply_buf[15]);
 	return &bsl_device;
 }
