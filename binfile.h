@@ -34,4 +34,8 @@ int elf32_check(FILE *in);
 int elf32_extract(FILE *in, imgfunc_t cb);
 int elf32_syms(FILE *in);
 
+/* *.map file support */
+int symmap_check(FILE *in);
+int symmap_syms(FILE *in);
+
 #endif

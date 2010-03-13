@@ -604,6 +604,8 @@ static int cmd_syms(char **arg)
 
 	if (elf32_check(in))
 		result = elf32_syms(in);
+	else if (symmap_check(in))
+		result = symmap_syms(in);
 	else
 		fprintf(stderr, "syms: %s: unknown file type\n", *arg);
 
