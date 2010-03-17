@@ -1,4 +1,4 @@
-/* MSPDebug - debugging tool for the eZ430
+/* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009, 2010 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
@@ -111,9 +111,14 @@ static int cmd_md(char **arg)
 		return -1;
 	}
 
-	if (len_text && stab_parse(len_text, &length) < 0) {
-		fprintf(stderr, "md: can't parse length: %s\n", len_text);
-		return -1;
+	if (len_text) {
+		if (stab_parse(len_text, &length) < 0) {
+			fprintf(stderr, "md: can't parse length: %s\n",
+				len_text);
+			return -1;
+		}
+	} else if (offset + length > 0x10000) {
+		length = 0x10000 - offset;
 	}
 
 	if (offset < 0 || length <= 0 || (offset + length) > 0x10000) {
@@ -203,9 +208,14 @@ static int cmd_dis(char **arg)
 		return -1;
 	}
 
-	if (len_text && stab_parse(len_text, &length) < 0) {
-		fprintf(stderr, "dis: can't parse length: %s\n", len_text);
-		return -1;
+	if (len_text) {
+		if (stab_parse(len_text, &length) < 0) {
+			fprintf(stderr, "dis: can't parse length: %s\n",
+				len_text);
+			return -1;
+		}
+	} else if (offset + length > 0x10000) {
+		length = 0x10000 - offset;
 	}
 
 	if (offset < 0 || length <= 0 || length > sizeof(buf) ||
@@ -618,7 +628,7 @@ static const struct command all_commands[] = {
 "= <expression>\n"
 "    Evaluate an expression using the symbol table.\n"},
 	{"dis",		cmd_dis,
-"dis <address> <range>\n"
+"dis <address> [length]\n"
 "    Disassemble a section of memory.\n"},
 	{"help",	cmd_help,
 "help [command]\n"
@@ -628,7 +638,7 @@ static const struct command all_commands[] = {
 "hexout <address> <length> <filename.hex>\n"
 "    Save a region of memory into a HEX file.\n"},
 	{"md",		cmd_md,
-"md <address> <length>\n"
+"md <address> [length]\n"
 "    Read the specified number of bytes from memory at the given address,\n"
 "    and display a hexdump.\n"},
 	{"nosyms",	cmd_nosyms,
@@ -826,7 +836,7 @@ int main(int argc, char **argv)
 	int mode = 0;
 
 	puts(
-"MSPDebug version 0.4 - debugging tool for the eZ430\n"
+"MSPDebug version 0.4 - debugging tool for MSP430 MCUs\n"
 "Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
