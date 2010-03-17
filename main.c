@@ -784,8 +784,13 @@ static void reader_loop(void)
 static void usage(const char *progname)
 {
 	fprintf(stderr,
-"Usage: %s [-u device] [-j] [-B] [-s] [-v voltage] [command ...]\n"
+"Usage: %s -R [-v voltage] [command ...]\n"
+"       %s -u <device> [-j] [-v voltage] [command ...]\n"
+"       %s -B <device> [command ...]\n"
+"       %s -s [command ...]\n"
 "\n"
+"    -R\n"
+"        Open the first available RF2500 device on the USB bus.\n"
 "    -u device\n"
 "        Open the given tty device (MSP430 UIF compatible devices).\n"
 "    -j\n"
@@ -801,8 +806,13 @@ static void usage(const char *progname)
 "\n"
 "If commands are given, they will be executed. Otherwise, an interactive\n"
 "command reader is started.\n",
-	progname);
+		progname, progname, progname, progname);
 }
+
+#define MODE_RF2500             0x01
+#define MODE_UIF                0x02
+#define MODE_UIF_BSL            0x04
+#define MODE_SIM                0x08
 
 int main(int argc, char **argv)
 {
@@ -812,20 +822,25 @@ int main(int argc, char **argv)
 	int opt;
 	int flags = 0;
 	int want_jtag = 0;
-	int want_sim = 0;
 	int vcc_mv = 3000;
+	int mode = 0;
 
 	puts(
 "MSPDebug version 0.4 - debugging tool for the eZ430\n"
-"Copyright (C) 2009, 2010 Daniel Beer <dlbeer@gmail.com>\n"
+"Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
 
 	/* Parse arguments */
-	while ((opt = getopt(argc, argv, "u:jv:B:s")) >= 0)
+	while ((opt = getopt(argc, argv, "u:jv:B:sR?")) >= 0)
 		switch (opt) {
+		case 'R':
+			mode |= MODE_RF2500;
+			break;
+
 		case 'u':
 			uif_device = optarg;
+			mode |= MODE_UIF;
 			break;
 
 		case 'v':
@@ -838,25 +853,44 @@ int main(int argc, char **argv)
 
 		case 'B':
 			bsl_device = optarg;
+			mode |= MODE_UIF_BSL;
 			break;
 
 		case 's':
-			want_sim = 1;
+			mode |= MODE_SIM;
 			break;
 
-		default:
+		case '?':
 			usage(argv[0]);
+			return 0;
+
+		default:
+			fprintf(stderr, "Invalid argument: %c\n"
+				"Try -? for help.\n", opt);
 			return -1;
 		}
 
+	/* Check for incompatible arguments */
+	if (mode & (mode - 1)) {
+		fprintf(stderr, "Multiple incompatible options specified.\n"
+			"Try -? for help.\n");
+		return -1;
+	}
+
+	if (!mode) {
+		fprintf(stderr, "You need to specify an operating mode.\n"
+			"Try -? for help.\n");
+		return -1;
+	}
+
 	/* Open a device */
-	if (want_sim) {
+	if (mode == MODE_SIM) {
 		msp430_dev = sim_open();
-	} else if (bsl_device) {
+	} else if (mode == MODE_UIF_BSL) {
 		msp430_dev = bsl_open(bsl_device);
-	} else {
+	} else if (mode == MODE_RF2500 || mode == MODE_UIF) {
 		/* Open the appropriate transport */
-		if (uif_device) {
+		if (mode == MODE_UIF) {
 			trans = uif_open(uif_device);
 		} else {
 			trans = rf2500_open();
