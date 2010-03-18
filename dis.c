@@ -343,11 +343,11 @@ static void find_emulated_ops(struct msp430_instruction *insn)
 		break;
 
 	case MSP430_OP_SUB:
-		if (insn->dst_mode == MSP430_AMODE_IMMEDIATE) {
-			if (insn->dst_addr == 1) {
+		if (insn->src_mode == MSP430_AMODE_IMMEDIATE) {
+			if (insn->src_addr == 1) {
 				insn->op = MSP430_OP_DEC;
 				insn->itype = MSP430_ITYPE_SINGLE;
-			} else if (insn->dst_addr == 2) {
+			} else if (insn->src_addr == 2) {
 				insn->op = MSP430_OP_DECD;
 				insn->itype = MSP430_ITYPE_SINGLE;
 			}
