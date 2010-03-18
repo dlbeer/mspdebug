@@ -1,0 +1,221 @@
+.TH mspdebug 1 "18 Mar 2010" "Version 0.4"
+.SH NAME
+MSPDebug - debugging tool for MSP430 MCUs
+.SH SYNOPSIS
+\fBmspdebug\fR \-R [\-v \fIvoltage\fR] [\fIcommand\fR ...]
+.br
+\fBmspdebug\fR \-u \fIdevice\fR [\-j] [\-v \fIvoltage\fR] [\fIcommand\fR ...]
+.br
+\fBmspdebug\fR \-B \fIdevice\fR [\fIcommand\fR ...]
+.br
+\fBmspdebug\fR \-s [\fIcommand\fR ...]
+.SH DESCRIPTION
+MSPDebug is a command-line tool designed for debugging and programming
+the MSP430 family of MCUs. It supports the eZ430-F2013, eZ430-RF2500
+and FET430UIF programming tools.
+
+When started with appropriate options, MSPDebug will attempt to
+connect to the debugging tool specified and identify the device under
+test. Once connected, the user is presented with a command prompt
+which can be used to reflash the device memory, inspect memory and
+registers, set registers, and control the CPU (single step, run and
+run to breakpoint).
+
+It supports ELF32, Intel HEX and BSD-style symbol tables (such as the
+output produced by \fBnm\fR(1)).
+.SH OPTIONS
+Command-line options accepted by MSPDebug are described below. If
+commands are specified on the end of the command-line, then they are
+executed after connecting to the device, and the interactive prompt is
+not started. See the section labelled \fBCOMMANDS\fR for more
+information.
+.IP "\-R"
+Connect to an eZ430-RF2500 device. The USB bus will be searched for
+the first available device. You must have write permission for usbfs
+in order for this to work. You can achieve this by running as root
+(not recommended), or by remounting usbfs using the
+devuid/devgid/devmode options.
+.IP "\-v \fIvoltage\fR"
+Set the programming voltage. The voltage should be specified as an integer
+in millivolts. It defaults to 3000 (3.0 V).
+.IP "\-u \fIdevice\fR"
+Connect to an eZ430-F2013 or a FET430UIF device. The device argument
+should be the filename of the appropriate tty device. The TI serial
+converter chips on these devices are supported by newer versions of the
+Linux kernel, and should appear as /dev/tty\fIXX\fR when attached.
+.IP "\-j"
+Use JTAG instead of Spy-Bi-Wire to communicate with the MSP430. This
+option only works on FET430UIF devices.
+.IP "\-B \fIdevice\fR"
+Connect to the bootloader on a FET430UIF device. These devices contain
+MSP430F419 chips. By sending a special command sequence, you can obtain
+access to the bootloader and inspect memory on the MSP430F419 in the
+programming device itself.
+
+Currently, only memory inspection is supported. CPU control via the
+bootloader is not possible. Memory erase and write is possible, but is
+currently not implemented, for lack of ability to test it. If implemented,
+this would allow firmware updates to FET430UIF devices.
+
+The argument should be the filename of the appropriate tty device.
+.IP "\-s"
+Do not connect to any hardware device, but instead start in simulation
+mode. A 64k buffer is allocated to simulate the device memory. All of
+the memory inspection and programming commands can be used on this
+buffer, but CPU control is not supported.
+
+This mode is intended for testing of changes to MSPDebug, and for
+aiding the disassembly of MSP430 binaries (as all binary and symbol
+table formats are still usable in this mode).
+.SH COMMANDS
+MSPDebug can accept commands either through an interactive prompt, or
+non-interactively when specified on the command line. The supported
+commands are listed below.
+.IP "= \fIexpression\fR"
+Evaluate an address expression and show both its value, and the result
+when the value is looked up in reverse in the current symbol
+table. This result is of the form \fIsymbol\fR+\fIoffset\fR, where
+\fIsymbol\fR is the name of the nearest symbol not past the address in
+question.
+
+See the section marked \fBADDRESS EXPRESSIONS\fR for more information on
+the syntax of expressions.
+.IP "dis \fIaddress\fR [\fIlength\fR]"
+Dissassemble a section of memory. Both arguments may be address
+expressions. If no length is specified, a section of the default
+length (64 bytes) is disassembled and shown.
+
+If symbols are available, then all addresses used as operands are
+translated into \fIsymbol\fR+\fIoffset\fR form.
+.IP "help [\fIcommand\fR]"
+Show a brief listing of available commands. If an argument is
+specified, show the syntax for the given command. The help text shown
+when no argument is given is also shown when MSPDebug starts up.
+.IP "hexout \fIaddress\fR \fIlength\fR \fIfilename\fR"
+Read the specified section of the device memory and save it to an
+Intel HEX file. The address and length arguments may both be address
+expressions.
+
+If the specified file already exists, then it will be overwritten. If
+you need to dump memory from several disjoint memory regions, you can
+do this by saving each section to a separate file. The resulting files
+can then be concatenated together to form a single valid HEX file.
+.IP "md \fIaddress\fR [\fIlength\fR]"
+Read the specified section of device memory and display it as a
+canonical\-style hexdump. Both arguments may be address expressions. If
+no length is specified, a section of the default length (64 bytes) is
+shown.
+
+The output is split into three columns. The first column shows the
+starting address for the line. The second column lists the hexadecimal
+values of the bytes. The final column shows the ASCII characters
+corresponding to printable bytes, and . for non-printing characters.
+.IP "nosyms"
+Clear all symbols from the symbol table. Symbols may be reloaded with
+the \fBsyms\fR command.
+.IP "prog \fIfilename\fR"
+Erase and reprogram the device under test using the binary file
+supplied. The file format will be auto-detected and may be either
+Intel HEX or ELF32.
+
+In the case of an ELF32 file, symbols will be automatically loaded
+from the file into the symbol table (discarding any existing symbols),
+if they are present.
+
+The CPU is reset and halted before programming.
+.IP "regs"
+Show the current value of all CPU registers in the device under test.
+.IP "reset"
+Reset (and halt) the CPU of the device under test.
+.IP "run [\fIbreakpoint\fR]"
+Run the CPU, optionally specifying a breakpoint. The breakpoint can be
+specified as an address expression.
+
+The interactive command prompt is blocked when the CPU is started and
+the prompt will not appear again until the CPU halts. The CPU will halt
+if it encounters the specified breakpoint, or if Ctrl\-C is pressed by
+the user.
+
+After the CPU halts, the current register values are shown as well as
+a disassembly of the first few instructions at the address selected
+by the program counter.
+.IP "set \fIregister\fR \fIvalue\fR"
+Alter the value of a register. Registers are specified as numbers from
+0 through 15. Any leading non-numeric characters are ignored (so a
+register may be specified as, for example, "R12"). The value argument
+is an address expression.
+.IP "step"
+Step the CPU through a single instruction. After stepping, the new
+register values are displayed, as well as a disassembly of the
+instructions at the address selected by the program counter.
+.IP "syms \fIfilename\fR"
+Load symbols from the specified file and add them to the symbol table.
+The file format will be auto-detected and may be either ELF32 or a
+BSD-style symbol listing (like the output from \fBnm\fR(1)).
+
+Symbols can be combined from many sources, as the syms command adds
+to the existing symbol table without discarding existing symbols.
+.SH ADDRESS EXPRESSIONS
+Any command which accepts a memory address, length or register value
+as an argument may be given an address expression. An address
+expression consists of a sequence of one or more address values
+separated by the operators \fB+\fR or \fB\-\fR.
+
+An address value may be either a decimal value, a hexadecimal value
+preceeded by the prefix \fB0x\fR, or a symbol name.
+
+The following are all valid examples of address expressions:
+
+.B 64
+.br
+.B 0xffe0
+.br
+.B main+0x3f
+.br
+.B __bss_end-__bss_start
+.SH SEE ALSO
+.BR nm (1),
+.BR objcopy (1)
+.SH BUGS
+If you find any bugs, you should report them to the author at
+daniel@tortek.co.nz. It would help if you could include a transcript
+of an MSPDebug session illustrating the program, as well as any
+relevant binaries or other files. Below, known bugs in the current
+version of MSPDebug are described.
+
+Memory addresses above 0x10000 (in devices with more than 64k of
+memory) are not accessible. All other memory in these devices is
+accessible as normal.
+
+Most of the popular device IDs are recognized, but the set is not
+complete. If you see a message like the following after connecting:
+
+.B Unknown device ID: 0x\fI1234\fP
+
+Please report it, as well as the model of the device you are using.
+
+Some firmware versions of the FET430UIF are not supported. If you
+encounter a version which doesn't work, you should try to extract
+the firmware using the command:
+
+.B mspdebug -B \fIdevice\fP 'hexout 0x3100 0xdb00 firmware.hex'
+
+Please send the HEX file, along with the firmware version. The
+firmware version is reported in the transcript when connecting
+with the \fB-u\fR option.
+
+Firmware version 20107000 is known to work with MSPDebug, and you can
+update your FET to this version using the proprietary
+\fBmsp430\-gdbproxy\fR program:
+
+.B msp430-gdbproxy msp430 \fIdevice\fP --update-usb-fet
+
+This command updates the FET firmware using the same bootloader
+supported by MSPDebug's \fB\-B\fR option. However, as mentioned above,
+MSPDebug does not support erase or programming in this mode.
+.SH COPYRIGHT
+Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>
+
+MSPDebug is free software, distributed under the terms of the GNU
+General Public license (version 2 or later). See the file COPYING
+included with the source code for more details.
