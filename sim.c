@@ -100,21 +100,29 @@ static void store_io(u_int16_t addr, int is_byte, u_int16_t data)
 		printf(" => 0x%04x\n", data);
 }
 
-static u_int16_t fetch_operand(int amode, int reg, int is_byte,
-			       u_int16_t *addr_ret)
+static void fetch_operand(int amode, int reg, int is_byte,
+			  u_int16_t *addr_ret, u_int32_t *data_ret)
 {
 	u_int16_t addr = 0;
 	u_int32_t mask = is_byte ? 0xff : 0xffff;
 
 	switch (amode) {
 	case MSP430_AMODE_REGISTER:
-		if (reg == MSP430_REG_R3)
-			return 0;
-		return sim_regs[reg] & mask;
+		if (reg == MSP430_REG_R3) {
+			if (data_ret)
+				*data_ret = 0;
+			return;
+		}
+		if (data_ret)
+			*data_ret = sim_regs[reg] & mask;
+		return;
 
 	case MSP430_AMODE_INDEXED:
-		if (reg == MSP430_REG_R3)
-			return 1;
+		if (reg == MSP430_REG_R3) {
+			if (data_ret)
+				*data_ret = 1;
+			return;
+		}
 
 		addr = MEM_GETW(sim_regs[MSP430_REG_PC]);
 		sim_regs[MSP430_REG_PC] += 2;
@@ -124,18 +132,31 @@ static u_int16_t fetch_operand(int amode, int reg, int is_byte,
 		break;
 
 	case MSP430_AMODE_INDIRECT:
-		if (reg == MSP430_REG_SR)
-			return 4;
-		if (reg == MSP430_REG_R3)
-			return 2;
+		if (reg == MSP430_REG_SR) {
+			if (data_ret)
+				*data_ret = 4;
+			return;
+		}
+
+		if (reg == MSP430_REG_R3) {
+			if (data_ret)
+				*data_ret = 2;
+			return;
+		}
 		addr = sim_regs[reg];
 		break;
 
 	case MSP430_AMODE_INDIRECT_INC:
-		if (reg == MSP430_REG_SR)
-			return 8;
-		if (reg == MSP430_REG_R3)
-			return mask;
+		if (reg == MSP430_REG_SR) {
+			if (data_ret)
+				*data_ret = 8;
+			return;
+		}
+		if (reg == MSP430_REG_R3) {
+			if (data_ret)
+				*data_ret = mask;
+			return;
+		}
 		addr = sim_regs[reg];
 		sim_regs[reg] += 2;
 		break;
@@ -144,10 +165,12 @@ static u_int16_t fetch_operand(int amode, int reg, int is_byte,
 	if (addr_ret)
 		*addr_ret = addr;
 
-	if (addr < MEM_IO_END)
-		return fetch_io(addr, is_byte);
-
-	return MEM_GETW(addr) & mask;
+	if (data_ret) {
+		if (addr < MEM_IO_END)
+			*data_ret = fetch_io(addr, is_byte);
+		else
+			*data_ret = MEM_GETW(addr) & mask;
+	}
 }
 
 static void store_operand(int amode, int reg, int is_byte,
@@ -179,8 +202,9 @@ static int step_double(u_int16_t ins)
 	u_int32_t res_data;
 	u_int32_t msb = is_byte ? 0x80 : 0x8000;
 
-	src_data = fetch_operand(amode_src, sreg, is_byte, NULL);
-	dst_data = fetch_operand(amode_dst, dreg, is_byte, &dst_addr);
+	fetch_operand(amode_src, sreg, is_byte, NULL, &src_data);
+	fetch_operand(amode_dst, dreg, is_byte, &dst_addr,
+		      opcode == MSP430_OP_MOV ? NULL : &dst_data);
 
 	switch (opcode) {
 	case MSP430_OP_MOV:
@@ -285,7 +309,7 @@ static int step_single(u_int16_t ins)
 	u_int32_t src_data;
 	u_int32_t res_data;
 
-	src_data = fetch_operand(amode, reg, is_byte, &src_addr);
+	fetch_operand(amode, reg, is_byte, &src_addr, &src_data);
 
 	switch (opcode) {
 	case MSP430_OP_RRC:
