@@ -204,6 +204,7 @@ static int step_double(u_int16_t ins)
 	u_int32_t dst_data;
 	u_int32_t res_data;
 	u_int32_t msb = is_byte ? 0x80 : 0x8000;
+	u_int32_t mask = is_byte ? 0xff : 0xffff;
 
 	fetch_operand(amode_src, sreg, is_byte, NULL, &src_data);
 	fetch_operand(amode_dst, dreg, is_byte, &dst_addr,
@@ -223,7 +224,7 @@ static int step_double(u_int16_t ins)
 		if (opcode == MSP430_OP_ADDC || opcode == MSP430_OP_SUBC)
 			res_data = (sim_regs[MSP430_REG_SR] &
 				    MSP430_SR_C) ? 1 : 0;
-		else if (opcode == MSP430_OP_SUB)
+		else if (opcode == MSP430_OP_SUB || opcode == MSP430_OP_CMP)
 			res_data = 1;
 		else
 			res_data = 0;
@@ -232,7 +233,7 @@ static int step_double(u_int16_t ins)
 		res_data += dst_data;
 
 		sim_regs[MSP430_REG_SR] &= ~ARITH_BITS;
-		if (!res_data)
+		if (!(res_data & mask))
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_Z;
 		if (res_data & msb)
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_N;
@@ -249,7 +250,7 @@ static int step_double(u_int16_t ins)
 			res_data++;
 
 		sim_regs[MSP430_REG_SR] &= ~ARITH_BITS;
-		if (!res_data)
+		if (!(res_data & mask))
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_Z;
 		if (res_data == 1)
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_N;
@@ -264,7 +265,7 @@ static int step_double(u_int16_t ins)
 
 		sim_regs[MSP430_REG_SR] &= ~ARITH_BITS;
 		sim_regs[MSP430_REG_SR] |=
-			res_data ? MSP430_SR_C : MSP430_SR_Z;
+			(res_data & mask) ? MSP430_SR_C : MSP430_SR_Z;
 		if (res_data & msb)
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_N;
 		break;
@@ -281,7 +282,7 @@ static int step_double(u_int16_t ins)
 		res_data = dst_data ^ src_data;
 		sim_regs[MSP430_REG_SR] &= ~ARITH_BITS;
 		sim_regs[MSP430_REG_SR] |=
-			res_data ? MSP430_SR_C : MSP430_SR_Z;
+			(res_data & mask) ? MSP430_SR_C : MSP430_SR_Z;
 		if (res_data & msb)
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_N;
 		if (src_data & dst_data & msb)
@@ -308,6 +309,7 @@ static int step_single(u_int16_t ins)
 	int amode = (ins >> 4) & 0x3;
 	int reg = ins & 0x000f;
 	u_int16_t msb = is_byte ? 0x80 : 0x8000;
+	u_int32_t mask = is_byte ? 0xff : 0xffff;
 	u_int16_t src_addr = 0;
 	u_int32_t src_data;
 	u_int32_t res_data;
@@ -326,7 +328,7 @@ static int step_single(u_int16_t ins)
 		}
 
 		sim_regs[MSP430_REG_SR] &= ~ARITH_BITS;
-		if (!res_data)
+		if (!(res_data & mask))
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_Z;
 		if (res_data & msb)
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_N;
@@ -347,7 +349,8 @@ static int step_single(u_int16_t ins)
 			sim_regs[MSP430_REG_SR] |= MSP430_SR_N;
 		}
 
-		sim_regs[MSP430_REG_SR] |= res_data ? MSP430_SR_C : MSP430_SR_Z;
+		sim_regs[MSP430_REG_SR] |=
+			(res_data & mask) ? MSP430_SR_C : MSP430_SR_Z;
 		break;
 
 	case MSP430_OP_PUSH:
@@ -510,6 +513,11 @@ static int sim_wait(void)
 			if (run_mode == RUN_TO_BREAKPOINT &&
 			    sim_regs[MSP430_REG_PC] == run_breakpoint)
 				break;
+
+			if (sim_regs[MSP430_REG_SR] & MSP430_SR_CPUOFF) {
+				printf("CPU disabled\n");
+				break;
+			}
 
 			if (ctrlc_check()) {
 				run_mode = RUN_HALTED;
