@@ -556,7 +556,7 @@ static int format_operand(char *buf, int max_len,
 		return format_addr(buf, max_len, "&", addr);
 
 	case MSP430_AMODE_INDIRECT:
-		return format_addr(buf, max_len, "@", addr);
+		return snprintf(buf, max_len, "@%s", msp430_reg_names[reg]);
 
 	case MSP430_AMODE_INDIRECT_INC:
 		return snprintf(buf, max_len, "@%s+", msp430_reg_names[reg]);
