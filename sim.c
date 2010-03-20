@@ -19,9 +19,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 #include "device.h"
 #include "dis.h"
 #include "util.h"
+#include "stab.h"
 
 #define MEM_SIZE	65536
 
@@ -37,6 +39,66 @@ static u_int16_t sim_regs[DEVICE_NUM_REGS];
 		memory[offset] = (value) & 0xff;		\
 		memory[(offset + 1) & 0xffff] = (value) >> 8;	\
 	} while (0);
+
+#define MEM_IO_END 0x200
+
+static void io_prefix(const char *prefix, u_int16_t addr, int is_byte)
+{
+	const char *name;
+	u_int16_t pc = sim_regs[MSP430_REG_PC];
+
+	if (!stab_find(&pc, &name)) {
+		printf("%s", name);
+		if (pc)
+			printf("+0x%x", addr);
+	} else {
+		printf("0x%04x", addr);
+	}
+
+	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
+	if (!stab_find(&addr, &name)) {
+		printf(" (%s", name);
+		if (addr)
+			printf("+0x%x", addr);
+		printf(")");
+	}
+}
+
+static u_int16_t fetch_io(u_int16_t addr, int is_byte)
+{
+	io_prefix("READ", addr, is_byte);
+
+	for (;;) {
+		char text[128];
+		int len;
+		int data;
+
+		printf("? ");
+		fflush(stdout);
+		if (!fgets(text, sizeof(text), stdin))
+			return 0;
+
+		len = strlen(text);
+		while (len && isspace(text[len - 1]))
+			len--;
+		text[len] = 0;
+
+		if (!stab_parse(text, &data))
+			return data;
+	}
+
+	return 0;
+}
+
+static void store_io(u_int16_t addr, int is_byte, u_int16_t data)
+{
+	io_prefix("WRITE", addr, is_byte);
+
+	if (is_byte)
+		printf(" => 0x%02x\n", data & 0xff);
+	else
+		printf(" => 0x%04x\n", data);
+}
 
 static u_int16_t fetch_operand(int amode, int reg, int is_byte,
 			       u_int16_t *addr_ret)
@@ -82,6 +144,9 @@ static u_int16_t fetch_operand(int amode, int reg, int is_byte,
 	if (addr_ret)
 		*addr_ret = addr;
 
+	if (addr < MEM_IO_END)
+		return fetch_io(addr, is_byte);
+
 	return MEM_GETW(addr) & mask;
 }
 
@@ -90,6 +155,8 @@ static void store_operand(int amode, int reg, int is_byte,
 {
 	if (amode == MSP430_AMODE_REGISTER)
 		sim_regs[reg] = data;
+	else if (addr < MEM_IO_END)
+		store_io(addr, is_byte, data);
 	else if (is_byte)
 		MEM_SETB(addr, data);
 	else
@@ -408,6 +475,7 @@ static int sim_control(device_ctl_t action)
 static int sim_wait(void)
 {
 	if (run_mode != RUN_HALTED) {
+		printf("\n");
 		ctrlc_reset();
 
 		for (;;) {

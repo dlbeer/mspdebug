@@ -63,6 +63,13 @@ Do not connect to any hardware device, but instead start in simulation
 mode. A 64k buffer is allocated to simulate the device memory. The CPU
 core alone is emulated (no peripheral emulation).
 
+During simulation, addresses below 0x0200 are assumed to be IO memory.
+When data is written to an IO memory address, a message is displayed
+on the console showing the program counter location, address written
+to, and data. When data is read from IO memory, the user is notified
+similarly and prompted to supply the data. At this prompt, address
+expressions can be entered.
+
 This mode is intended for testing of changes to MSPDebug, and for
 aiding the disassembly of MSP430 binaries (as all binary and symbol
 table formats are still usable in this mode).
