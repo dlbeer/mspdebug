@@ -143,10 +143,13 @@ Alter the value of a register. Registers are specified as numbers from
 0 through 15. Any leading non-numeric characters are ignored (so a
 register may be specified as, for example, "R12"). The value argument
 is an address expression.
-.IP "step"
-Step the CPU through a single instruction. After stepping, the new
+.IP "step [\fIcount\fR]"
+Step the CPU through one or more instructions. After stepping, the new
 register values are displayed, as well as a disassembly of the
 instructions at the address selected by the program counter.
+
+An optional count can be specified to step multiple times. If no
+argument is given, the CPU steps once.
 .IP "syms \fIfilename\fR"
 Load symbols from the specified file and add them to the symbol table.
 The file format will be auto-detected and may be either ELF32 or a

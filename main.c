@@ -455,8 +455,17 @@ static int cmd_set(char **arg)
 
 static int cmd_step(char **arg)
 {
-	if (msp430_dev->control(DEVICE_CTL_STEP) < 0)
-		return -1;
+	char *count_text = get_arg(arg);
+	int count = 1;
+
+	if (count_text)
+		count = atoi(count_text);
+
+	while (count > 0) {
+		if (msp430_dev->control(DEVICE_CTL_STEP) < 0)
+			return -1;
+		count--;
+	}
 
 	return cmd_regs(NULL);
 }
@@ -661,7 +670,7 @@ static const struct command all_commands[] = {
 "set <register> <value>\n"
 "    Change the value of a CPU register.\n"},
 	{"step",	cmd_step,
-"step\n"
+"step [count]\n"
 "    Single-step the CPU, and display the register state.\n"},
 	{"syms",	cmd_syms,
 "syms <filename>\n"
