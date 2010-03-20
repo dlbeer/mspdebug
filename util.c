@@ -22,6 +22,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 #include "util.h"
 
 void hexdump(int addr, const u_int8_t *data, int len)
@@ -174,4 +175,31 @@ int open_serial(const char *device, int rate)
 		return -1;
 
 	return fd;
+}
+
+static volatile int ctrlc_flag;
+
+static void sigint_handler(int signum)
+{
+	ctrlc_flag = 1;
+}
+
+void ctrlc_init(void)
+{
+	const static struct sigaction siga = {
+		.sa_handler = sigint_handler,
+		.sa_flags = 0
+	};
+
+	sigaction(SIGINT, &siga, NULL);
+}
+
+void ctrlc_reset(void)
+{
+	ctrlc_flag = 0;
+}
+
+int ctrlc_check(void)
+{
+	return ctrlc_flag;
 }

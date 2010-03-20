@@ -60,9 +60,8 @@ this would allow firmware updates to FET430UIF devices.
 The argument should be the filename of the appropriate tty device.
 .IP "\-s"
 Do not connect to any hardware device, but instead start in simulation
-mode. A 64k buffer is allocated to simulate the device memory. All of
-the memory inspection and programming commands can be used on this
-buffer, but CPU control is not supported.
+mode. A 64k buffer is allocated to simulate the device memory. The CPU
+core alone is emulated (no peripheral emulation).
 
 This mode is intended for testing of changes to MSPDebug, and for
 aiding the disassembly of MSP430 binaries (as all binary and symbol

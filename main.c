@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <signal.h>
 #include <unistd.h>
 
 #include "dis.h"
@@ -736,10 +735,6 @@ static int cmd_help(char **arg)
 	return 0;
 }
 
-static void sigint_handler(int signum)
-{
-}
-
 static void process_command(char *arg)
 {
 	const char *cmd_text;
@@ -758,14 +753,9 @@ static void process_command(char *arg)
 
 static void reader_loop(void)
 {
-	const static struct sigaction siga = {
-		.sa_handler = sigint_handler,
-		.sa_flags = 0
-	};
-
 	printf("\n");
 	cmd_help(NULL);
-	sigaction(SIGINT, &siga, NULL);
+	ctrlc_init();
 
 	for (;;) {
 		char buf[128];
@@ -810,7 +800,7 @@ static void usage(const char *progname)
 "    -B device\n"
 "        Debug the FET itself through the bootloader.\n"
 "    -s\n"
-"        Start in simulation mode (only memory IO is allowed).\n"
+"        Start in simulation mode.\n"
 "\n"
 "By default, the first RF2500 device on the USB bus is opened.\n"
 "\n"

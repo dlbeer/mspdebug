@@ -31,4 +31,8 @@ int open_serial(const char *device, int rate);
 int read_with_timeout(int fd, u_int8_t *data, int len);
 int write_all(int fd, const u_int8_t *data, int len);
 
+void ctrlc_init(void);
+void ctrlc_reset(void);
+int ctrlc_check(void);
+
 #endif

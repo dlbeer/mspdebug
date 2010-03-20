@@ -171,8 +171,6 @@ typedef enum {
 	MSP430_OP_TST           = 0x10017
 } msp430_op_t;
 
-#define MSP430_OP_IS_JUMP(o) ((o) >= MSP430_OP_JNZ && (o) <= MSP430_OP_JMP)
-
 /* This represents a decoded instruction. All decoded addresses are
  * absolute or register-indexed, depending on the addressing mode.
  *
