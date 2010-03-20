@@ -42,10 +42,13 @@ static u_int16_t sim_regs[DEVICE_NUM_REGS];
 
 #define MEM_IO_END 0x200
 
+/* PC at the start of the current instruction */
+static u_int16_t current_insn;
+
 static void io_prefix(const char *prefix, u_int16_t addr, int is_byte)
 {
 	const char *name;
-	u_int16_t pc = sim_regs[MSP430_REG_PC];
+	u_int16_t pc = current_insn;
 
 	if (!stab_find(&pc, &name)) {
 		printf("%s", name);
@@ -288,7 +291,7 @@ static int step_double(u_int16_t ins)
 	default:
 		fprintf(stderr, "sim: invalid double-operand opcode: "
 			"0x%04x (PC = 0x%04x)\n",
-			opcode, sim_regs[MSP430_REG_PC]);
+			opcode, current_insn);
 		return -1;
 	}
 
@@ -367,7 +370,7 @@ static int step_single(u_int16_t ins)
 
 	default:
 		fprintf(stderr, "sim: unknown single-operand opcode: 0x%04x "
-			"(PC = 0x%04x)\n", opcode, sim_regs[MSP430_REG_PC]);
+			"(PC = 0x%04x)\n", opcode, current_insn);
 		return -1;
 	}
 
@@ -434,8 +437,9 @@ static int step_cpu(void)
 	u_int16_t ins;
 
 	/* Fetch the instruction */
-	ins = MEM_GETW(sim_regs[MSP430_REG_PC]);
-	sim_regs[0] += 2;
+	current_insn = sim_regs[MSP430_REG_PC];
+	ins = MEM_GETW(current_insn);
+	sim_regs[MSP430_REG_PC] += 2;
 
 	/* Handle different instruction types */
 	if ((ins & 0xf000) >= 0x4000)
