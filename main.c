@@ -175,7 +175,7 @@ static void disassemble(u_int16_t offset, u_int8_t *data, int length)
 		}
 
 		if (retval >= 0) {
-			char buf[32];
+			char buf[128];
 
 			dis_format(buf, sizeof(buf), &insn);
 			printf("%s", buf);
