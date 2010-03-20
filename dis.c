@@ -443,7 +443,7 @@ static const char *msp_op_name(msp430_op_t op)
 	} ops[] = {
 		/* Single operand */
 		{MSP430_OP_RRC,         "RRC"},
-		{MSP430_OP_RRC,         "SWPB"},
+		{MSP430_OP_SWPB,        "SWPB"},
 		{MSP430_OP_RRA,         "RRA"},
 		{MSP430_OP_SXT,         "SXT"},
 		{MSP430_OP_PUSH,        "PUSH"},
