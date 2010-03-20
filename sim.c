@@ -538,7 +538,7 @@ static int sim_getregs(u_int16_t *regs)
 
 static int sim_setregs(const u_int16_t *regs)
 {
-	memcpy(sim_regs, regs, sizeof(regs));
+	memcpy(sim_regs, regs, sizeof(sim_regs));
 	return -1;
 }
 
