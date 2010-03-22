@@ -568,13 +568,19 @@ static int cmd_prog(char **arg)
 	} else if (ihex_check(in)) {
 		result = ihex_extract(in, prog_feed);
 	} else {
-		fprintf(stderr, "%s: unknown file type\n", *arg);
+		fprintf(stderr, "prog: %s: unknown file type\n", *arg);
 	}
 
-	if (!result)
-		result = prog_flush();
-
 	fclose(in);
+
+	if (prog_flush() < 0)
+		return -1;
+
+	if (msp430_dev->control(DEVICE_CTL_RESET) < 0) {
+		fprintf(stderr, "prog: failed to reset after programming\n");
+		return -1;
+	}
+
 	return result;
 }
 
