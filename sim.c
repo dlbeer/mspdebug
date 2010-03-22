@@ -78,8 +78,10 @@ static u_int16_t fetch_io(u_int16_t addr, int is_byte)
 
 		printf("? ");
 		fflush(stdout);
-		if (!fgets(text, sizeof(text), stdin))
+		if (!fgets(text, sizeof(text), stdin)) {
+			printf("\n");
 			return 0;
+		}
 
 		len = strlen(text);
 		while (len && isspace(text[len - 1]))
@@ -479,13 +481,14 @@ static int sim_control(device_ctl_t action)
 	case DEVICE_CTL_RESET:
 		memset(sim_regs, 0, sizeof(sim_regs));
 		sim_regs[MSP430_REG_PC] = MEM_GETW(0xfffe);
-		break;
+		return 0;
 
 	case DEVICE_CTL_ERASE:
 		memset(memory, 0xff, MEM_SIZE);
 		return 0;
 
 	case DEVICE_CTL_HALT:
+		run_mode = RUN_HALTED;
 		return 0;
 
 	case DEVICE_CTL_STEP:
@@ -503,34 +506,39 @@ static int sim_control(device_ctl_t action)
 	return -1;
 }
 
-static int sim_wait(void)
+static int sim_wait(int blocking)
 {
+	int i = 100000;
+
 	if (run_mode != RUN_HALTED) {
-		printf("\n");
 		ctrlc_reset();
 
-		for (;;) {
+		while (i) {
 			if (run_mode == RUN_TO_BREAKPOINT &&
-			    sim_regs[MSP430_REG_PC] == run_breakpoint)
-				break;
+			    sim_regs[MSP430_REG_PC] == run_breakpoint) {
+				run_mode = RUN_HALTED;
+				return 0;
+			}
 
 			if (sim_regs[MSP430_REG_SR] & MSP430_SR_CPUOFF) {
+				run_mode = RUN_HALTED;
 				printf("CPU disabled\n");
-				break;
+				return 0;
 			}
 
-			if (ctrlc_check()) {
-				run_mode = RUN_HALTED;
-				return 1;
-			}
+			if (ctrlc_check())
+				break;
 
 			if (step_cpu() < 0) {
 				run_mode = RUN_HALTED;
 				return -1;
 			}
+
+			if (!blocking)
+				i--;
 		}
 
-		run_mode = RUN_HALTED;
+		return 1;
 	}
 
 	return 0;
@@ -551,7 +559,7 @@ static int sim_getregs(u_int16_t *regs)
 static int sim_setregs(const u_int16_t *regs)
 {
 	memcpy(sim_regs, regs, sizeof(sim_regs));
-	return -1;
+	return 0;
 }
 
 static int sim_readmem(u_int16_t addr, u_int8_t *mem, int len)

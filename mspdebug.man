@@ -22,7 +22,8 @@ registers, set registers, and control the CPU (single step, run and
 run to breakpoint).
 
 It supports ELF32, Intel HEX and BSD-style symbol tables (such as the
-output produced by \fBnm\fR(1)).
+output produced by \fBnm\fR(1)). It can also be used as a remote stub
+for \fBgdb\fR(1).
 .SH OPTIONS
 Command-line options accepted by MSPDebug are described below. If
 commands are specified on the end of the command-line, then they are
@@ -93,6 +94,13 @@ length (64 bytes) is disassembled and shown.
 
 If symbols are available, then all addresses used as operands are
 translated into \fIsymbol\fR+\fIoffset\fR form.
+.IP "gdb [\fIport\fR]"
+Start a GDB remote stub, optionally specifying a TCP port to listen on.
+If no port is given, the default port is 2000.
+
+MSPDebug will wait for a connection on this port, and then act as a
+GDB remote stub until GDB disconnects. The basic GDB protocol is
+supported, plus the monitor commands "erase" and "reset".
 .IP "help [\fIcommand\fR]"
 Show a brief listing of available commands. If an argument is
 specified, show the syntax for the given command. The help text shown
@@ -183,8 +191,7 @@ The following are all valid examples of address expressions:
 .br
 .B __bss_end-__bss_start
 .SH SEE ALSO
-.BR nm (1),
-.BR objcopy (1)
+\fBnm\fR(1), \fBgdb\fR(1), \fBobjcopy\fR(1)
 .SH BUGS
 If you find any bugs, you should report them to the author at
 daniel@tortek.co.nz. It would help if you could include a transcript

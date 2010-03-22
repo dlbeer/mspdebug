@@ -28,6 +28,7 @@
 #include "binfile.h"
 #include "stab.h"
 #include "util.h"
+#include "gdb.h"
 
 static const struct device *msp430_dev;
 
@@ -404,11 +405,9 @@ static int cmd_run(char **arg)
 		printf("Running to 0x%04x.", bp_addr);
 	else
 		printf("Running.");
-	printf(" Press Ctrl+C to interrupt...");
-	fflush(stdout);
+	printf(" Press Ctrl+C to interrupt...\n");
 
-	msp430_dev->wait();
-	printf("\n");
+	msp430_dev->wait(1);
 
 	if (msp430_dev->control(DEVICE_CTL_HALT) < 0)
 		return -1;
@@ -631,6 +630,22 @@ static int cmd_syms(char **arg)
 	return result;
 }
 
+static int cmd_gdb(char **arg)
+{
+	char *port_text = get_arg(arg);
+	int port = 2000;
+
+	if (port_text)
+		port = atoi(port_text);
+
+	if (port <= 0 || port > 65535) {
+		fprintf(stderr, "gdb: invalid port: %d\n", port);
+		return -1;
+	}
+
+	return gdb_server(msp430_dev, port);
+}
+
 static const struct command all_commands[] = {
 	{"=",		cmd_eval,
 "= <expression>\n"
@@ -638,6 +653,9 @@ static const struct command all_commands[] = {
 	{"dis",		cmd_dis,
 "dis <address> [length]\n"
 "    Disassemble a section of memory.\n"},
+	{"gdb",         cmd_gdb,
+"gdb [port]\n"
+"    Run a GDB remote stub on the given TCP/IP port.\n"},
 	{"help",	cmd_help,
 "help [command]\n"
 "    Without arguments, displays a list of commands. With a command name as\n"
@@ -764,7 +782,6 @@ static void reader_loop(void)
 {
 	printf("\n");
 	cmd_help(NULL);
-	ctrlc_init();
 
 	for (;;) {
 		char buf[128];
@@ -891,6 +908,8 @@ int main(int argc, char **argv)
 			"Try -? for help.\n");
 		return -1;
 	}
+
+	ctrlc_init();
 
 	/* Open a device */
 	if (mode == MODE_SIM) {

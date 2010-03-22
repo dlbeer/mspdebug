@@ -202,7 +202,7 @@ static int bsl_control(device_ctl_t type)
 	return -1;
 }
 
-static int bsl_wait(void)
+static int bsl_wait(int blocking)
 {
 	return 0;
 }

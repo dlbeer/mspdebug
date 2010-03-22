@@ -36,7 +36,7 @@ typedef enum {
 struct device {
 	void (*close)(void);
 	int (*control)(device_ctl_t action);
-	int (*wait)(void);
+	int (*wait)(int blocking);
 	int (*breakpoint)(u_int16_t addr);
 	int (*getregs)(u_int16_t *regs);
 	int (*setregs)(const u_int16_t *regs);

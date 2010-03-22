@@ -32,7 +32,7 @@ install: mspdebug mspdebug.man
 .SUFFIXES: .c .o
 
 mspdebug: main.o fet.o rf2500.o dis.o uif.o ihex.o elf32.o stab.o util.o \
-	  bsl.o sim.o symmap.o
+	  bsl.o sim.o symmap.o gdb.o
 	$(CC) $(CFLAGS) -o $@ $^ -lusb
 
 .c.o:

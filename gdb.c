@@ -1,0 +1,575 @@
+/* MSPDebug - debugging tool for MSP430 MCUs
+ * Copyright (C) 2009, 2010 Daniel Beer
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include "device.h"
+#include "gdb.h"
+
+static const struct device *gdb_device;
+
+/************************************************************************
+ * GDB IO routines
+ */
+
+static int gdb_socket;
+static int gdb_errno;
+
+static char gdb_xbuf[1024];
+static int gdb_head;
+static int gdb_tail;
+
+static char gdb_outbuf[1024];
+static int gdb_outlen;
+
+static void gdb_printf(const char *fmt, ...)
+{
+	va_list ap;
+	int len;
+
+	va_start(ap, fmt);
+	len = vsnprintf(gdb_outbuf + gdb_outlen,
+			sizeof(gdb_outbuf) - gdb_outlen,
+			fmt, ap);
+	va_end(ap);
+
+	gdb_outlen += len;
+}
+
+static int gdb_flush(void)
+{
+	if (send(gdb_socket, gdb_outbuf, gdb_outlen, 0) < 0) {
+		gdb_errno = errno;
+		perror("gdb: send");
+		return -1;
+	}
+
+	gdb_outlen = 0;
+	return 0;
+}
+
+static int gdb_read(int blocking)
+{
+	fd_set r;
+	int len;
+	struct timeval to = {
+		.tv_sec = 0,
+		.tv_usec = 0
+	};
+
+	FD_ZERO(&r);
+	FD_SET(gdb_socket, &r);
+
+	if (select(gdb_socket + 1, &r, NULL, NULL,
+		   blocking ? NULL : &to) < 0) {
+		perror("gdb: select");
+		return -1;
+	}
+
+	if (!FD_ISSET(gdb_socket, &r))
+		return 0;
+
+	len = recv(gdb_socket, gdb_xbuf, sizeof(gdb_xbuf), 0);
+
+	if (len < 0) {
+		gdb_errno = errno;
+		perror("gdb: recv");
+		return -1;
+	}
+
+	if (!len) {
+		printf("Connection closed\n");
+		return -1;
+	}
+
+	gdb_head = 0;
+	gdb_tail = len;
+	return len;
+}
+
+static int gdb_peek(void)
+{
+	if (gdb_head == gdb_tail && gdb_read(0) < 0)
+		return -1;
+
+	return gdb_head != gdb_tail;
+}
+
+static int gdb_getc(void)
+{
+	int c;
+
+	/* If the buffer is empty, receive some more data */
+	if (gdb_head == gdb_tail && gdb_read(1) < 0)
+		return -1;
+
+	c = gdb_xbuf[gdb_head];
+	gdb_head++;
+
+	return c;
+}
+
+static int gdb_flush_ack(void)
+{
+	int c;
+
+	do {
+		gdb_outbuf[gdb_outlen] = 0;
+#ifdef DEBUG_GDB
+		printf("-> %s\n", gdb_outbuf);
+#endif
+		if (gdb_flush() < 0)
+			return -1;
+
+		c = gdb_getc();
+		if (c < 0)
+			return -1;
+	} while (c != '+');
+
+	return 0;
+}
+
+static void gdb_packet_start(void)
+{
+	gdb_printf("$");
+}
+
+static void gdb_packet_end(void)
+{
+	int i;
+	int c = 0;
+
+	for (i = 1; i < gdb_outlen; i++)
+		c = (c + gdb_outbuf[i]) & 0xff;
+	gdb_printf("#%02X", c);
+}
+
+static void gdb_hexstring(const char *text)
+{
+	while (*text)
+		gdb_printf("%02X", *(text++));
+}
+
+static int hexval(int c)
+{
+	if (isdigit(c))
+		return c - '0';
+	if (isupper(c))
+		return c - 'A' + 10;
+	if (islower(c))
+		return c - 'a' + 10;
+
+	return 0;
+}
+
+/************************************************************************
+ * GDB server
+ */
+
+static void read_registers(void)
+{
+	u_int16_t regs[DEVICE_NUM_REGS];
+
+	printf("Reading registers\n");
+	if (gdb_device->getregs(regs) < 0) {
+		gdb_printf("E00");
+	} else {
+		int i;
+
+		for (i = 0; i < DEVICE_NUM_REGS; i++)
+			gdb_printf("%02X%02X", regs[i] & 0xff, regs[i] >> 8);
+	}
+}
+
+static void monitor_command(char *buf)
+{
+	char cmd[128];
+	int len = 0;
+
+	while (len + 1 < sizeof(cmd) && *buf && buf[1]) {
+		cmd[len++] = (hexval(buf[0]) << 4) | hexval(buf[1]);
+		buf += 2;
+	}
+
+	if (!strcasecmp(cmd, "reset")) {
+		printf("Resetting device\n");
+		if (gdb_device->control(DEVICE_CTL_RESET) < 0)
+			gdb_hexstring("Reset failed\n");
+		else
+			gdb_printf("OK");
+	} else if (!strcasecmp(cmd, "erase")) {
+		printf("Erasing device\n");
+		if (gdb_device->control(DEVICE_CTL_ERASE) < 0)
+			gdb_hexstring("Erase failed\n");
+		else
+			gdb_printf("OK");
+	}
+}
+
+static void write_registers(char *buf)
+{
+	u_int16_t regs[DEVICE_NUM_REGS];
+	int i;
+
+	printf("Writing registers\n");
+	for (i = 0; i < DEVICE_NUM_REGS; i++) {
+		regs[i] = (hexval(buf[2]) << 12) |
+			(hexval(buf[3]) << 8) |
+			(hexval(buf[0]) << 4) |
+			hexval(buf[1]);
+		buf += 4;
+	}
+
+	if (gdb_device->setregs(regs) < 0)
+		gdb_printf("E00");
+	else
+		gdb_printf("OK");
+}
+
+static void read_memory(char *text)
+{
+	char *length_text = strchr(text, ',');
+	int length, addr;
+	u_int8_t buf[128];
+
+	if (!length_text) {
+		fprintf(stderr, "gdb: malformed memory read request\n");
+		gdb_printf("E00");
+		return;
+	}
+
+	*(length_text++) = 0;
+
+	length = strtoul(length_text, NULL, 16);
+	addr = strtoul(text, NULL, 16);
+
+	if (length > sizeof(buf))
+		length = sizeof(buf);
+
+	printf("Reading %d bytes from 0x%04x\n", length, addr);
+
+	if (gdb_device->readmem(addr, buf, length) < 0) {
+		gdb_printf("E00");
+	} else {
+		int i;
+
+		for (i = 0; i < length; i++)
+			gdb_printf("%02X", buf[i]);
+	}
+}
+
+static void write_memory(char *text)
+{
+	char *data_text = strchr(text, ':');
+	char *length_text = strchr(text, ',');
+	int length, addr;
+	u_int8_t buf[128];
+	int buflen = 0;
+
+	if (!(data_text && length_text)) {
+		fprintf(stderr, "gdb: malformed memory write request\n");
+		gdb_printf("E00");
+		return;
+	}
+
+	*(data_text++) = 0;
+	*(length_text++) = 0;
+
+	length = strtoul(length_text, NULL, 16);
+	addr = strtoul(text, NULL, 16);
+
+	while (buflen < sizeof(buf) && *data_text && data_text[1]) {
+		buf[buflen++] = (hexval(data_text[0]) << 4) |
+			hexval(data_text[1]);
+		data_text += 2;
+	}
+
+	if (buflen != length) {
+		fprintf(stderr, "gdb: length mismatch\n");
+		gdb_printf("E00");
+		return;
+	}
+
+	printf("Writing %d bytes to 0x%04x\n", buflen, addr);
+
+	if (gdb_device->writemem(addr, buf, buflen) < 0)
+		gdb_printf("E00");
+	else
+		gdb_printf("OK");
+}
+
+static void single_step(char *buf)
+{
+	u_int16_t regs[DEVICE_NUM_REGS];
+	int i;
+
+	printf("Single stepping\n");
+
+	if (*buf) {
+		if (gdb_device->getregs(regs) < 0)
+			goto fail;
+
+		regs[0] = strtoul(buf, NULL, 16);
+		if (gdb_device->setregs(regs) < 0)
+			goto fail;
+	}
+
+	if (gdb_device->control(DEVICE_CTL_STEP) < 0)
+		goto fail;
+	if (gdb_device->getregs(regs) < 0)
+		goto fail;
+
+	gdb_printf("T00");
+	for (i = 0; i < 16; i++)
+		gdb_printf("%02X:%02X%02X;", i, regs[i] & 0xff, regs[i] >> 8);
+
+	return;
+ fail:
+	gdb_printf("E00");
+}
+
+static void run(char *buf)
+{
+	u_int16_t regs[DEVICE_NUM_REGS];
+	int i;
+
+	printf("Running\n");
+
+	if (*buf) {
+		if (gdb_device->getregs(regs) < 0)
+			goto fail;
+
+		regs[0] = strtoul(buf, NULL, 16);
+		if (gdb_device->setregs(regs) < 0)
+			goto fail;
+	}
+
+	if (gdb_device->control(DEVICE_CTL_RUN) < 0)
+		goto fail;
+
+	for (;;) {
+		int status = gdb_device->wait(0);
+
+		if (status < 0)
+			goto fail;
+		if (!status) {
+			printf("Target halted\n");
+			goto out;
+		}
+
+		while (gdb_peek()) {
+			int c = gdb_getc();
+
+			if (c < 0)
+				return;
+
+			if (c == 3) {
+				printf("Interrupted by gdb\n");
+				goto out;
+			}
+		}
+	}
+
+ out:
+	if (gdb_device->control(DEVICE_CTL_HALT) < 0)
+		goto fail;
+	if (gdb_device->getregs(regs) < 0)
+		goto fail;
+
+	gdb_printf("T00");
+	for (i = 0; i < 16; i++)
+		gdb_printf("%02X:%02X%02X;", i, regs[i] & 0xff, regs[i] >> 8);
+
+	return;
+ fail:
+	gdb_printf("E00");
+}
+
+static int process_command(char *buf, int len)
+{
+	gdb_packet_start();
+
+	switch (buf[0]) {
+	case '?': /* Return target halt reason */
+		gdb_printf("T00");
+		break;
+
+	case 'g': /* Read registers */
+		read_registers();
+		break;
+
+	case 'G': /* Write registers */
+		if (len >= DEVICE_NUM_REGS * 4)
+			write_registers(buf + 1);
+		else
+			gdb_printf("E00");
+		break;
+
+	case 'q': /* Query */
+		if (!strncmp(buf, "qRcmd,", 6))
+			monitor_command(buf + 6);
+		break;
+
+	case 'm': /* Read memory */
+		read_memory(buf + 1);
+		break;
+
+	case 'M': /* Write memory */
+		write_memory(buf + 1);
+		break;
+
+	case 'c': /* Continue */
+		run(buf + 1);
+		break;
+
+	case 's': /* Single step */
+		single_step(buf + 1);
+		break;
+	}
+
+	/* For unknown/unsupported packets, return an empty reply */
+	gdb_packet_end();
+	return gdb_flush_ack();
+}
+
+static void reader_loop(void)
+{
+	for (;;) {
+		char buf[1024];
+		int len = 0;
+		int cksum_calc = 0;
+		int cksum_recv = 0;
+		int c;
+
+		/* Wait for packet start */
+		do {
+			c = gdb_getc();
+			if (c < 0)
+				return;
+		} while (c != '$');
+
+		/* Read packet payload */
+		while (len + 1 < sizeof(buf)) {
+			c = gdb_getc();
+			if (c < 0)
+				return;
+			if (c == '#')
+				break;
+
+			buf[len++] = c;
+			cksum_calc = (cksum_calc + c) & 0xff;
+		}
+		buf[len] = 0;
+
+		/* Read packet checksum */
+		c = gdb_getc();
+		if (c < 0)
+			return;
+		cksum_recv = hexval(c);
+		c = gdb_getc();
+		if (c < 0)
+			return;
+		cksum_recv = (cksum_recv << 4) | hexval(c);
+
+#ifdef DEBUG_GDB
+		printf("<- $%s#%02X\n", buf, cksum_recv);
+#endif
+
+		if (cksum_recv != cksum_calc) {
+			fprintf(stderr, "gdb: bad checksum (calc = 0x%02x, "
+				"recv = 0x%02x)\n", cksum_calc, cksum_recv);
+			fprintf(stderr, "gdb: packet data was: %s\n", buf);
+			gdb_printf("-");
+			if (gdb_flush() < 0)
+				return;
+			continue;
+		}
+
+		/* Send acknowledgement */
+		gdb_printf("+");
+		if (gdb_flush() < 0)
+			return;
+
+		if (len && process_command(buf, len) < 0)
+			return;
+	}
+}
+
+int gdb_server(const struct device *dev, int port)
+{
+	int sock;
+	int client;
+	struct sockaddr_in addr;
+	socklen_t len;
+
+	sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (sock < 0) {
+		perror("gdb: can't create socket");
+		return -1;
+	}
+
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(port);
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+		fprintf(stderr, "gdb: can't bind to port %d: %s\n",
+			port, strerror(errno));
+		close(sock);
+		return -1;
+	}
+
+	if (listen(sock, 1) < 0) {
+		perror("gdb: can't listen on socket");
+		close(sock);
+		return -1;
+	}
+
+	printf("Bound to port %d. Now waiting for connection...\n", port);
+
+	len = sizeof(addr);
+	client = accept(sock, (struct sockaddr *)&addr, &len);
+	if (client < 0) {
+		perror("gdb: failed to accept connection");
+		close(sock);
+		return -1;
+	}
+
+	close(sock);
+	printf("Client connected from %s:%d\n",
+	       inet_ntoa(addr.sin_addr), htons(addr.sin_port));
+
+	gdb_socket = client;
+	gdb_errno = 0;
+	gdb_head = 0;
+	gdb_tail = 0;
+	gdb_outlen = 0;
+	gdb_device = dev;
+
+	reader_loop();
+
+	return gdb_errno ? -1 : 0;
+}
