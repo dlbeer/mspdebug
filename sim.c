@@ -67,7 +67,7 @@ static void io_prefix(const char *prefix, u_int16_t addr, int is_byte)
 	}
 }
 
-static u_int16_t fetch_io(u_int16_t addr, int is_byte)
+static int fetch_io(u_int16_t addr, int is_byte, u_int32_t *data_ret)
 {
 	io_prefix("READ", addr, is_byte);
 
@@ -79,8 +79,8 @@ static u_int16_t fetch_io(u_int16_t addr, int is_byte)
 		printf("? ");
 		fflush(stdout);
 		if (!fgets(text, sizeof(text), stdin)) {
-			printf("\n");
-			return 0;
+			printf("\nAborted IO request\n");
+			return -1;
 		}
 
 		len = strlen(text);
@@ -88,8 +88,11 @@ static u_int16_t fetch_io(u_int16_t addr, int is_byte)
 			len--;
 		text[len] = 0;
 
-		if (!stab_parse(text, &data))
-			return data;
+		if (!stab_parse(text, &data)) {
+			if (data_ret)
+				*data_ret = data;
+			return 0;
+		}
 	}
 
 	return 0;
@@ -105,8 +108,8 @@ static void store_io(u_int16_t addr, int is_byte, u_int16_t data)
 		printf(" => 0x%04x\n", data);
 }
 
-static void fetch_operand(int amode, int reg, int is_byte,
-			  u_int16_t *addr_ret, u_int32_t *data_ret)
+static int fetch_operand(int amode, int reg, int is_byte,
+			 u_int16_t *addr_ret, u_int32_t *data_ret)
 {
 	u_int16_t addr = 0;
 	u_int32_t mask = is_byte ? 0xff : 0xffff;
@@ -116,17 +119,17 @@ static void fetch_operand(int amode, int reg, int is_byte,
 		if (reg == MSP430_REG_R3) {
 			if (data_ret)
 				*data_ret = 0;
-			return;
+			return 0;
 		}
 		if (data_ret)
 			*data_ret = sim_regs[reg] & mask;
-		return;
+		return 0;
 
 	case MSP430_AMODE_INDEXED:
 		if (reg == MSP430_REG_R3) {
 			if (data_ret)
 				*data_ret = 1;
-			return;
+			return 0;
 		}
 
 		addr = MEM_GETW(sim_regs[MSP430_REG_PC]);
@@ -140,13 +143,13 @@ static void fetch_operand(int amode, int reg, int is_byte,
 		if (reg == MSP430_REG_SR) {
 			if (data_ret)
 				*data_ret = 4;
-			return;
+			return 0;
 		}
 
 		if (reg == MSP430_REG_R3) {
 			if (data_ret)
 				*data_ret = 2;
-			return;
+			return 0;
 		}
 		addr = sim_regs[reg];
 		break;
@@ -155,12 +158,12 @@ static void fetch_operand(int amode, int reg, int is_byte,
 		if (reg == MSP430_REG_SR) {
 			if (data_ret)
 				*data_ret = 8;
-			return;
+			return 0;
 		}
 		if (reg == MSP430_REG_R3) {
 			if (data_ret)
 				*data_ret = mask;
-			return;
+			return 0;
 		}
 		addr = sim_regs[reg];
 		sim_regs[reg] += 2;
@@ -172,10 +175,12 @@ static void fetch_operand(int amode, int reg, int is_byte,
 
 	if (data_ret) {
 		if (addr < MEM_IO_END)
-			*data_ret = fetch_io(addr, is_byte);
-		else
-			*data_ret = MEM_GETW(addr) & mask;
+			return fetch_io(addr, is_byte, data_ret);
+
+		*data_ret = MEM_GETW(addr) & mask;
 	}
+
+	return 0;
 }
 
 static void store_operand(int amode, int reg, int is_byte,
@@ -208,9 +213,11 @@ static int step_double(u_int16_t ins)
 	u_int32_t msb = is_byte ? 0x80 : 0x8000;
 	u_int32_t mask = is_byte ? 0xff : 0xffff;
 
-	fetch_operand(amode_src, sreg, is_byte, NULL, &src_data);
-	fetch_operand(amode_dst, dreg, is_byte, &dst_addr,
-		      opcode == MSP430_OP_MOV ? NULL : &dst_data);
+	if (fetch_operand(amode_src, sreg, is_byte, NULL, &src_data) < 0)
+		return -1;
+	if (fetch_operand(amode_dst, dreg, is_byte, &dst_addr,
+			  opcode == MSP430_OP_MOV ? NULL : &dst_data) < 0)
+		return -1;
 
 	switch (opcode) {
 	case MSP430_OP_MOV:
@@ -316,7 +323,8 @@ static int step_single(u_int16_t ins)
 	u_int32_t src_data;
 	u_int32_t res_data;
 
-	fetch_operand(amode, reg, is_byte, &src_addr, &src_data);
+	if (fetch_operand(amode, reg, is_byte, &src_addr, &src_data) < 0)
+		return -1;
 
 	switch (opcode) {
 	case MSP430_OP_RRC:
@@ -440,6 +448,7 @@ static int step_jump(u_int16_t ins)
 static int step_cpu(void)
 {
 	u_int16_t ins;
+	int ret;
 
 	/* Fetch the instruction */
 	current_insn = sim_regs[MSP430_REG_PC];
@@ -448,11 +457,17 @@ static int step_cpu(void)
 
 	/* Handle different instruction types */
 	if ((ins & 0xf000) >= 0x4000)
-		return step_double(ins);
+		ret = step_double(ins);
 	else if ((ins & 0xf000) >= 0x2000)
-		return step_jump(ins);
+		ret = step_jump(ins);
 	else
-		return step_single(ins);
+		ret = step_single(ins);
+
+	/* If things went wrong, restart at the current instruction */
+	if (ret < 0)
+		sim_regs[MSP430_REG_PC] = current_insn;
+
+	return ret;
 }
 
 /************************************************************************
