@@ -214,7 +214,7 @@ Some firmware versions of the FET430UIF are not supported. If you
 encounter a version which doesn't work, you should try to extract
 the firmware using the command:
 
-.B mspdebug -B \fIdevice\fP 'hexout 0x3100 0xdb00 firmware.hex'
+.B mspdebug -B \fIdevice\fP 'hexout 0x2500 0xdb00 firmware.hex'
 
 Please send the HEX file, along with the firmware version. The
 firmware version is reported in the transcript when connecting
