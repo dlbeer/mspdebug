@@ -55,7 +55,7 @@ static void io_prefix(const char *prefix, u_int16_t addr, int is_byte)
 		if (pc)
 			printf("+0x%x", addr);
 	} else {
-		printf("0x%04x", addr);
+		printf("0x%04x", pc);
 	}
 
 	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
