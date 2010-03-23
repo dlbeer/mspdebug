@@ -137,7 +137,7 @@ In the case of an ELF32 file, symbols will be automatically loaded
 from the file into the symbol table (discarding any existing symbols),
 if they are present.
 
-The CPU is reset and halted before programming.
+The CPU is reset and halted before and after programming.
 .IP "regs"
 Show the current value of all CPU registers in the device under test.
 .IP "reset"
