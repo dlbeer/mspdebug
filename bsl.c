@@ -202,9 +202,9 @@ static int bsl_control(device_ctl_t type)
 	return -1;
 }
 
-static int bsl_wait(int blocking)
+static device_status_t bsl_wait(int blocking)
 {
-	return 0;
+	return DEVICE_STATUS_HALTED;
 }
 
 static int bsl_breakpoint(u_int16_t addr)

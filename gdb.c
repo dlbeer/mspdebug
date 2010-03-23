@@ -388,17 +388,20 @@ static int run(char *buf)
 	}
 
 	for (;;) {
-		int status = gdb_device->wait(0);
+		device_status_t status = gdb_device->wait(0);
 
-		if (status < 0) {
+		if (status == DEVICE_STATUS_ERROR) {
 			gdb_send("E00");
 			return run_final_status();
 		}
 
-		if (!status) {
+		if (status == DEVICE_STATUS_HALTED) {
 			printf("Target halted\n");
 			goto out;
 		}
+
+		if (status == DEVICE_STATUS_INTR)
+			goto out;
 
 		while (gdb_peek()) {
 			int c = gdb_getc();

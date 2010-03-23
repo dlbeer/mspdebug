@@ -511,52 +511,66 @@ static int sim_control(device_ctl_t action)
 
 	case DEVICE_CTL_RUN_BP:
 		run_mode = RUN_TO_BREAKPOINT;
+		ctrlc_reset();
 		return 0;
 
 	case DEVICE_CTL_RUN:
 		run_mode = RUN_FREE;
+		ctrlc_reset();
 		return 0;
 	}
 
 	return -1;
 }
 
-static int sim_wait(int blocking)
+static int run_burst(void)
 {
-	int i = 100000;
+	int i = 1000000;
 
-	if (run_mode != RUN_HALTED) {
-		ctrlc_reset();
-
-		while (i) {
-			if (run_mode == RUN_TO_BREAKPOINT &&
-			    sim_regs[MSP430_REG_PC] == run_breakpoint) {
-				run_mode = RUN_HALTED;
-				return 0;
-			}
-
-			if (sim_regs[MSP430_REG_SR] & MSP430_SR_CPUOFF) {
-				run_mode = RUN_HALTED;
-				printf("CPU disabled\n");
-				return 0;
-			}
-
-			if (ctrlc_check())
-				break;
-
-			if (step_cpu() < 0) {
-				run_mode = RUN_HALTED;
-				return -1;
-			}
-
-			if (!blocking)
-				i--;
+	while (i--) {
+		if (run_mode == RUN_TO_BREAKPOINT &&
+		    sim_regs[MSP430_REG_PC] == run_breakpoint) {
+			printf("Breakpoint reached\n");
+			run_mode = RUN_HALTED;
+			return 0;
 		}
 
-		return 1;
+		if (sim_regs[MSP430_REG_SR] & MSP430_SR_CPUOFF) {
+			run_mode = RUN_HALTED;
+			printf("CPU disabled\n");
+			return 0;
+		}
+
+		if (step_cpu() < 0) {
+			run_mode = RUN_HALTED;
+			return -1;
+		}
 	}
 
-	return 0;
+	return 1;
+}
+
+static device_status_t sim_wait(int blocking)
+{
+	if (run_mode != RUN_HALTED) {
+		do {
+			int ret = run_burst();
+
+			if (ret < 0)
+				return DEVICE_STATUS_ERROR;
+			if (!ret)
+				return DEVICE_STATUS_HALTED;
+
+			if (ctrlc_check()) {
+				ctrlc_reset();
+				return DEVICE_STATUS_INTR;
+			}
+		} while (blocking);
+
+		return DEVICE_STATUS_RUNNING;
+	}
+
+	return DEVICE_STATUS_HALTED;
 }
 
 static int sim_breakpoint(u_int16_t addr)

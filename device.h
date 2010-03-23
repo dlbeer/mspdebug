@@ -33,10 +33,17 @@ typedef enum {
 	DEVICE_CTL_ERASE
 } device_ctl_t;
 
+typedef enum {
+	DEVICE_STATUS_HALTED,
+	DEVICE_STATUS_RUNNING,
+	DEVICE_STATUS_INTR,
+	DEVICE_STATUS_ERROR
+} device_status_t;
+
 struct device {
 	void (*close)(void);
 	int (*control)(device_ctl_t action);
-	int (*wait)(int blocking);
+	device_status_t (*wait)(int blocking);
 	int (*breakpoint)(u_int16_t addr);
 	int (*getregs)(u_int16_t *regs);
 	int (*setregs)(const u_int16_t *regs);
