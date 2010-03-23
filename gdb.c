@@ -523,12 +523,17 @@ int gdb_server(const struct device *dev, int port)
 	int client;
 	struct sockaddr_in addr;
 	socklen_t len;
+	int arg;
 
 	sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {
 		perror("gdb: can't create socket");
 		return -1;
 	}
+
+	arg = 1;
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) < 0)
+		perror("gdb: warning: can't reuse socket address");
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
