@@ -165,13 +165,17 @@ static void gdb_packet_end(void)
 
 	for (i = 1; i < gdb_outlen; i++)
 		c = (c + gdb_outbuf[i]) & 0xff;
-	gdb_printf("#%02X", c);
+	gdb_printf("#%02x", c);
 }
 
-static void gdb_hexstring(const char *text)
+static int gdb_send_hex(const char *text)
 {
+	gdb_packet_start();
 	while (*text)
-		gdb_printf("%02X", *(text++));
+		gdb_printf("%02x", *(text++));
+	gdb_packet_end();
+
+	return gdb_flush_ack();
 }
 
 static int hexval(int c)
@@ -186,26 +190,35 @@ static int hexval(int c)
 	return 0;
 }
 
+static int gdb_send(const char *msg)
+{
+	gdb_packet_start();
+	gdb_printf("%s", msg);
+	gdb_packet_end();
+	return gdb_flush_ack();
+}
+
 /************************************************************************
  * GDB server
  */
 
-static void read_registers(void)
+static int read_registers(void)
 {
 	u_int16_t regs[DEVICE_NUM_REGS];
+	int i;
 
 	printf("Reading registers\n");
-	if (gdb_device->getregs(regs) < 0) {
-		gdb_printf("E00");
-	} else {
-		int i;
+	if (gdb_device->getregs(regs) < 0)
+		return gdb_send("E00");
 
-		for (i = 0; i < DEVICE_NUM_REGS; i++)
-			gdb_printf("%02X%02X", regs[i] & 0xff, regs[i] >> 8);
-	}
+	gdb_packet_start();
+	for (i = 0; i < DEVICE_NUM_REGS; i++)
+		gdb_printf("%02x%02x", regs[i] & 0xff, regs[i] >> 8);
+	gdb_packet_end();
+	return gdb_flush_ack();
 }
 
-static void monitor_command(char *buf)
+static int monitor_command(char *buf)
 {
 	char cmd[128];
 	int len = 0;
@@ -218,22 +231,23 @@ static void monitor_command(char *buf)
 	if (!strcasecmp(cmd, "reset")) {
 		printf("Resetting device\n");
 		if (gdb_device->control(DEVICE_CTL_RESET) < 0)
-			gdb_hexstring("Reset failed\n");
-		else
-			gdb_printf("OK");
+			return gdb_send_hex("Reset failed\n");
 	} else if (!strcasecmp(cmd, "erase")) {
 		printf("Erasing device\n");
 		if (gdb_device->control(DEVICE_CTL_ERASE) < 0)
-			gdb_hexstring("Erase failed\n");
-		else
-			gdb_printf("OK");
+			return gdb_send_hex("Erase failed\n");
 	}
+
+	return gdb_send("OK");
 }
 
-static void write_registers(char *buf)
+static int write_registers(char *buf)
 {
 	u_int16_t regs[DEVICE_NUM_REGS];
 	int i;
+
+	if (strlen(buf) < DEVICE_NUM_REGS * 4)
+		return gdb_send("E00");
 
 	printf("Writing registers\n");
 	for (i = 0; i < DEVICE_NUM_REGS; i++) {
@@ -245,21 +259,21 @@ static void write_registers(char *buf)
 	}
 
 	if (gdb_device->setregs(regs) < 0)
-		gdb_printf("E00");
-	else
-		gdb_printf("OK");
+		return gdb_send("E00");
+
+	return gdb_send("OK");
 }
 
-static void read_memory(char *text)
+static int read_memory(char *text)
 {
 	char *length_text = strchr(text, ',');
 	int length, addr;
 	u_int8_t buf[128];
+	int i;
 
 	if (!length_text) {
 		fprintf(stderr, "gdb: malformed memory read request\n");
-		gdb_printf("E00");
-		return;
+		return gdb_send("E00");
 	}
 
 	*(length_text++) = 0;
@@ -272,17 +286,18 @@ static void read_memory(char *text)
 
 	printf("Reading %d bytes from 0x%04x\n", length, addr);
 
-	if (gdb_device->readmem(addr, buf, length) < 0) {
-		gdb_printf("E00");
-	} else {
-		int i;
+	if (gdb_device->readmem(addr, buf, length) < 0)
+		return gdb_send("E00");
 
-		for (i = 0; i < length; i++)
-			gdb_printf("%02X", buf[i]);
-	}
+	gdb_packet_start();
+	for (i = 0; i < length; i++)
+		gdb_printf("%02x", buf[i]);
+	gdb_packet_end();
+
+	return gdb_flush_ack();
 }
 
-static void write_memory(char *text)
+static int write_memory(char *text)
 {
 	char *data_text = strchr(text, ':');
 	char *length_text = strchr(text, ',');
@@ -292,8 +307,7 @@ static void write_memory(char *text)
 
 	if (!(data_text && length_text)) {
 		fprintf(stderr, "gdb: malformed memory write request\n");
-		gdb_printf("E00");
-		return;
+		return gdb_send("E00");
 	}
 
 	*(data_text++) = 0;
@@ -310,72 +324,77 @@ static void write_memory(char *text)
 
 	if (buflen != length) {
 		fprintf(stderr, "gdb: length mismatch\n");
-		gdb_printf("E00");
-		return;
+		return gdb_send("E00");
 	}
 
 	printf("Writing %d bytes to 0x%04x\n", buflen, addr);
 
 	if (gdb_device->writemem(addr, buf, buflen) < 0)
-		gdb_printf("E00");
-	else
-		gdb_printf("OK");
+		return gdb_send("E00");
+
+	return gdb_send("OK");
 }
 
-static void single_step(char *buf)
+static int run_set_pc(char *buf)
+{
+	u_int16_t regs[DEVICE_NUM_REGS];
+
+	if (!*buf)
+		return 0;
+
+	if (gdb_device->getregs(regs) < 0)
+		return -1;
+
+	regs[0] = strtoul(buf, NULL, 16);
+	return gdb_device->setregs(regs);
+}
+
+static int run_final_status(void)
 {
 	u_int16_t regs[DEVICE_NUM_REGS];
 	int i;
 
-	printf("Single stepping\n");
-
-	if (*buf) {
-		if (gdb_device->getregs(regs) < 0)
-			goto fail;
-
-		regs[0] = strtoul(buf, NULL, 16);
-		if (gdb_device->setregs(regs) < 0)
-			goto fail;
-	}
-
-	if (gdb_device->control(DEVICE_CTL_STEP) < 0)
-		goto fail;
 	if (gdb_device->getregs(regs) < 0)
-		goto fail;
+		return gdb_send("E00");
 
+	gdb_packet_start();
 	gdb_printf("T00");
 	for (i = 0; i < 16; i++)
-		gdb_printf("%02X:%02X%02X;", i, regs[i] & 0xff, regs[i] >> 8);
+		gdb_printf("%02x:%02x%02x;", i, regs[i] & 0xff, regs[i] >> 8);
+	gdb_packet_end();
 
-	return;
- fail:
-	gdb_printf("E00");
+	return gdb_flush_ack();
 }
 
-static void run(char *buf)
+static int single_step(char *buf)
 {
-	u_int16_t regs[DEVICE_NUM_REGS];
-	int i;
+	printf("Single stepping\n");
 
+	if (run_set_pc(buf) < 0 ||
+	    gdb_device->control(DEVICE_CTL_STEP) < 0)
+		gdb_send("E00");
+
+	return run_final_status();
+}
+
+static int run(char *buf)
+{
 	printf("Running\n");
 
-	if (*buf) {
-		if (gdb_device->getregs(regs) < 0)
-			goto fail;
-
-		regs[0] = strtoul(buf, NULL, 16);
-		if (gdb_device->setregs(regs) < 0)
-			goto fail;
+	if (run_set_pc(buf) < 0 ||
+	    gdb_device->control(DEVICE_CTL_RUN) < 0) {
+		gdb_send("E00");
+		return run_final_status();
 	}
-
-	if (gdb_device->control(DEVICE_CTL_RUN) < 0)
-		goto fail;
 
 	for (;;) {
 		int status = gdb_device->wait(0);
 
-		if (status < 0)
-			goto fail;
+		if (status < 0) {
+			gdb_send("E00");
+			return run_final_status();
+		}
+
 		if (!status) {
 			printf("Target halted\n");
 			goto out;
@@ -385,7 +404,7 @@ static void run(char *buf)
 			int c = gdb_getc();
 
 			if (c < 0)
-				return;
+				return -1;
 
 			if (c == 3) {
 				printf("Interrupted by gdb\n");
@@ -396,64 +415,43 @@ static void run(char *buf)
 
  out:
 	if (gdb_device->control(DEVICE_CTL_HALT) < 0)
-		goto fail;
-	if (gdb_device->getregs(regs) < 0)
-		goto fail;
+		gdb_send("E00");
 
-	gdb_printf("T00");
-	for (i = 0; i < 16; i++)
-		gdb_printf("%02X:%02X%02X;", i, regs[i] & 0xff, regs[i] >> 8);
-
-	return;
- fail:
-	gdb_printf("E00");
+	return run_final_status();
 }
 
 static int process_command(char *buf, int len)
 {
-	gdb_packet_start();
-
 	switch (buf[0]) {
 	case '?': /* Return target halt reason */
-		gdb_printf("T00");
-		break;
+		return gdb_send("T00");
 
 	case 'g': /* Read registers */
-		read_registers();
-		break;
+		return read_registers();
 
 	case 'G': /* Write registers */
-		if (len >= DEVICE_NUM_REGS * 4)
-			write_registers(buf + 1);
-		else
-			gdb_printf("E00");
-		break;
+		return write_registers(buf + 1);
 
 	case 'q': /* Query */
 		if (!strncmp(buf, "qRcmd,", 6))
-			monitor_command(buf + 6);
+			return monitor_command(buf + 6);
 		break;
 
 	case 'm': /* Read memory */
-		read_memory(buf + 1);
-		break;
+		return read_memory(buf + 1);
 
 	case 'M': /* Write memory */
-		write_memory(buf + 1);
-		break;
+		return write_memory(buf + 1);
 
 	case 'c': /* Continue */
-		run(buf + 1);
-		break;
+		return run(buf + 1);
 
 	case 's': /* Single step */
-		single_step(buf + 1);
-		break;
+		return single_step(buf + 1);
 	}
 
 	/* For unknown/unsupported packets, return an empty reply */
-	gdb_packet_end();
-	return gdb_flush_ack();
+	return gdb_send("");
 }
 
 static void reader_loop(void)
@@ -496,7 +494,7 @@ static void reader_loop(void)
 		cksum_recv = (cksum_recv << 4) | hexval(c);
 
 #ifdef DEBUG_GDB
-		printf("<- $%s#%02X\n", buf, cksum_recv);
+		printf("<- $%s#%02x\n", buf, cksum_recv);
 #endif
 
 		if (cksum_recv != cksum_calc) {
