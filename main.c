@@ -23,6 +23,11 @@
 #include <errno.h>
 #include <unistd.h>
 
+#ifdef USE_READLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
+
 #include "dis.h"
 #include "device.h"
 #include "binfile.h"
@@ -921,24 +926,46 @@ static void usage(const char *progname)
 		progname, progname, progname, progname);
 }
 
+#ifndef USE_READLINE
+#define LINE_BUF_SIZE 128
+
+static char *readline(const char *prompt)
+{
+	char *buf = malloc(LINE_BUF_SIZE);
+
+	if (!buf) {
+		perror("readline: can't allocate memory");
+		return NULL;
+	}
+
+	do {
+		printf("(mspdebug) ");
+
+		if (!fgets(buf, LINE_BUF_SIZE, stdin))
+			return buf;
+	} while (!feof(stdin));
+
+	free(buf);
+	return NULL;
+}
+
+#define add_history(x)
+#endif
+
 static void reader_loop(void)
 {
 	printf("\n");
 	cmd_help(NULL);
 
 	for (;;) {
-		char buf[128];
+		char *buf = readline("(mspdebug) ");
 
-		printf("(mspdebug) ");
-		fflush(stdout);
-		if (!fgets(buf, sizeof(buf), stdin)) {
-			if (feof(stdin))
-				break;
-			printf("\n");
-			continue;
-		}
+		if (!buf)
+			break;
 
+		add_history(buf);
 		process_command(buf);
+		free(buf);
 	}
 
 	printf("\n");
