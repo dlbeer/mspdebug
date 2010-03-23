@@ -95,6 +95,9 @@ length (64 bytes) is disassembled and shown.
 
 If symbols are available, then all addresses used as operands are
 translated into \fIsymbol\fR+\fIoffset\fR form.
+.IP "erase"
+Erase the device under test. All code memory is erased (but not
+information or boot memory).
 .IP "gdb [\fIport\fR]"
 Start a GDB remote stub, optionally specifying a TCP port to listen on.
 If no port is given, the default port is 2000.

@@ -585,6 +585,15 @@ static int prog_feed(u_int16_t addr, const u_int8_t *data, int len)
 	return 0;
 }
 
+static int cmd_erase(char **arg)
+{
+	if (msp430_dev->control(DEVICE_CTL_HALT) < 0)
+		return -1;
+
+	printf("Erasing...\n");
+	return msp430_dev->control(DEVICE_CTL_ERASE);
+}
+
 static int cmd_prog(char **arg)
 {
 	FILE *in = fopen(*arg, "r");
@@ -700,6 +709,9 @@ static const struct command all_commands[] = {
 	{"dis",		cmd_dis,
 "dis <address> [length]\n"
 "    Disassemble a section of memory.\n"},
+	{"erase",       cmd_erase,
+"erase\n"
+"    Erase the device under test.\n"},
 	{"gdb",         cmd_gdb,
 "gdb [port]\n"
 "    Run a GDB remote stub on the given TCP/IP port.\n"},
