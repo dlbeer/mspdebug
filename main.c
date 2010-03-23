@@ -63,6 +63,53 @@ char *get_arg(char **text)
 	return start;
 }
 
+struct command {
+	const char	*name;
+	int		(*func)(char **arg);
+	const char	*help;
+};
+
+static const struct command all_commands[];
+
+const struct command *find_command(const char *name)
+{
+	int i;
+
+	for (i = 0; all_commands[i].name; i++)
+		if (!strcasecmp(name, all_commands[i].name))
+			return &all_commands[i];
+
+	return NULL;
+}
+
+static int process_command(char *arg)
+{
+	const char *cmd_text;
+	int len = strlen(arg);
+
+	while (len && isspace(arg[len - 1]))
+		len--;
+	arg[len] = 0;
+
+	cmd_text = get_arg(&arg);
+	if (cmd_text) {
+		const struct command *cmd = find_command(cmd_text);
+
+		if (cmd)
+			return cmd->func(&arg);
+
+		fprintf(stderr, "unknown command: %s (try \"help\")\n",
+			cmd_text);
+		return -1;
+	}
+
+	return 0;
+}
+
+/************************************************************************
+ * Command definitions
+ */
+
 #define REG_COLUMNS	4
 #define REG_ROWS	((DEVICE_NUM_REGS + REG_COLUMNS - 1) / REG_COLUMNS)
 
@@ -83,16 +130,6 @@ static void show_regs(u_int16_t *regs)
 		printf("\n");
 	}
 }
-
-struct command {
-	const char	*name;
-	int		(*func)(char **arg);
-	const char	*help;
-};
-
-static const struct command all_commands[];
-
-static int cmd_help(char **arg);
 
 static int cmd_md(char **arg)
 {
@@ -272,10 +309,6 @@ static int cmd_dis(char **arg)
 	return 0;
 }
 
-/************************************************************************
- * Hex dumper
- */
-
 static FILE *hexout_file;
 static u_int16_t hexout_addr;
 static u_int8_t hexout_buf[16];
@@ -391,8 +424,13 @@ static int cmd_hexout(char **arg)
 		off += count;
 	}
 
-	hexout_flush();
-	fclose(hexout_file);
+	if (hexout_flush() < 0)
+		goto fail;
+	if (fclose(hexout_file) < 0) {
+		perror("hexout: error on close");
+		return -1;
+	}
+
 	return 0;
 
 fail:
@@ -509,10 +547,6 @@ static int cmd_step(char **arg)
 
 	return cmd_regs(NULL);
 }
-
-/************************************************************************
- * Flash image programming state machine.
- */
 
 static u_int8_t prog_buf[128];
 static u_int16_t prog_addr;
@@ -702,6 +736,103 @@ static int cmd_gdb(char **arg)
 	return gdb_server(msp430_dev, port);
 }
 
+static int cmd_help(char **arg)
+{
+	char *topic = get_arg(arg);
+
+	if (topic) {
+		const struct command *cmd = find_command(topic);
+
+		if (!cmd) {
+			fprintf(stderr, "help: unknown command: %s\n", topic);
+			return -1;
+		}
+
+		fputs(cmd->help, stdout);
+	} else {
+		int i;
+		int max_len = 0;
+		int rows, cols;
+		int total = 0;
+
+		for (i = 0; all_commands[i].name; i++) {
+			int len = strlen(all_commands[i].name);
+
+			if (len > max_len)
+				max_len = len;
+			total++;
+		}
+
+		max_len += 2;
+		cols = 72 / max_len;
+		rows = (total + cols - 1) / cols;
+
+		printf("Available commands:\n");
+		for (i = 0; i < rows; i++) {
+			int j;
+
+			printf("    ");
+			for (j = 0; j < cols; j++) {
+				int k = j * rows + i;
+				const struct command *cmd = &all_commands[k];
+
+				if (k >= total)
+					break;
+
+				printf("%s", cmd->name);
+				for (k = strlen(cmd->name); k < max_len; k++)
+					printf(" ");
+			}
+
+			printf("\n");
+		}
+
+		printf("Type \"help <command>\" for more information.\n");
+		printf("Press Ctrl+D to quit.\n");
+	}
+
+	return 0;
+}
+
+static int cmd_read(char **arg)
+{
+	char *filename = get_arg(arg);
+	FILE *in;
+	char buf[1024];
+
+	if (!filename) {
+		fprintf(stderr, "read: filename must be specified\n");
+		return -1;
+	}
+
+	in = fopen(filename, "r");
+	if (!in) {
+		fprintf(stderr, "read: can't open %s: %s\n",
+			filename, strerror(errno));
+		return -1;
+	}
+
+	while (fgets(buf, sizeof(buf), in)) {
+		char *cmd = buf;
+
+		while (*cmd && isspace(*cmd))
+			cmd++;
+
+		if (*cmd == '#')
+			continue;
+
+		if (process_command(cmd) < 0) {
+			fprintf(stderr, "read: error processing %s\n",
+				filename);
+			fclose(in);
+			return -1;
+		}
+	}
+
+	fclose(in);
+	return 0;
+}
+
 static const struct command all_commands[] = {
 	{"=",		cmd_eval,
 "= <expression>\n"
@@ -737,6 +868,9 @@ static const struct command all_commands[] = {
 "prog <filename>\n"
 "    Erase the device and flash the data contained in a binary file. This\n"
 "    command also loads symbols from the file, if available.\n"},
+	{"read",        cmd_read,
+"read <filename>\n"
+"    Read commands from a file and evaluate them.\n"},
 	{"regs",	cmd_regs,
 "regs\n"
 "    Read and display the current register contents.\n"},
@@ -756,119 +890,8 @@ static const struct command all_commands[] = {
 	{"syms",	cmd_syms,
 "syms <filename>\n"
 "    Load symbols from the given file.\n"},
+	{NULL, NULL, NULL}
 };
-
-const struct command *find_command(const char *name)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_LEN(all_commands); i++)
-		if (!strcasecmp(name, all_commands[i].name))
-			return &all_commands[i];
-
-	return NULL;
-}
-
-static int cmd_help(char **arg)
-{
-	char *topic = get_arg(arg);
-
-	if (topic) {
-		const struct command *cmd = find_command(topic);
-
-		if (!cmd) {
-			fprintf(stderr, "help: unknown command: %s\n", topic);
-			return -1;
-		}
-
-		fputs(cmd->help, stdout);
-	} else {
-		int i;
-		int max_len = 0;
-		int rows, cols;
-
-		for (i = 0; i < ARRAY_LEN(all_commands); i++) {
-			int len = strlen(all_commands[i].name);
-
-			if (len > max_len)
-				max_len = len;
-		}
-
-		max_len += 2;
-		cols = 72 / max_len;
-		rows = (ARRAY_LEN(all_commands) + cols - 1) / cols;
-
-		printf("Available commands:\n");
-		for (i = 0; i < rows; i++) {
-			int j;
-
-			printf("    ");
-			for (j = 0; j < cols; j++) {
-				int k = j * rows + i;
-				const struct command *cmd = &all_commands[k];
-
-				if (k >= ARRAY_LEN(all_commands))
-					break;
-
-				printf("%s", cmd->name);
-				for (k = strlen(cmd->name); k < max_len; k++)
-					printf(" ");
-			}
-
-			printf("\n");
-		}
-
-		printf("Type \"help <command>\" for more information.\n");
-		printf("Press Ctrl+D to quit.\n");
-	}
-
-	return 0;
-}
-
-static void process_command(char *arg)
-{
-	const char *cmd_text;
-
-	cmd_text = get_arg(&arg);
-	if (cmd_text) {
-		const struct command *cmd = find_command(cmd_text);
-
-		if (cmd)
-			cmd->func(&arg);
-		else
-			fprintf(stderr, "unknown command: %s (try \"help\")\n",
-				cmd_text);
-	}
-}
-
-static void reader_loop(void)
-{
-	printf("\n");
-	cmd_help(NULL);
-
-	for (;;) {
-		char buf[128];
-		int len;
-
-		printf("(mspdebug) ");
-		fflush(stdout);
-		if (!fgets(buf, sizeof(buf), stdin)) {
-			if (feof(stdin))
-				break;
-			printf("\n");
-			continue;
-		}
-
-		len = strlen(buf);
-		while (len && isspace(buf[len - 1]))
-			len--;
-		buf[len] = 0;
-
-		process_command(buf);
-	}
-
-	printf("\n");
-}
 
 static void usage(const char *progname)
 {
@@ -896,6 +919,29 @@ static void usage(const char *progname)
 "If commands are given, they will be executed. Otherwise, an interactive\n"
 "command reader is started.\n",
 		progname, progname, progname, progname);
+}
+
+static void reader_loop(void)
+{
+	printf("\n");
+	cmd_help(NULL);
+
+	for (;;) {
+		char buf[128];
+
+		printf("(mspdebug) ");
+		fflush(stdout);
+		if (!fgets(buf, sizeof(buf), stdin)) {
+			if (feof(stdin))
+				break;
+			printf("\n");
+			continue;
+		}
+
+		process_command(buf);
+	}
+
+	printf("\n");
 }
 
 #define MODE_RF2500             0x01

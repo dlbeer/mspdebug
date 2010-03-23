@@ -145,6 +145,11 @@ from the file into the symbol table (discarding any existing symbols),
 if they are present.
 
 The CPU is reset and halted before and after programming.
+.IP "read \fIfilename\fR"
+Read commands from the given file, line by line and process each one.
+Any lines whose first non-space character is \fB#\fR are ignored. If
+an error occurs while processing a command, the rest of the file is not
+processed.
 .IP "regs"
 Show the current value of all CPU registers in the device under test.
 .IP "reset"
