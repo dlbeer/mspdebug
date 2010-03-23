@@ -470,6 +470,7 @@ static int cmd_run(char **arg)
 {
 	char *bp_text = get_arg(arg);
 	int bp_addr;
+	device_status_t status;
 
 	if (bp_text) {
 		if (stab_parse(bp_text, &bp_addr) < 0) {
@@ -491,7 +492,9 @@ static int cmd_run(char **arg)
 		printf("Running.");
 	printf(" Press Ctrl+C to interrupt...\n");
 
-	msp430_dev->wait(1);
+	status = msp430_dev->wait(1);
+	if (status == DEVICE_STATUS_INTR)
+		printf("\n");
 
 	if (msp430_dev->control(DEVICE_CTL_HALT) < 0)
 		return -1;
@@ -988,7 +991,7 @@ int main(int argc, char **argv)
 	int mode = 0;
 
 	puts(
-"MSPDebug version 0.5 - debugging tool for MSP430 MCUs\n"
+"MSPDebug version 0.6 - debugging tool for MSP430 MCUs\n"
 "Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
