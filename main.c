@@ -141,6 +141,47 @@ static int cmd_md(char **arg)
 	return 0;
 }
 
+static int cmd_mw(char **arg)
+{
+	char *off_text = get_arg(arg);
+	char *byte_text;
+	int offset = 0;
+	int length = 0;
+	u_int8_t buf[1024];
+
+	if (!off_text) {
+		fprintf(stderr, "md: offset must be specified\n");
+		return -1;
+	}
+
+	if (stab_parse(off_text, &offset) < 0) {
+		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
+		return -1;
+	}
+
+	while ((byte_text = get_arg(arg))) {
+		if (length >= sizeof(buf)) {
+			fprintf(stderr, "md: maximum length exceeded\n");
+			return -1;
+		}
+
+		buf[length++] = strtoul(byte_text, NULL, 16);
+	}
+
+	if (!length)
+		return 0;
+
+	if (offset < 0 || (offset + length) > 0x10000) {
+		fprintf(stderr, "md: memory out of range\n");
+		return -1;
+	}
+
+	if (msp430_dev->writemem(offset, buf, length) < 0)
+		return -1;
+
+	return 0;
+}
+
 static void disassemble(u_int16_t offset, u_int8_t *data, int length)
 {
 	int first_line = 1;
@@ -673,6 +714,10 @@ static const struct command all_commands[] = {
 "md <address> [length]\n"
 "    Read the specified number of bytes from memory at the given address,\n"
 "    and display a hexdump.\n"},
+	{"mw",          cmd_mw,
+"mw <address> bytes ...\n"
+"    Write a sequence of bytes to a memory address. Byte values are\n"
+"    two-digit hexadecimal numbers.\n"},
 	{"nosyms",	cmd_nosyms,
 "nosyms\n"
 "    Clear the symbol table.\n"},

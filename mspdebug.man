@@ -125,6 +125,10 @@ The output is split into three columns. The first column shows the
 starting address for the line. The second column lists the hexadecimal
 values of the bytes. The final column shows the ASCII characters
 corresponding to printable bytes, and . for non-printing characters.
+.IP "mw \fIaddress\fR \fIbytes\fR ..."
+Write a sequence of bytes at the given memory address. The address given
+may be an address expression. Bytes values are two-digit hexadecimal
+numbers separated by spaces.
 .IP "nosyms"
 Clear all symbols from the symbol table. Symbols may be reloaded with
 the \fBsyms\fR command.
