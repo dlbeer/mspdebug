@@ -519,9 +519,9 @@ static const char *const msp430_reg_names[] = {
 static int format_addr(char *buf, int max_len, const char *prefix,
 		       u_int16_t addr)
 {
-	const char *name;
+	char name[64];
 
-	if (stab_find(&addr, &name) < 0)
+	if (stab_nearest(addr, name, sizeof(name), &addr) < 0)
 		return snprintf(buf, max_len, "%s0x%04x", prefix, addr);
 
 	if (addr)

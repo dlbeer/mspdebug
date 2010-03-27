@@ -60,12 +60,8 @@ int symmap_syms(FILE *in)
 
 		if (addr && name) {
 			int addr_val = strtoul(addr, NULL, 16);
-			int offset = stab_add_string(NULL, 0);
 
-			if (stab_add_string(name, strlen(name) + 1) < 0)
-				return -1;
-
-			if (stab_add_symbol(offset, addr_val) < 0)
+			if (stab_set(name, addr_val) < 0)
 				return -1;
 		}
 	}

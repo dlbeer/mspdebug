@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <elf.h>
@@ -34,6 +35,9 @@ static const u_int8_t elf32_id[] = {
 static Elf32_Ehdr file_ehdr;
 static Elf32_Phdr file_phdrs[MAX_PHDRS];
 static Elf32_Shdr file_shdrs[MAX_SHDRS];
+
+static char *string_tab;
+static int string_len;
 
 static int read_ehdr(FILE *in)
 {
@@ -217,14 +221,26 @@ static Elf32_Shdr *find_shdr(Elf32_Word type)
 static int syms_load_strings(FILE *in, Elf32_Shdr *s)
 {
 	int len = s->sh_size;
-	char buf[1024];
+	int offset = 0;
+
+	if (!len)
+		return 0;
 
 	if (fseek(in, s->sh_offset, SEEK_SET) < 0) {
 		perror("elf32: can't seek to strings");
 		return -1;
 	}
 
+	string_len = len;
+	string_tab = malloc(len + 1);
+
+	if (!string_tab) {
+		perror("elf32: can't allocate string table memory");
+		return -1;
+	}
+
 	while (len) {
+		char buf[1024];
 		int req = sizeof(buf) > len ? len : sizeof(buf);
 		int count = fread(buf, 1, req, in);
 
@@ -238,17 +254,18 @@ static int syms_load_strings(FILE *in, Elf32_Shdr *s)
 			return -1;
 		}
 
-		if (stab_add_string(buf, count) < 0)
-			return -1;
+		memcpy(string_tab + offset, buf, count);
+		offset += count;
 		len -= count;
 	}
 
+	string_tab[string_len] = 0;
 	return 0;
 }
 
 #define N_SYMS	128
 
-static int syms_load_syms(FILE *in, Elf32_Shdr *s, int soff)
+static int syms_load_syms(FILE *in, Elf32_Shdr *s)
 {
 	Elf32_Sym syms[N_SYMS];
 	int len = s->sh_size / sizeof(syms[0]);
@@ -276,10 +293,16 @@ static int syms_load_syms(FILE *in, Elf32_Shdr *s, int soff)
 		for (i = 0; i < count; i++) {
 			Elf32_Sym *y = &syms[i];
 
-			if (stab_add_symbol(y->st_name + soff,
-					    y->st_value) < 0)
+			if (y->st_name > string_len) {
+				fprintf(stderr, "elf32: symbol out of "
+					"bounds\n");
+				return -1;
+			}
+
+			if (stab_set(string_tab + y->st_name, y->st_value) < 0)
 				return -1;
 		}
+
 		len -= count;
 	}
 
@@ -289,7 +312,6 @@ static int syms_load_syms(FILE *in, Elf32_Shdr *s, int soff)
 int elf32_syms(FILE *in)
 {
 	Elf32_Shdr *s;
-	int soff;
 
 	if (read_all(in) < 0)
 		return -1;
@@ -305,11 +327,17 @@ int elf32_syms(FILE *in)
 		return -1;
 	}
 
-	soff = stab_add_string(NULL, 0);
-	if (syms_load_strings(in, &file_shdrs[s->sh_link]) < 0)
-		return -1;
-	if (syms_load_syms(in, s, soff) < 0)
-		return -1;
+	string_tab = NULL;
+	string_len = 0;
 
+	if (syms_load_strings(in, &file_shdrs[s->sh_link]) < 0 ||
+	    syms_load_syms(in, s) < 0) {
+		if (string_tab)
+			free(string_tab);
+		return -1;
+	}
+
+	if (string_tab)
+		free(string_tab);
 	return 0;
 }

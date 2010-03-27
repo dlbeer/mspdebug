@@ -40,8 +40,8 @@ install: mspdebug mspdebug.man
 .SUFFIXES: .c .o
 
 mspdebug: main.o fet.o rf2500.o dis.o uif.o ihex.o elf32.o stab.o util.o \
-	  bsl.o sim.o symmap.o gdb.o
+	  bsl.o sim.o symmap.o gdb.o btree.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(READLINE_CFLAGS) -O1 -Wall -o $@ -c $*.c
+	$(CC) $(CFLAGS) $(READLINE_CFLAGS) -O1 -Wall -ggdb -o $@ -c $*.c

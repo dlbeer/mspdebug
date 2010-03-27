@@ -233,10 +233,10 @@ static void disassemble(u_int16_t offset, u_int8_t *data, int length)
 		int retval;
 		int count;
 		int i;
-		u_int16_t oboff = offset;
-		const char *obname;
+		u_int16_t oboff;
+		char obname[64];
 
-		if (stab_find(&oboff, &obname) >= 0) {
+		if (!stab_nearest(offset, obname, sizeof(obname), &oboff)) {
 			if (!oboff)
 				printf("%s:\n", obname);
 			else if (first_line)
@@ -686,7 +686,7 @@ static int cmd_eval(char **arg)
 {
 	int addr;
 	u_int16_t offset;
-	const char *name;
+	char name[64];
 
 	if (stab_parse(*arg, &addr) < 0) {
 		fprintf(stderr, "=: can't parse: %s\n", *arg);
@@ -694,8 +694,7 @@ static int cmd_eval(char **arg)
 	}
 
 	printf("0x%04x", addr);
-	offset = addr;
-	if (!stab_find(&offset, &name)) {
+	if (!stab_nearest(addr, name, sizeof(name), &offset)) {
 		printf(" = %s", name);
 		if (offset)
 			printf("+0x%x", offset);
@@ -1049,6 +1048,8 @@ int main(int argc, char **argv)
 	}
 
 	ctrlc_init();
+	if (stab_init() < 0)
+		return -1;
 
 	/* Open a device */
 	if (mode == MODE_SIM) {
@@ -1086,5 +1087,7 @@ int main(int argc, char **argv)
 	}
 
 	msp430_dev->close();
+	stab_exit();
+
 	return 0;
 }

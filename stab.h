@@ -21,37 +21,61 @@
 
 #include <sys/types.h>
 
+/* Initialise/destroy the symbol table manager. If successful, init returns
+ * 0, or -1 on error.
+ */
+int stab_init(void);
+void stab_exit(void);
+
 /* Reset the symbol table (delete all symbols) */
 void stab_clear(void);
 
-/* Add a block of text to the string table. On success, returns the new
- * size of the string table. Returns -1 on error. You can fetch the table's
- * current size by calling stab_add_string(NULL, 0);
+/* Check to see if the symbol table has been modified, and clear
+ * modification flag.
  */
-int stab_add_string(const char *text, int len);
+int stab_is_modified(void);
+void stab_clear_modified(void);
 
-/* Symbol types. Symbols are divided into a fixed number of classes for
- * query purposes.
+/* Set a symbol in the table. Returns 0 on success, or -1 on error. */
+int stab_set(const char *name, u_int16_t value);
+
+/* Fetch the value of a symbol. Returns 0 on success, or -1 if no such
+ * symbol exists.
  */
-#define STAB_TYPE_CODE		0x01
-#define STAB_TYPE_DATA		0x02
-#define STAB_TYPE_ALL		0x03
+int stab_get(const char *name, u_int16_t *value);
 
-/* Add a symbol to the table. The name is specified as an offset into
- * the string table.
+/* Delete a symbol from the symbol table.
  *
- * Returns 0 on success, or -1 if an error occurs.
+ * Returns 0 if successful, -1 if no such symbol exists.
  */
-int stab_add_symbol(int name, u_int16_t addr);
+int stab_del(const char *name);
 
-/* Parse a symbol name and return an address. The text may be an address,
- * a symbol name or a combination (using + or -).
+/* Enumerate all symbols. Returns total symbol count, or -1 if a callback
+ * invocation returns an error.
+ */
+typedef int (*stab_callback_t)(const char *name, u_int16_t value);
+
+int stab_enum(stab_callback_t cb);
+
+/* Search for a symbol by supplying a regular expression. The given
+ * callback is invoked for each symbol matching the regex. Returns the
+ * total number of symbols found, or -1 if an error occurs.
+ */
+int stab_re_search(const char *regex, stab_callback_t cb);
+
+/* Parse an address expression and return an address. The text may be an
+ * address, a symbol name or a combination (using + or -).
  *
  * Returns 0 if parsed successfully, -1 if an error occurs.
  */
 int stab_parse(const char *text, int *addr);
 
-/* Take an address and find the nearest symbol. */
-int stab_find(u_int16_t *addr, const char **name);
+/* Take an address and find the nearest symbol and offset (always
+ * non-negative).
+ *
+ * Returns 0 if found, 1 otherwise.
+ */
+int stab_nearest(u_int16_t addr, char *ret_name, int max_len,
+		 u_int16_t *ret_offset);
 
 #endif

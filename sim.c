@@ -47,10 +47,10 @@ static u_int16_t current_insn;
 
 static void io_prefix(const char *prefix, u_int16_t addr, int is_byte)
 {
-	const char *name;
+	char name[64];
 	u_int16_t pc = current_insn;
 
-	if (!stab_find(&pc, &name)) {
+	if (!stab_nearest(pc, name, sizeof(name), &pc)) {
 		printf("%s", name);
 		if (pc)
 			printf("+0x%x", addr);
@@ -59,7 +59,7 @@ static void io_prefix(const char *prefix, u_int16_t addr, int is_byte)
 	}
 
 	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
-	if (!stab_find(&addr, &name)) {
+	if (!stab_nearest(addr, name, sizeof(name), &addr)) {
 		printf(" (%s", name);
 		if (addr)
 			printf("+0x%x", addr);
