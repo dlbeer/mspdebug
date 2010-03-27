@@ -30,12 +30,6 @@ void stab_exit(void);
 /* Reset the symbol table (delete all symbols) */
 void stab_clear(void);
 
-/* Check to see if the symbol table has been modified, and clear
- * modification flag.
- */
-int stab_is_modified(void);
-void stab_clear_modified(void);
-
 /* Set a symbol in the table. Returns 0 on success, or -1 on error. */
 int stab_set(const char *name, u_int16_t value);
 

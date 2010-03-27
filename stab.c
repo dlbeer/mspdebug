@@ -99,7 +99,6 @@ static const struct btree_def addr_table_def = {
 
 static btree_t sym_table;
 static btree_t addr_table;
-static int is_modified;
 
 /************************************************************************
  * Public interface
@@ -133,17 +132,6 @@ void stab_clear(void)
 {
 	btree_clear(sym_table);
 	btree_clear(addr_table);
-	is_modified = 0;
-}
-
-int stab_is_modified(void)
-{
-	return is_modified;
-}
-
-void stab_clear_modified(void)
-{
-	is_modified = 0;
 }
 
 int stab_set(const char *name, u_int16_t addr)

@@ -135,9 +135,6 @@ numbers separated by spaces.
 
 Unless used in the simulation mode, this command can only be used for
 programming flash memory.
-.IP "nosyms"
-Clear all symbols from the symbol table. Symbols may be reloaded with
-the \fBsyms\fR command.
 .IP "prog \fIfilename\fR"
 Erase and reprogram the device under test using the binary file
 supplied. The file format will be auto-detected and may be either
@@ -181,13 +178,32 @@ instructions at the address selected by the program counter.
 
 An optional count can be specified to step multiple times. If no
 argument is given, the CPU steps once.
-.IP "syms \fIfilename\fR"
+.IP "sym clear"
+Clear the symbol table, deleting all symbols.
+.IP "sym set \fIname\fR \fIvalue\fR"
+Set or alter the value of a symbol. The value given may be an address
+expression.
+.IP "sym del \fIname\fR"
+Delete the given symbol from the symbol table.
+.IP "sym load \fIfilename\fR"
 Load symbols from the specified file and add them to the symbol table.
 The file format will be auto-detected and may be either ELF32 or a
 BSD-style symbol listing (like the output from \fBnm\fR(1)).
 
 Symbols can be combined from many sources, as the syms command adds
 to the existing symbol table without discarding existing symbols.
+.IP "sym add \fIfilename\fR"
+This command is similar to \fBsym load\fR, except that the symbol table
+is not cleared first. By using this command, symbols from multiple
+sources can be combined.
+.IP "sym savemap \fIfilename\fR"
+Save all symbols currently defined to the given file. The symbols are
+saved as a BSD-style symbol table. Note that symbol types are not stored
+by MSPDebug, and all symbols are saved as type \fBt\fR.
+.IP "sym find [\fIregex\fR]"
+Search for symbols. If a regular expression is given, then all symbols
+matching the expression are printed. If no expression is specified, then
+the entire symbol table is listed.
 .SH ADDRESS EXPRESSIONS
 Any command which accepts a memory address, length or register value
 as an argument may be given an address expression. An address

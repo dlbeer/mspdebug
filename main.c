@@ -676,12 +676,6 @@ static int cmd_prog(char **arg)
 	return result;
 }
 
-static int cmd_nosyms(char **arg)
-{
-	stab_clear();
-	return 0;
-}
-
 static int cmd_eval(char **arg)
 {
 	int addr;
@@ -704,27 +698,145 @@ static int cmd_eval(char **arg)
 	return 0;
 }
 
-static int cmd_syms(char **arg)
+static int cmd_sym_load_add(int clear, char **arg)
 {
 	FILE *in = fopen(*arg, "r");
 	int result = 0;
 
 	if (!in) {
-		fprintf(stderr, "syms: %s: %s\n", *arg, strerror(errno));
+		fprintf(stderr, "sym: %s: %s\n", *arg, strerror(errno));
 		return -1;
 	}
 
-	stab_clear();
+	if (clear)
+		stab_clear();
 
 	if (elf32_check(in))
 		result = elf32_syms(in);
 	else if (symmap_check(in))
 		result = symmap_syms(in);
 	else
-		fprintf(stderr, "syms: %s: unknown file type\n", *arg);
+		fprintf(stderr, "sym: %s: unknown file type\n", *arg);
 
 	fclose(in);
 	return result;
+}
+
+static FILE *savemap_out;
+
+static int savemap_write(const char *name, u_int16_t value)
+{
+	if (fprintf(savemap_out, "%08x t %s\n", value, name) < 0) {
+		fprintf(stderr, "sym: error writing symbols: %s\n",
+			strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int cmd_sym_savemap(char **arg)
+{
+	char *fname = get_arg(arg);
+
+	if (!fname) {
+		fprintf(stderr, "sym: filename required to save map\n");
+		return -1;
+	}
+
+	savemap_out = fopen(fname, "w");
+	if (!savemap_out) {
+		fprintf(stderr, "sym: couldn't write to %s: %s\n", fname,
+			strerror(errno));
+		return -1;
+	}
+
+	if (stab_enum(savemap_write) < 0)
+		return -1;
+
+	if (fclose(savemap_out) < 0) {
+		fprintf(stderr, "sym: error closing %s: %s\n", fname,
+			strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int printsym(const char *name, u_int16_t value)
+{
+	printf("0x%04x: %s\n", value, name);
+	return 0;
+}
+
+static int cmd_sym(char **arg)
+{
+	char *subcmd = get_arg(arg);
+
+	if (!subcmd) {
+		fprintf(stderr, "sym: need to specify a subcommand "
+			"(try \"help sym\")\n");
+		return -1;
+	}
+
+	if (!strcasecmp(subcmd, "clear")) {
+		stab_clear();
+		return 0;
+	}
+
+	if (!strcasecmp(subcmd, "set")) {
+		char *name = get_arg(arg);
+		char *val_text = get_arg(arg);
+		int value;
+
+		if (!(name && val_text)) {
+			fprintf(stderr, "sym: need a name and value to set "
+				"symbol table entries\n");
+			return -1;
+		}
+
+		if (stab_parse(val_text, &value) < 0) {
+			fprintf(stderr, "sym: can't parse value: %s\n",
+				val_text);
+			return -1;
+		}
+
+		return stab_set(name, value);
+	}
+
+	if (!strcasecmp(subcmd, "del")) {
+		char *name = get_arg(arg);
+
+		if (!name) {
+			fprintf(stderr, "sym: need a name to delete "
+				"symbol table entries\n");
+			return -1;
+		}
+
+		return stab_del(name);
+	}
+
+	if (!strcasecmp(subcmd, "load"))
+		return cmd_sym_load_add(1, arg);
+	if (!strcasecmp(subcmd, "add"))
+		return cmd_sym_load_add(0, arg);
+
+	if (!strcasecmp(subcmd, "savemap"))
+		return cmd_sym_savemap(arg);
+
+	if (!strcasecmp(subcmd, "find")) {
+		char *expr = get_arg(arg);
+
+		if (!expr) {
+			stab_enum(printsym);
+			return 0;
+		}
+
+		return stab_re_search(expr, printsym) < 0 ? -1 : 0;
+	}
+
+	fprintf(stderr, "sym: unknown subcommand: %s\n", subcmd);
+	return -1;
 }
 
 static int cmd_gdb(char **arg)
@@ -842,61 +954,70 @@ static int cmd_read(char **arg)
 
 static const struct command all_commands[] = {
 	{"=",		cmd_eval,
-"= <expression>\n"
-"    Evaluate an expression using the symbol table.\n"},
+	 "= <expression>\n"
+	 "    Evaluate an expression using the symbol table.\n"},
 	{"dis",		cmd_dis,
-"dis <address> [length]\n"
-"    Disassemble a section of memory.\n"},
+	 "dis <address> [length]\n"
+	 "    Disassemble a section of memory.\n"},
 	{"erase",       cmd_erase,
-"erase\n"
-"    Erase the device under test.\n"},
+	 "erase\n"
+	 "    Erase the device under test.\n"},
 	{"gdb",         cmd_gdb,
-"gdb [port]\n"
-"    Run a GDB remote stub on the given TCP/IP port.\n"},
+	 "gdb [port]\n"
+	 "    Run a GDB remote stub on the given TCP/IP port.\n"},
 	{"help",	cmd_help,
-"help [command]\n"
-"    Without arguments, displays a list of commands. With a command name as\n"
-"    an argument, displays help for that command.\n"},
+	 "help [command]\n"
+	 "    Without arguments, displays a list of commands. With a command\n"
+	 "    name as an argument, displays help for that command.\n"},
 	{"hexout",	cmd_hexout,
-"hexout <address> <length> <filename.hex>\n"
-"    Save a region of memory into a HEX file.\n"},
+	 "hexout <address> <length> <filename.hex>\n"
+	 "    Save a region of memory into a HEX file.\n"},
 	{"md",		cmd_md,
-"md <address> [length]\n"
-"    Read the specified number of bytes from memory at the given address,\n"
-"    and display a hexdump.\n"},
+	 "md <address> [length]\n"
+	 "    Read the specified number of bytes from memory at the given\n"
+	 "    address, and display a hexdump.\n"},
 	{"mw",          cmd_mw,
-"mw <address> bytes ...\n"
-"    Write a sequence of bytes to a memory address. Byte values are\n"
-"    two-digit hexadecimal numbers.\n"},
-	{"nosyms",	cmd_nosyms,
-"nosyms\n"
-"    Clear the symbol table.\n"},
+	 "mw <address> bytes ...\n"
+	 "    Write a sequence of bytes to a memory address. Byte values are\n"
+	 "    two-digit hexadecimal numbers.\n"},
 	{"prog",	cmd_prog,
-"prog <filename>\n"
-"    Erase the device and flash the data contained in a binary file. This\n"
-"    command also loads symbols from the file, if available.\n"},
+	 "prog <filename>\n"
+	 "    Erase the device and flash the data contained in a binary file.\n"
+	 "    This command also loads symbols from the file, if available.\n"},
 	{"read",        cmd_read,
-"read <filename>\n"
-"    Read commands from a file and evaluate them.\n"},
+	 "read <filename>\n"
+	 "    Read commands from a file and evaluate them.\n"},
 	{"regs",	cmd_regs,
-"regs\n"
-"    Read and display the current register contents.\n"},
+	 "regs\n"
+	 "    Read and display the current register contents.\n"},
 	{"reset",	cmd_reset,
-"reset\n"
-"    Reset (and halt) the CPU.\n"},
+	 "reset\n"
+	 "    Reset (and halt) the CPU.\n"},
 	{"run",		cmd_run,
-"run [breakpoint]\n"
-"    Run the CPU until either a specified breakpoint occurs or the command\n"
-"    is interrupted.\n"},
+	 "run [breakpoint]\n"
+	 "    Run the CPU until either a specified breakpoint occurs or the\n"
+	 "    command is interrupted.\n"},
 	{"set",		cmd_set,
-"set <register> <value>\n"
-"    Change the value of a CPU register.\n"},
+	 "set <register> <value>\n"
+	 "    Change the value of a CPU register.\n"},
 	{"step",	cmd_step,
-"step [count]\n"
-"    Single-step the CPU, and display the register state.\n"},
-	{"syms",	cmd_syms,
-"syms <filename>\n"
-"    Load symbols from the given file.\n"},
+	 "step [count]\n"
+	 "    Single-step the CPU, and display the register state.\n"},
+	{"sym",         cmd_sym,
+	 "sym clear\n"
+	 "    Clear the symbol table.\n"
+	 "sym set <name> <value>\n"
+	 "    Set or overwrite the value of a symbol.\n"
+	 "sym del <name>\n"
+	 "    Delete a symbol from the symbol table.\n"
+	 "sym load <filename>\n"
+	 "    Load symbols from the given file.\n"
+	 "sym add <filename>\n"
+	 "    Load additional symbols from the given file.\n"
+	 "sym savemap <filename>\n"
+	 "    Save the current symbols to a BSD-style symbol file.\n"
+	 "sym find <regex>\n"
+	 "    Search for symbols by regular expression.\n"},
 	{NULL, NULL, NULL}
 };
 
