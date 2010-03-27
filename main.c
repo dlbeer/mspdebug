@@ -38,6 +38,41 @@
 static const struct device *msp430_dev;
 
 /**********************************************************************
+ * Modification tracking and prompting
+ */
+
+static int syms_are_modified;
+static int is_interactive;
+
+static int syms_modify_check(void)
+{
+	char buf[32];
+
+	if (!syms_are_modified || !is_interactive)
+		return 0;
+
+	for (;;) {
+		printf("Symbols have not been saved since modification. "
+		       "Continue (y/n)? ");
+		fflush(stdout);
+
+		if (!fgets(buf, sizeof(buf), stdin)) {
+			printf("\n");
+			return 1;
+		}
+
+		if (toupper(buf[0]) == 'Y')
+			return 0;
+		if (toupper(buf[0]) == 'N')
+			return 1;
+
+		printf("Please answer \"y\" or \"n\".\n");
+	}
+
+	return 0;
+}
+
+/**********************************************************************
  * Command-line interface
  */
 
@@ -638,9 +673,13 @@ static int cmd_erase(char **arg)
 
 static int cmd_prog(char **arg)
 {
-	FILE *in = fopen(*arg, "r");
+	FILE *in;
 	int result = 0;
 
+	if (syms_modify_check())
+		return 0;
+
+	in = fopen(*arg, "r");
 	if (!in) {
 		fprintf(stderr, "prog: %s: %s\n", *arg, strerror(errno));
 		return -1;
@@ -673,6 +712,7 @@ static int cmd_prog(char **arg)
 		return -1;
 	}
 
+	syms_are_modified = 0;
 	return result;
 }
 
@@ -700,9 +740,13 @@ static int cmd_eval(char **arg)
 
 static int cmd_sym_load_add(int clear, char **arg)
 {
-	FILE *in = fopen(*arg, "r");
+	FILE *in;
 	int result = 0;
 
+	if (clear && syms_modify_check())
+		return 0;
+
+	in = fopen(*arg, "r");
 	if (!in) {
 		fprintf(stderr, "sym: %s: %s\n", *arg, strerror(errno));
 		return -1;
@@ -719,6 +763,8 @@ static int cmd_sym_load_add(int clear, char **arg)
 		fprintf(stderr, "sym: %s: unknown file type\n", *arg);
 
 	fclose(in);
+
+	syms_are_modified = !clear;
 	return result;
 }
 
@@ -760,6 +806,7 @@ static int cmd_sym_savemap(char **arg)
 		return -1;
 	}
 
+	syms_are_modified = 0;
 	return 0;
 }
 
@@ -780,7 +827,10 @@ static int cmd_sym(char **arg)
 	}
 
 	if (!strcasecmp(subcmd, "clear")) {
+		if (syms_modify_check())
+			return 0;
 		stab_clear();
+		syms_are_modified = 0;
 		return 0;
 	}
 
@@ -801,7 +851,11 @@ static int cmd_sym(char **arg)
 			return -1;
 		}
 
-		return stab_set(name, value);
+		if (stab_set(name, value) < 0)
+			return -1;
+
+		syms_are_modified = 1;
+		return 0;
 	}
 
 	if (!strcasecmp(subcmd, "del")) {
@@ -813,7 +867,11 @@ static int cmd_sym(char **arg)
 			return -1;
 		}
 
-		return stab_del(name);
+		if (stab_del(name) < 0)
+			return -1;
+
+		syms_are_modified = 1;
+		return 0;
 	}
 
 	if (!strcasecmp(subcmd, "load"))
@@ -918,6 +976,7 @@ static int cmd_read(char **arg)
 	char *filename = get_arg(arg);
 	FILE *in;
 	char buf[1024];
+	int was_interactive = is_interactive;
 
 	if (!filename) {
 		fprintf(stderr, "read: filename must be specified\n");
@@ -931,6 +990,7 @@ static int cmd_read(char **arg)
 		return -1;
 	}
 
+	is_interactive = 0;
 	while (fgets(buf, sizeof(buf), in)) {
 		char *cmd = buf;
 
@@ -944,9 +1004,11 @@ static int cmd_read(char **arg)
 			fprintf(stderr, "read: error processing %s\n",
 				filename);
 			fclose(in);
+			is_interactive = was_interactive;
 			return -1;
 		}
 	}
+	is_interactive = was_interactive;
 
 	fclose(in);
 	return 0;
@@ -1085,16 +1147,18 @@ static void reader_loop(void)
 {
 	printf("\n");
 	cmd_help(NULL);
+	is_interactive = 1;
 
 	for (;;) {
 		char *buf = readline("(mspdebug) ");
 
-		if (!buf)
+		if (buf) {
+			add_history(buf);
+			process_command(buf);
+			free(buf);
+		} else if (!syms_modify_check()) {
 			break;
-
-		add_history(buf);
-		process_command(buf);
-		free(buf);
+		}
 	}
 
 	printf("\n");
