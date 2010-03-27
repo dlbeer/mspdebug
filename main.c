@@ -940,12 +940,18 @@ static char *readline(const char *prompt)
 		return NULL;
 	}
 
-	do {
+	for (;;) {
 		printf("(mspdebug) ");
+		fflush(stdout);
 
-		if (!fgets(buf, LINE_BUF_SIZE, stdin))
+		if (fgets(buf, LINE_BUF_SIZE, stdin))
 			return buf;
-	} while (!feof(stdin));
+
+		if (feof(stdin))
+			break;
+
+		printf("\n");
+	}
 
 	free(buf);
 	return NULL;
