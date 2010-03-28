@@ -333,5 +333,5 @@ int stab_nearest(u_int16_t addr, char *ret_name, int max_len,
 		return 0;
 	}
 
-	return 1;
+	return -1;
 }

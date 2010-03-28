@@ -53,7 +53,7 @@ static void io_prefix(const char *prefix, u_int16_t addr, int is_byte)
 	if (!stab_nearest(pc, name, sizeof(name), &pc)) {
 		printf("%s", name);
 		if (pc)
-			printf("+0x%x", addr);
+			printf("+0x%x", pc);
 	} else {
 		printf("0x%04x", pc);
 	}
