@@ -520,12 +520,10 @@ static int format_addr(char *buf, int max_len, const char *prefix,
 		       u_int16_t addr)
 {
 	char name[64];
+	u_int16_t offset;
 
-	if (stab_nearest(addr, name, sizeof(name), &addr) < 0)
+	if (stab_nearest(addr, name, sizeof(name), &offset) < 0 || offset)
 		return snprintf(buf, max_len, "%s0x%04x", prefix, addr);
-
-	if (addr)
-		return snprintf(buf, max_len, "%s%s+0x%x", prefix, name, addr);
 
 	return snprintf(buf, max_len, "%s%s", prefix, name);
 }
