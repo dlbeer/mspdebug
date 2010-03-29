@@ -293,7 +293,8 @@ int stab_parse(const char *text, int *addr)
 	token_sum = 0;
 
 	while (*text) {
-		if (isalnum(*text) || *text == '_' || *text == '$') {
+		if (isalnum(*text) || *text == '_' || *text == '$' ||
+		    *text == '.' || *text == ':') {
 			if (token_len + 1 < sizeof(token_buf))
 				token_buf[token_len++] = *text;
 		} else {

@@ -544,8 +544,14 @@ static int format_operand(char *buf, int max_len,
 		return snprintf(buf, max_len, "%s", msp430_reg_names[reg]);
 
 	case MSP430_AMODE_INDEXED:
-		return snprintf(buf, max_len, "0x%x(%s)", (u_int16_t)addr,
-				msp430_reg_names[reg]);
+		{
+			int len = format_addr(buf, max_len, "", addr);
+
+			len += snprintf(buf + len,
+					max_len - len,
+					"(%s)", msp430_reg_names[reg]);
+			return len;
+		}
 
 	case MSP430_AMODE_SYMBOLIC:
 		return format_addr(buf, max_len, "", addr);
