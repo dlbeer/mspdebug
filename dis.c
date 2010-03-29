@@ -191,32 +191,44 @@ static int decode_jump(u_int8_t *code, u_int16_t offset, u_int16_t len,
 	return 2;
 }
 
+static void remap_cgen(msp430_amode_t *mode,
+		       u_int16_t *addr,
+		       msp430_reg_t *reg)
+{
+	if (*reg == MSP430_REG_SR) {
+		if (*mode == MSP430_AMODE_INDIRECT) {
+			*mode = MSP430_AMODE_IMMEDIATE;
+			*addr = 4;
+		} else if (*mode == MSP430_AMODE_INDIRECT_INC) {
+			*mode = MSP430_AMODE_IMMEDIATE;
+			*addr = 8;
+		}
+	} else if (*reg == MSP430_REG_R3) {
+		if (*mode == MSP430_AMODE_REGISTER)
+			*addr = 0;
+		else if (*mode == MSP430_AMODE_INDEXED)
+			*addr = 1;
+		else if (*mode == MSP430_AMODE_INDIRECT)
+			*addr = 2;
+		else if (*mode == MSP430_AMODE_INDIRECT_INC)
+			*addr = 0xffff;
+
+		*mode = MSP430_AMODE_IMMEDIATE;
+	}
+}
+
 /* Take a decoded instruction and replace certain addressing modes of
  * the constant generator registers with their corresponding immediate
  * values.
  */
 static void find_cgens(struct msp430_instruction *insn)
 {
-	if (insn->src_reg == MSP430_REG_SR) {
-		if (insn->src_mode == MSP430_AMODE_INDIRECT) {
-			insn->src_mode = MSP430_AMODE_IMMEDIATE;
-			insn->src_addr = 4;
-		} else if (insn->src_mode == MSP430_AMODE_INDIRECT_INC) {
-			insn->src_mode = MSP430_AMODE_IMMEDIATE;
-			insn->src_addr = 8;
-		}
-	} else if (insn->src_reg == MSP430_REG_R3) {
-		if (insn->src_mode == MSP430_AMODE_REGISTER)
-			insn->src_addr = 0;
-		else if (insn->src_mode == MSP430_AMODE_INDEXED)
-			insn->src_addr = 1;
-		else if (insn->src_mode == MSP430_AMODE_INDIRECT)
-			insn->src_addr = 2;
-		else if (insn->src_mode == MSP430_AMODE_INDIRECT_INC)
-			insn->src_addr = 0xffff;
-
-		insn->src_mode = MSP430_AMODE_IMMEDIATE;
-	}
+	if (insn->itype == MSP430_ITYPE_DOUBLE)
+		remap_cgen(&insn->src_mode, &insn->src_addr,
+			   &insn->src_reg);
+	else if (insn->itype == MSP430_ITYPE_SINGLE)
+		remap_cgen(&insn->dst_mode, &insn->dst_addr,
+			   &insn->dst_reg);
 }
 
 /* Recognise special cases of real instructions and translate them to
@@ -595,7 +607,11 @@ int dis_format(char *buf, int max_len,
 
 		if (count + 1 < max_len)
 			buf[count++] = ',';
-		while (count < 20 && count + 1 < max_len)
+
+		while (count < 19 && count + 1 < max_len)
+			buf[count++] = ' ';
+
+		if (count + 1 < max_len)
 			buf[count++] = ' ';
 	}
 
