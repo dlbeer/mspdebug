@@ -528,18 +528,6 @@ static const char *const msp430_reg_names[] = {
 	"R12", "R13", "R14", "R15"
 };
 
-static int format_addr(char *buf, int max_len, const char *prefix,
-		       u_int16_t addr)
-{
-	char name[64];
-	u_int16_t offset;
-
-	if (stab_nearest(addr, name, sizeof(name), &offset) < 0 || offset)
-		return snprintf(buf, max_len, "%s0x%04x", prefix, addr);
-
-	return snprintf(buf, max_len, "%s%s", prefix, name);
-}
-
 /* Given an operands addressing mode, value and associated register,
  * print the canonical representation of it to stdout.
  *
@@ -549,6 +537,12 @@ static int format_operand(char *buf, int max_len,
 			  msp430_amode_t amode, u_int16_t addr,
 			  msp430_reg_t reg)
 {
+	const char *prefix = "";
+	const char *suffix = "";
+	char rbuf[32];
+	char name[64];
+	u_int16_t offset;
+
 	assert (reg >= 0 && reg < ARRAY_LEN(msp430_reg_names));
 
 	switch (amode) {
@@ -556,20 +550,16 @@ static int format_operand(char *buf, int max_len,
 		return snprintf(buf, max_len, "%s", msp430_reg_names[reg]);
 
 	case MSP430_AMODE_INDEXED:
-		{
-			int len = format_addr(buf, max_len, "", addr);
-
-			len += snprintf(buf + len,
-					max_len - len,
-					"(%s)", msp430_reg_names[reg]);
-			return len;
-		}
+		snprintf(rbuf, sizeof(rbuf), "(%s)", msp430_reg_names[reg]);
+		suffix = rbuf;
+		break;
 
 	case MSP430_AMODE_SYMBOLIC:
-		return format_addr(buf, max_len, "", addr);
+		break;
 
 	case MSP430_AMODE_ABSOLUTE:
-		return format_addr(buf, max_len, "&", addr);
+		prefix = "&";
+		break;
 
 	case MSP430_AMODE_INDIRECT:
 		return snprintf(buf, max_len, "@%s", msp430_reg_names[reg]);
@@ -578,10 +568,24 @@ static int format_operand(char *buf, int max_len,
 		return snprintf(buf, max_len, "@%s+", msp430_reg_names[reg]);
 
 	case MSP430_AMODE_IMMEDIATE:
-		return snprintf(buf, max_len, "#0x%x", (u_int16_t)addr);
+		prefix = "#";
+		break;
+
+	default:
+		return snprintf(buf, max_len, "???");
 	}
 
-	return snprintf(buf, max_len, "???");
+	if ((amode != MSP430_AMODE_IMMEDIATE ||
+	     (addr >= 0x200 && addr < 0xfff0)) &&
+	    !stab_nearest(addr, name, sizeof(name), &offset) &&
+	    !offset)
+		return snprintf(buf, max_len, "%s%s%s",
+				prefix, name, suffix);
+
+	return snprintf(buf, max_len,
+			amode == MSP430_AMODE_IMMEDIATE ?
+			"%s0x%x%s" : "%s0x%04x%s",
+			prefix, addr, suffix);
 }
 
 /* Write assembly language for the instruction to this buffer */
@@ -616,19 +620,12 @@ int dis_format(char *buf, int max_len,
 	}
 
 	/* Destination operand */
-	if (insn->itype != MSP430_ITYPE_NOARG) {
-		if ((insn->op == MSP430_OP_CALL ||
-		     insn->op == MSP430_OP_BR) &&
-		    insn->dst_mode == MSP430_AMODE_IMMEDIATE)
-			count += format_addr(buf + count, max_len - count,
-					     "#", insn->dst_addr);
-		else
-			count += format_operand(buf + count,
-						max_len - count,
-						insn->dst_mode,
-						insn->dst_addr,
-						insn->dst_reg);
-	}
+	if (insn->itype != MSP430_ITYPE_NOARG)
+		count += format_operand(buf + count,
+					max_len - count,
+					insn->dst_mode,
+					insn->dst_addr,
+					insn->dst_reg);
 
 	buf[count] = 0;
 	return count;
