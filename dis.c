@@ -542,6 +542,7 @@ static int format_operand(char *buf, int max_len,
 	char rbuf[32];
 	char name[64];
 	u_int16_t offset;
+	int numeric = 0;
 
 	assert (reg >= 0 && reg < ARRAY_LEN(msp430_reg_names));
 
@@ -552,6 +553,7 @@ static int format_operand(char *buf, int max_len,
 	case MSP430_AMODE_INDEXED:
 		snprintf(rbuf, sizeof(rbuf), "(%s)", msp430_reg_names[reg]);
 		suffix = rbuf;
+		numeric = 1;
 		break;
 
 	case MSP430_AMODE_SYMBOLIC:
@@ -569,13 +571,14 @@ static int format_operand(char *buf, int max_len,
 
 	case MSP430_AMODE_IMMEDIATE:
 		prefix = "#";
+		numeric = 1;
 		break;
 
 	default:
 		return snprintf(buf, max_len, "???");
 	}
 
-	if ((amode != MSP430_AMODE_IMMEDIATE ||
+	if ((!numeric ||
 	     (addr >= 0x200 && addr < 0xfff0)) &&
 	    !stab_nearest(addr, name, sizeof(name), &offset) &&
 	    !offset)
@@ -583,8 +586,7 @@ static int format_operand(char *buf, int max_len,
 				prefix, name, suffix);
 
 	return snprintf(buf, max_len,
-			amode == MSP430_AMODE_IMMEDIATE ?
-			"%s0x%x%s" : "%s0x%04x%s",
+			numeric ? "%s0x%x%s" : "%s0x%04x%s",
 			prefix, addr, suffix);
 }
 
