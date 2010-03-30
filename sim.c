@@ -24,6 +24,7 @@
 #include "dis.h"
 #include "util.h"
 #include "stab.h"
+#include "parse.h"
 
 #define MEM_SIZE	65536
 
@@ -88,7 +89,7 @@ static int fetch_io(u_int16_t addr, int is_byte, u_int32_t *data_ret)
 			len--;
 		text[len] = 0;
 
-		if (!stab_parse(text, &data)) {
+		if (!addr_exp(text, &data)) {
 			if (data_ret)
 				*data_ret = data;
 			return 0;

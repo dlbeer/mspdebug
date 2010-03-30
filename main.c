@@ -23,17 +23,13 @@
 #include <errno.h>
 #include <unistd.h>
 
-#ifdef USE_READLINE
-#include <readline/readline.h>
-#include <readline/history.h>
-#endif
-
 #include "dis.h"
 #include "device.h"
 #include "binfile.h"
 #include "stab.h"
 #include "util.h"
 #include "gdb.h"
+#include "parse.h"
 
 static const struct device *msp430_dev;
 
@@ -42,13 +38,12 @@ static const struct device *msp430_dev;
  */
 
 static int syms_are_modified;
-static int is_interactive;
 
-static int syms_modify_check(void)
+static int syms_modify_check(voiv)
 {
 	char buf[32];
 
-	if (!syms_are_modified || !is_interactive)
+	if (!syms_are_modified)
 		return 0;
 
 	for (;;) {
@@ -67,80 +62,6 @@ static int syms_modify_check(void)
 			return 1;
 
 		printf("Please answer \"y\" or \"n\".\n");
-	}
-
-	return 0;
-}
-
-/**********************************************************************
- * Command-line interface
- */
-
-char *get_arg(char **text)
-{
-	char *start;
-	char *end;
-
-	if (!text)
-		return NULL;
-
-	start = *text;
-	while (*start && isspace(*start))
-		start++;
-
-	if (!*start)
-		return NULL;
-
-	end = start;
-	while (*end && !isspace(*end))
-		end++;
-
-	if (*end)
-	    while (*end && isspace(*end))
-		    *(end++) = 0;
-
-	*text = end;
-	return start;
-}
-
-struct command {
-	const char	*name;
-	int		(*func)(char **arg);
-	const char	*help;
-};
-
-static const struct command all_commands[];
-
-const struct command *find_command(const char *name)
-{
-	int i;
-
-	for (i = 0; all_commands[i].name; i++)
-		if (!strcasecmp(name, all_commands[i].name))
-			return &all_commands[i];
-
-	return NULL;
-}
-
-static int process_command(char *arg)
-{
-	const char *cmd_text;
-	int len = strlen(arg);
-
-	while (len && isspace(arg[len - 1]))
-		len--;
-	arg[len] = 0;
-
-	cmd_text = get_arg(&arg);
-	if (cmd_text) {
-		const struct command *cmd = find_command(cmd_text);
-
-		if (cmd)
-			return cmd->func(&arg);
-
-		fprintf(stderr, "unknown command: %s (try \"help\")\n",
-			cmd_text);
-		return -1;
 	}
 
 	return 0;
@@ -183,13 +104,13 @@ static int cmd_md(char **arg)
 		return -1;
 	}
 
-	if (stab_parse(off_text, &offset) < 0) {
+	if (addr_exp(off_text, &offset) < 0) {
 		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (stab_parse(len_text, &length) < 0) {
+		if (addr_exp(len_text, &length) < 0) {
 			fprintf(stderr, "md: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -231,7 +152,7 @@ static int cmd_mw(char **arg)
 		return -1;
 	}
 
-	if (stab_parse(off_text, &offset) < 0) {
+	if (addr_exp(off_text, &offset) < 0) {
 		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
@@ -259,55 +180,6 @@ static int cmd_mw(char **arg)
 	return 0;
 }
 
-static void disassemble(u_int16_t offset, u_int8_t *data, int length)
-{
-	int first_line = 1;
-
-	while (length) {
-		struct msp430_instruction insn;
-		int retval;
-		int count;
-		int i;
-		u_int16_t oboff;
-		char obname[64];
-
-		if (!stab_nearest(offset, obname, sizeof(obname), &oboff)) {
-			if (!oboff)
-				printf("%s:\n", obname);
-			else if (first_line)
-				printf("%s+0x%x:\n", obname, oboff);
-		}
-		first_line = 0;
-
-		retval = dis_decode(data, offset, length, &insn);
-		count = retval > 0 ? retval : 2;
-		if (count > length)
-			count = length;
-		printf("    %04x:", offset);
-
-		for (i = 0; i < count; i++)
-			printf(" %02x", data[i]);
-
-		while (i < 7) {
-			printf("   ");
-			i++;
-		}
-
-		if (retval >= 0) {
-			char buf[128];
-
-			dis_format(buf, sizeof(buf), &insn);
-			printf("%s", buf);
-		}
-
-		printf("\n");
-
-		offset += count;
-		length -= count;
-		data += count;
-	}
-}
-
 static int cmd_dis(char **arg)
 {
 	char *off_text = get_arg(arg);
@@ -321,13 +193,13 @@ static int cmd_dis(char **arg)
 		return -1;
 	}
 
-	if (stab_parse(off_text, &offset) < 0) {
+	if (addr_exp(off_text, &offset) < 0) {
 		fprintf(stderr, "dis: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (stab_parse(len_text, &length) < 0) {
+		if (addr_exp(len_text, &length) < 0) {
 			fprintf(stderr, "dis: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -437,8 +309,8 @@ static int cmd_hexout(char **arg)
 		return -1;
 	}
 
-	if (stab_parse(off_text, &off) < 0 ||
-	    stab_parse(len_text, &length) < 0)
+	if (addr_exp(off_text, &off) < 0 ||
+	    addr_exp(len_text, &length) < 0)
 		return -1;
 
 	if (hexout_start(filename) < 0)
@@ -508,7 +380,7 @@ static int cmd_run(char **arg)
 	device_status_t status;
 
 	if (bp_text) {
-		if (stab_parse(bp_text, &bp_addr) < 0) {
+		if (addr_exp(bp_text, &bp_addr) < 0) {
 			fprintf(stderr, "run: can't parse breakpoint: %s\n",
 				bp_text);
 			return -1;
@@ -554,7 +426,7 @@ static int cmd_set(char **arg)
 		reg_text++;
 	reg = atoi(reg_text);
 
-	if (stab_parse(val_text, &value) < 0) {
+	if (addr_exp(val_text, &value) < 0) {
 		fprintf(stderr, "set: can't parse value: %s\n", val_text);
 		return -1;
 	}
@@ -676,7 +548,7 @@ static int cmd_prog(char **arg)
 	FILE *in;
 	int result = 0;
 
-	if (syms_modify_check())
+	if (is_interactive() && syms_modify_check())
 		return 0;
 
 	in = fopen(*arg, "r");
@@ -722,7 +594,7 @@ static int cmd_eval(char **arg)
 	u_int16_t offset;
 	char name[64];
 
-	if (stab_parse(*arg, &addr) < 0) {
+	if (addr_exp(*arg, &addr) < 0) {
 		fprintf(stderr, "=: can't parse: %s\n", *arg);
 		return -1;
 	}
@@ -743,7 +615,7 @@ static int cmd_sym_load_add(int clear, char **arg)
 	FILE *in;
 	int result = 0;
 
-	if (clear && syms_modify_check())
+	if (clear && is_interactive() && syms_modify_check())
 		return 0;
 
 	in = fopen(*arg, "r");
@@ -827,7 +699,7 @@ static int cmd_sym(char **arg)
 	}
 
 	if (!strcasecmp(subcmd, "clear")) {
-		if (syms_modify_check())
+		if (is_interactive() && syms_modify_check())
 			return 0;
 		stab_clear();
 		syms_are_modified = 0;
@@ -845,7 +717,7 @@ static int cmd_sym(char **arg)
 			return -1;
 		}
 
-		if (stab_parse(val_text, &value) < 0) {
+		if (addr_exp(val_text, &value) < 0) {
 			fprintf(stderr, "sym: can't parse value: %s\n",
 				val_text);
 			return -1;
@@ -913,70 +785,11 @@ static int cmd_gdb(char **arg)
 	return gdb_server(msp430_dev, port);
 }
 
-static int cmd_help(char **arg)
-{
-	char *topic = get_arg(arg);
-
-	if (topic) {
-		const struct command *cmd = find_command(topic);
-
-		if (!cmd) {
-			fprintf(stderr, "help: unknown command: %s\n", topic);
-			return -1;
-		}
-
-		fputs(cmd->help, stdout);
-	} else {
-		int i;
-		int max_len = 0;
-		int rows, cols;
-		int total = 0;
-
-		for (i = 0; all_commands[i].name; i++) {
-			int len = strlen(all_commands[i].name);
-
-			if (len > max_len)
-				max_len = len;
-			total++;
-		}
-
-		max_len += 2;
-		cols = 72 / max_len;
-		rows = (total + cols - 1) / cols;
-
-		printf("Available commands:\n");
-		for (i = 0; i < rows; i++) {
-			int j;
-
-			printf("    ");
-			for (j = 0; j < cols; j++) {
-				int k = j * rows + i;
-				const struct command *cmd = &all_commands[k];
-
-				if (k >= total)
-					break;
-
-				printf("%s", cmd->name);
-				for (k = strlen(cmd->name); k < max_len; k++)
-					printf(" ");
-			}
-
-			printf("\n");
-		}
-
-		printf("Type \"help <command>\" for more information.\n");
-		printf("Press Ctrl+D to quit.\n");
-	}
-
-	return 0;
-}
-
 static int cmd_read(char **arg)
 {
 	char *filename = get_arg(arg);
 	FILE *in;
 	char buf[1024];
-	int was_interactive = is_interactive;
 
 	if (!filename) {
 		fprintf(stderr, "read: filename must be specified\n");
@@ -990,7 +803,6 @@ static int cmd_read(char **arg)
 		return -1;
 	}
 
-	is_interactive = 0;
 	while (fgets(buf, sizeof(buf), in)) {
 		char *cmd = buf;
 
@@ -1000,21 +812,19 @@ static int cmd_read(char **arg)
 		if (*cmd == '#')
 			continue;
 
-		if (process_command(cmd) < 0) {
+		if (process_command(cmd, 0) < 0) {
 			fprintf(stderr, "read: error processing %s\n",
 				filename);
 			fclose(in);
-			is_interactive = was_interactive;
 			return -1;
 		}
 	}
-	is_interactive = was_interactive;
 
 	fclose(in);
 	return 0;
 }
 
-static const struct command all_commands[] = {
+const struct command all_commands[] = {
 	{"=",		cmd_eval,
 	 "= <expression>\n"
 	 "    Evaluate an expression using the symbol table.\n"},
@@ -1042,6 +852,10 @@ static const struct command all_commands[] = {
 	 "mw <address> bytes ...\n"
 	 "    Write a sequence of bytes to a memory address. Byte values are\n"
 	 "    two-digit hexadecimal numbers.\n"},
+	{"opt",         cmd_opt,
+	 "opt [name] [value]\n"
+	 "    Query or set option variables. With no arguments, displays all\n"
+	 "    available options.\n"},
 	{"prog",	cmd_prog,
 	 "prog <filename>\n"
 	 "    Erase the device and flash the data contained in a binary file.\n"
@@ -1109,59 +923,6 @@ static void usage(const char *progname)
 "If commands are given, they will be executed. Otherwise, an interactive\n"
 "command reader is started.\n",
 		progname, progname, progname, progname);
-}
-
-#ifndef USE_READLINE
-#define LINE_BUF_SIZE 128
-
-static char *readline(const char *prompt)
-{
-	char *buf = malloc(LINE_BUF_SIZE);
-
-	if (!buf) {
-		perror("readline: can't allocate memory");
-		return NULL;
-	}
-
-	for (;;) {
-		printf("(mspdebug) ");
-		fflush(stdout);
-
-		if (fgets(buf, LINE_BUF_SIZE, stdin))
-			return buf;
-
-		if (feof(stdin))
-			break;
-
-		printf("\n");
-	}
-
-	free(buf);
-	return NULL;
-}
-
-#define add_history(x)
-#endif
-
-static void reader_loop(void)
-{
-	printf("\n");
-	cmd_help(NULL);
-	is_interactive = 1;
-
-	for (;;) {
-		char *buf = readline("(mspdebug) ");
-
-		if (buf) {
-			add_history(buf);
-			process_command(buf);
-			free(buf);
-		} else if (!syms_modify_check()) {
-			break;
-		}
-	}
-
-	printf("\n");
 }
 
 #define MODE_RF2500             0x01
@@ -1238,6 +999,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	parse_init();
 	ctrlc_init();
 	if (stab_init() < 0)
 		return -1;
@@ -1272,9 +1034,11 @@ int main(int argc, char **argv)
 	/* Process commands */
 	if (optind < argc) {
 		while (optind < argc)
-			process_command(argv[optind++]);
+			process_command(argv[optind++], 0);
 	} else {
-		reader_loop();
+		do {
+			reader_loop();
+		} while (syms_modify_check());
 	}
 
 	msp430_dev->close();

@@ -166,10 +166,8 @@ int stab_get(const char *name, u_int16_t *value)
 	struct sym_key skey;
 
 	sym_key_init(&skey, name);
-	if (btree_get(sym_table, &skey, value)) {
-		fprintf(stderr, "stab: can't find symbol: %s\n", name);
+	if (btree_get(sym_table, &skey, value))
 		return -1;
-	}
 
 	return 0;
 }
@@ -241,79 +239,6 @@ int stab_re_search(const char *regex, stab_callback_t cb)
 
 	regfree(&preg);
 	return count;
-}
-
-static char token_buf[64];
-static int token_len;
-static int token_mult;
-static int token_sum;
-
-static int token_add(void)
-{
-	int i;
-	struct sym_key skey;
-	u_int16_t value;
-
-	if (!token_len)
-		return 0;
-
-	token_buf[token_len] = 0;
-	token_len = 0;
-
-	/* Is it a decimal? */
-	i = 0;
-	while (token_buf[i] && isdigit(token_buf[i]))
-		i++;
-	if (!token_buf[i]) {
-		token_sum += token_mult * atoi(token_buf);
-		return 0;
-	}
-
-	/* Is it hex? */
-	if (token_buf[0] == '0' && tolower(token_buf[1]) == 'x') {
-		token_sum += token_mult * strtol(token_buf + 2, NULL, 16);
-		return 0;
-	}
-
-	/* Look up the name in the symbol table */
-	sym_key_init(&skey, token_buf);
-	if (!btree_get(sym_table, &skey, &value)) {
-		token_sum += token_mult * (int)value;
-		return 0;
-	}
-
-	fprintf(stderr, "stab: unknown token: %s\n", token_buf);
-	return -1;
-}
-
-int stab_parse(const char *text, int *addr)
-{
-	token_len = 0;
-	token_mult = 1;
-	token_sum = 0;
-
-	while (*text) {
-		if (isalnum(*text) || *text == '_' || *text == '$' ||
-		    *text == '.' || *text == ':') {
-			if (token_len + 1 < sizeof(token_buf))
-				token_buf[token_len++] = *text;
-		} else {
-			if (token_add() < 0)
-				return -1;
-			if (*text == '+')
-				token_mult = 1;
-			if (*text == '-')
-				token_mult = -1;
-		}
-
-		text++;
-	}
-
-	if (token_add() < 0)
-		return -1;
-
-	*addr = token_sum & 0xffff;
-	return 0;
 }
 
 int stab_nearest(u_int16_t addr, char *ret_name, int max_len,

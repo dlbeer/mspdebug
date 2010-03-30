@@ -79,7 +79,7 @@ table formats are still usable in this mode).
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
 commands are listed below.
-.IP "= \fIexpression\fR"
+.IP "\fB=\fR \fIexpression\fR"
 Evaluate an address expression and show both its value, and the result
 when the value is looked up in reverse in the current symbol
 table. This result is of the form \fIsymbol\fR+\fIoffset\fR, where
@@ -88,28 +88,28 @@ question.
 
 See the section marked \fBADDRESS EXPRESSIONS\fR for more information on
 the syntax of expressions.
-.IP "dis \fIaddress\fR [\fIlength\fR]"
+.IP "\fBdis\fR \fIaddress\fR [\fIlength\fR]"
 Dissassemble a section of memory. Both arguments may be address
 expressions. If no length is specified, a section of the default
 length (64 bytes) is disassembled and shown.
 
 If symbols are available, then all addresses used as operands are
 translated into \fIsymbol\fR+\fIoffset\fR form.
-.IP "erase"
+.IP "\fBerase\fR"
 Erase the device under test. All code memory is erased (but not
 information or boot memory).
-.IP "gdb [\fIport\fR]"
+.IP "\fBgdb\fR [\fIport\fR]"
 Start a GDB remote stub, optionally specifying a TCP port to listen on.
 If no port is given, the default port is 2000.
 
 MSPDebug will wait for a connection on this port, and then act as a
 GDB remote stub until GDB disconnects. The basic GDB protocol is
 supported, plus the monitor commands "erase" and "reset".
-.IP "help [\fIcommand\fR]"
+.IP "\fBhelp\fR [\fIcommand\fR]"
 Show a brief listing of available commands. If an argument is
 specified, show the syntax for the given command. The help text shown
 when no argument is given is also shown when MSPDebug starts up.
-.IP "hexout \fIaddress\fR \fIlength\fR \fIfilename\fR"
+.IP "\fBhexout\fR \fIaddress\fR \fIlength\fR \fIfilename\fR"
 Read the specified section of the device memory and save it to an
 Intel HEX file. The address and length arguments may both be address
 expressions.
@@ -118,7 +118,7 @@ If the specified file already exists, then it will be overwritten. If
 you need to dump memory from several disjoint memory regions, you can
 do this by saving each section to a separate file. The resulting files
 can then be concatenated together to form a single valid HEX file.
-.IP "md \fIaddress\fR [\fIlength\fR]"
+.IP "\fBmd\fR \fIaddress\fR [\fIlength\fR]"
 Read the specified section of device memory and display it as a
 canonical\-style hexdump. Both arguments may be address expressions. If
 no length is specified, a section of the default length (64 bytes) is
@@ -128,14 +128,24 @@ The output is split into three columns. The first column shows the
 starting address for the line. The second column lists the hexadecimal
 values of the bytes. The final column shows the ASCII characters
 corresponding to printable bytes, and . for non-printing characters.
-.IP "mw \fIaddress\fR \fIbytes\fR ..."
+.IP "\fBmw\fR \fIaddress\fR \fIbytes\fR ..."
 Write a sequence of bytes at the given memory address. The address given
 may be an address expression. Bytes values are two-digit hexadecimal
 numbers separated by spaces.
 
 Unless used in the simulation mode, this command can only be used for
 programming flash memory.
-.IP "prog \fIfilename\fR"
+.IP "\fBopt\fR [\fIname\fR] [\fIvalue\fR]"
+Query, set or list option variables. MSPDebug's behaviour can be configured
+using option variables, described below in the section \fBOPTIONS\fR.
+
+Option variables may be of three types: boolean, numeric or text. Numeric
+values may be specified as address expressions.
+
+With no arguments, this command displays all available option variables.
+With just an option name as its argument, it displays the current value
+of that option.
+.IP "\fBprog\fR \fIfilename\fR"
 Erase and reprogram the device under test using the binary file
 supplied. The file format will be auto-detected and may be either
 Intel HEX or ELF32.
@@ -145,16 +155,16 @@ from the file into the symbol table (discarding any existing symbols),
 if they are present.
 
 The CPU is reset and halted before and after programming.
-.IP "read \fIfilename\fR"
+.IP "\fBread\fR \fIfilename\fR"
 Read commands from the given file, line by line and process each one.
 Any lines whose first non-space character is \fB#\fR are ignored. If
 an error occurs while processing a command, the rest of the file is not
 processed.
-.IP "regs"
+.IP "\fBregs\fR"
 Show the current value of all CPU registers in the device under test.
-.IP "reset"
+.IP "\fBreset\fR"
 Reset (and halt) the CPU of the device under test.
-.IP "run [\fIbreakpoint\fR]"
+.IP "\fBrun\fR [\fIbreakpoint\fR]"
 Run the CPU, optionally specifying a breakpoint. The breakpoint can be
 specified as an address expression.
 
@@ -166,41 +176,41 @@ the user.
 After the CPU halts, the current register values are shown as well as
 a disassembly of the first few instructions at the address selected
 by the program counter.
-.IP "set \fIregister\fR \fIvalue\fR"
+.IP "\fBset\fR \fIregister\fR \fIvalue\fR"
 Alter the value of a register. Registers are specified as numbers from
 0 through 15. Any leading non-numeric characters are ignored (so a
 register may be specified as, for example, "R12"). The value argument
 is an address expression.
-.IP "step [\fIcount\fR]"
+.IP "\fBstep\fR [\fIcount\fR]"
 Step the CPU through one or more instructions. After stepping, the new
 register values are displayed, as well as a disassembly of the
 instructions at the address selected by the program counter.
 
 An optional count can be specified to step multiple times. If no
 argument is given, the CPU steps once.
-.IP "sym clear"
+.IP "\fBsym clear\fR"
 Clear the symbol table, deleting all symbols.
-.IP "sym set \fIname\fR \fIvalue\fR"
+.IP "\fBsym set\fR \fIname\fR \fIvalue\fR"
 Set or alter the value of a symbol. The value given may be an address
 expression.
-.IP "sym del \fIname\fR"
+.IP "\fBsym del\fR \fIname\fR"
 Delete the given symbol from the symbol table.
-.IP "sym load \fIfilename\fR"
+.IP "\fBsym load\fR \fIfilename\fR"
 Load symbols from the specified file and add them to the symbol table.
 The file format will be auto-detected and may be either ELF32 or a
 BSD-style symbol listing (like the output from \fBnm\fR(1)).
 
 Symbols can be combined from many sources, as the syms command adds
 to the existing symbol table without discarding existing symbols.
-.IP "sym add \fIfilename\fR"
+.IP "\fBsym add\fR \fIfilename\fR"
 This command is similar to \fBsym load\fR, except that the symbol table
 is not cleared first. By using this command, symbols from multiple
 sources can be combined.
-.IP "sym savemap \fIfilename\fR"
+.IP "\fBsym savemap\fR \fIfilename\fR"
 Save all symbols currently defined to the given file. The symbols are
 saved as a BSD-style symbol table. Note that symbol types are not stored
 by MSPDebug, and all symbols are saved as type \fBt\fR.
-.IP "sym find [\fIregex\fR]"
+.IP "\fBsym find\fR [\fIregex\fR]"
 Search for symbols. If a regular expression is given, then all symbols
 matching the expression are printed. If no expression is specified, then
 the entire symbol table is listed.
@@ -224,6 +234,10 @@ The following are all valid examples of address expressions:
 .B __bss_end-__bss_start
 .SH SEE ALSO
 \fBnm\fR(1), \fBgdb\fR(1), \fBobjcopy\fR(1)
+.SH OPTIONS
+MSPDebug's behaviour can be configured via the following variables:
+.IP "\fBcolor\fR (boolean)"
+If true, MSPDebug will colorize disassembly output.
 .SH BUGS
 If you find any bugs, you should report them to the author at
 daniel@tortek.co.nz. It would help if you could include a transcript

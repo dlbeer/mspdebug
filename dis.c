@@ -23,6 +23,7 @@
 #include "dis.h"
 #include "stab.h"
 #include "util.h"
+#include "parse.h"
 
 /**********************************************************************/
 /* Disassembler
@@ -528,107 +529,211 @@ static const char *const msp430_reg_names[] = {
 	"R12", "R13", "R14", "R15"
 };
 
-/* Given an operands addressing mode, value and associated register,
- * print the canonical representation of it to stdout.
- *
- * Returns the number of characters printed.
- */
-static int format_operand(char *buf, int max_len,
-			  msp430_amode_t amode, u_int16_t addr,
-			  msp430_reg_t reg)
+static int format_addr(msp430_amode_t amode, u_int16_t addr)
 {
-	const char *prefix = "";
-	const char *suffix = "";
-	char rbuf[32];
 	char name[64];
 	u_int16_t offset;
 	int numeric = 0;
-
-	assert (reg >= 0 && reg < ARRAY_LEN(msp430_reg_names));
+	int len;
+	int count = 0;
+	const char *prefix = "";
 
 	switch (amode) {
-	case MSP430_AMODE_REGISTER:
-		return snprintf(buf, max_len, "%s", msp430_reg_names[reg]);
-
-	case MSP430_AMODE_INDEXED:
-		snprintf(rbuf, sizeof(rbuf), "(%s)", msp430_reg_names[reg]);
-		suffix = rbuf;
-		numeric = 1;
-		break;
-
 	case MSP430_AMODE_SYMBOLIC:
+	case MSP430_AMODE_REGISTER:
+	case MSP430_AMODE_INDIRECT:
+	case MSP430_AMODE_INDIRECT_INC:
+		return 0;
+
+	case MSP430_AMODE_IMMEDIATE:
+		prefix = "#";
+	case MSP430_AMODE_INDEXED:
+		numeric = 1;
 		break;
 
 	case MSP430_AMODE_ABSOLUTE:
 		prefix = "&";
 		break;
-
-	case MSP430_AMODE_INDIRECT:
-		return snprintf(buf, max_len, "@%s", msp430_reg_names[reg]);
-
-	case MSP430_AMODE_INDIRECT_INC:
-		return snprintf(buf, max_len, "@%s+", msp430_reg_names[reg]);
-
-	case MSP430_AMODE_IMMEDIATE:
-		prefix = "#";
-		numeric = 1;
-		break;
-
-	default:
-		return snprintf(buf, max_len, "???");
 	}
+
+	len = printf("%s", prefix);
+	if (len >= 0)
+		count += len;
 
 	if ((!numeric ||
 	     (addr >= 0x200 && addr < 0xfff0)) &&
 	    !stab_nearest(addr, name, sizeof(name), &offset) &&
-	    !offset)
-		return snprintf(buf, max_len, "%s%s%s",
-				prefix, name, suffix);
+	    !offset) {
+		colorize("1m");
+		len = printf("%s", name);
+		colorize("0m");
+	} else {
+		colorize("32m");
+		len = printf(numeric ? "0x%x" : "0x%04x", addr);
+		colorize("0m");
+	}
 
-	return snprintf(buf, max_len,
-			numeric ? "%s0x%x%s" : "%s0x%04x%s",
-			prefix, addr, suffix);
+	if (len >= 0)
+		count += len;
+
+	return count;
+}
+
+static int format_reg(msp430_amode_t amode, msp430_reg_t reg)
+{
+	const char *prefix = "";
+	const char *suffix = "";
+	int len;
+	int count = 0;
+
+	switch (amode) {
+	case MSP430_AMODE_REGISTER:
+		break;
+
+	case MSP430_AMODE_INDEXED:
+		prefix = "(";
+		suffix = ")";
+		break;
+
+	case MSP430_AMODE_IMMEDIATE:
+	case MSP430_AMODE_SYMBOLIC:
+	case MSP430_AMODE_ABSOLUTE:
+		return 0;
+
+	case MSP430_AMODE_INDIRECT_INC:
+		suffix = "+";
+	case MSP430_AMODE_INDIRECT:
+		prefix = "@";
+		break;
+	}
+
+	assert (reg >= 0 && reg < ARRAY_LEN(msp430_reg_names));
+
+	len = printf("%s", prefix);
+	if (len >= 0)
+		count += len;
+	colorize("33m");
+	len = printf("%s", msp430_reg_names[reg]);
+	colorize("0m");
+	if (len >= 0)
+		count += len;
+	len = printf("%s", suffix);
+	if (len >= 0)
+		count += len;
+
+	return count;
+}
+
+/* Given an operands addressing mode, value and associated register,
+ * print the canonical representation of it to stdout.
+ *
+ * Returns the number of characters printed.
+ */
+static int format_operand(msp430_amode_t amode, u_int16_t addr,
+			  msp430_reg_t reg)
+{
+	int len;
+	int count = 0;
+
+	len = format_addr(amode, addr);
+	if (len >= 0)
+		count += len;
+
+	len = format_reg(amode, reg);
+	if (len >= 0)
+		count += len;
+
+	return count;
 }
 
 /* Write assembly language for the instruction to this buffer */
-int dis_format(char *buf, int max_len,
-	       const struct msp430_instruction *insn)
+static void dis_format(const struct msp430_instruction *insn)
 {
 	int count = 0;
+	int len;
 
-	/* Opcode mnemonic */
-	count = snprintf(buf, max_len, "%s", msp_op_name(insn->op));
-	if (insn->is_byte_op)
-		count += snprintf(buf + count, max_len - count, ".B");
-	while (count < 8 && count + 1 < max_len)
-		buf[count++] = ' ';
+	colorize("36m");
+	len = printf("%s%s", msp_op_name(insn->op),
+		     insn->is_byte_op ? ".B" : "");
+	colorize("0m");
+	if (len >= 0)
+		count += len;
+	while (count < 8) {
+		count++;
+		printf(" ");
+	}
 
 	/* Source operand */
 	if (insn->itype == MSP430_ITYPE_DOUBLE) {
-		count += format_operand(buf + count,
-					max_len - count,
-					insn->src_mode,
-					insn->src_addr,
-					insn->src_reg);
+		len = format_operand(insn->src_mode,
+				     insn->src_addr,
+				     insn->src_reg);
+		if (len >= 0)
+			count += len;
 
-		if (count + 1 < max_len)
-			buf[count++] = ',';
-
-		while (count < 19 && count + 1 < max_len)
-			buf[count++] = ' ';
-
-		if (count + 1 < max_len)
-			buf[count++] = ' ';
+		printf(",");
+		count++;
+		while (count < 19) {
+			count++;
+			printf(" ");
+		}
+		printf(" ");
+		count++;
 	}
 
 	/* Destination operand */
 	if (insn->itype != MSP430_ITYPE_NOARG)
-		count += format_operand(buf + count,
-					max_len - count,
-					insn->dst_mode,
-					insn->dst_addr,
-					insn->dst_reg);
+		format_operand(insn->dst_mode,
+			       insn->dst_addr,
+			       insn->dst_reg);
+}
 
-	buf[count] = 0;
-	return count;
+void disassemble(u_int16_t offset, u_int8_t *data, int length)
+{
+	int first_line = 1;
+
+	while (length) {
+		struct msp430_instruction insn;
+		int retval;
+		int count;
+		int i;
+		u_int16_t oboff;
+		char obname[64];
+
+		if (!stab_nearest(offset, obname, sizeof(obname), &oboff)) {
+			colorize("1m");
+			if (!oboff)
+				printf("%s:\n", obname);
+			else if (first_line)
+				printf("%s+0x%x:\n", obname, oboff);
+			colorize("0m");
+		}
+		first_line = 0;
+
+		retval = dis_decode(data, offset, length, &insn);
+		count = retval > 0 ? retval : 2;
+		if (count > length)
+			count = length;
+
+		colorize("36m");
+		printf("    %04x:", offset);
+		colorize("0m");
+
+		for (i = 0; i < count; i++)
+			printf(" %02x", data[i]);
+
+		while (i < 7) {
+			printf("   ");
+			i++;
+		}
+
+		if (retval >= 0)
+			dis_format(&insn);
+
+		printf("\n");
+
+		offset += count;
+		length -= count;
+		data += count;
+	}
 }
