@@ -29,7 +29,6 @@
 #include "stab.h"
 #include "util.h"
 #include "gdb.h"
-#include "parse.h"
 
 static const struct device *msp430_dev;
 
@@ -1000,7 +999,6 @@ int main(int argc, char **argv)
 	}
 
 	parse_init();
-	ctrlc_init();
 	if (stab_init() < 0)
 		return -1;
 

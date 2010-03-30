@@ -23,7 +23,6 @@
 #include "dis.h"
 #include "stab.h"
 #include "util.h"
-#include "parse.h"
 
 /**********************************************************************/
 /* Disassembler
