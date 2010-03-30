@@ -165,9 +165,6 @@ static char *readline(const char *prompt)
 
 void reader_loop(void)
 {
-	printf("\n");
-	cmd_help(NULL);
-
 	for (;;) {
 		char *buf = readline("(mspdebug) ");
 

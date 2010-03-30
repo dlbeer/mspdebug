@@ -438,6 +438,13 @@ int dis_decode(u_int8_t *code, u_int16_t offset, u_int16_t len,
 	find_cgens(insn);
 	find_emulated_ops(insn);
 
+	if (insn->is_byte_op) {
+		if (insn->src_mode == MSP430_AMODE_IMMEDIATE)
+			insn->src_addr &= 0xff;
+		if (insn->dst_mode == MSP430_AMODE_IMMEDIATE)
+			insn->dst_addr &= 0xff;
+	}
+
 	insn->len = ret;
 	return ret;
 }
@@ -538,7 +545,6 @@ static int format_addr(msp430_amode_t amode, u_int16_t addr)
 	const char *prefix = "";
 
 	switch (amode) {
-	case MSP430_AMODE_SYMBOLIC:
 	case MSP430_AMODE_REGISTER:
 	case MSP430_AMODE_INDIRECT:
 	case MSP430_AMODE_INDIRECT_INC:
@@ -552,6 +558,9 @@ static int format_addr(msp430_amode_t amode, u_int16_t addr)
 
 	case MSP430_AMODE_ABSOLUTE:
 		prefix = "&";
+		break;
+
+	case MSP430_AMODE_SYMBOLIC:
 		break;
 	}
 
@@ -672,7 +681,7 @@ static void dis_format(const struct msp430_instruction *insn)
 
 		printf(",");
 		count++;
-		while (count < 19) {
+		while (count < 23) {
 			count++;
 			printf(" ");
 		}

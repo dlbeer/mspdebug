@@ -185,7 +185,7 @@ static int cmd_dis(char **arg)
 	char *len_text = get_arg(arg);
 	int offset = 0;
 	int length = 0x40;
-	u_int8_t buf[512];
+	u_int8_t buf[4096];
 
 	if (!off_text) {
 		fprintf(stderr, "md: offset must be specified\n");
@@ -1034,6 +1034,9 @@ int main(int argc, char **argv)
 		while (optind < argc)
 			process_command(argv[optind++], 0);
 	} else {
+		printf("\n");
+		cmd_help(NULL);
+
 		do {
 			reader_loop();
 		} while (syms_modify_check());
