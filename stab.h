@@ -31,38 +31,7 @@ void stab_exit(void);
 void stab_clear(void);
 
 /* Set a symbol in the table. Returns 0 on success, or -1 on error. */
-int stab_set(const char *name, u_int16_t value);
-
-/* Fetch the value of a symbol. Returns 0 on success, or -1 if no such
- * symbol exists.
- */
-int stab_get(const char *name, u_int16_t *value);
-
-/* Delete a symbol from the symbol table.
- *
- * Returns 0 if successful, -1 if no such symbol exists.
- */
-int stab_del(const char *name);
-
-/* Enumerate all symbols. Returns total symbol count, or -1 if a callback
- * invocation returns an error.
- */
-typedef int (*stab_callback_t)(const char *name, u_int16_t value);
-
-int stab_enum(stab_callback_t cb);
-
-/* Search for a symbol by supplying a regular expression. The given
- * callback is invoked for each symbol matching the regex. Returns the
- * total number of symbols found, or -1 if an error occurs.
- */
-int stab_re_search(const char *regex, stab_callback_t cb);
-
-/* Parse an address expression and return an address. The text may be an
- * address, a symbol name or a combination (using + or -).
- *
- * Returns 0 if parsed successfully, -1 if an error occurs.
- */
-int stab_parse(const char *text, int *addr);
+int stab_set(const char *name, int value);
 
 /* Take an address and find the nearest symbol and offset (always
  * non-negative).

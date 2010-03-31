@@ -64,4 +64,9 @@ const struct device *bsl_open(const char *device);
 /* Dummy/simulation implementation. */
 const struct device *sim_open(void);
 
+/* Register device commands */
+void device_init(const struct device *dev);
+void device_exit(void);
+const struct device *device_active(void);
+
 #endif

@@ -28,9 +28,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "device.h"
+#include "util.h"
 #include "gdb.h"
-
-static const struct device *gdb_device;
 
 /************************************************************************
  * GDB IO routines
@@ -208,7 +207,7 @@ static int read_registers(void)
 	int i;
 
 	printf("Reading registers\n");
-	if (gdb_device->getregs(regs) < 0)
+	if (device_active()->getregs(regs) < 0)
 		return gdb_send("E00");
 
 	gdb_packet_start();
@@ -230,11 +229,11 @@ static int monitor_command(char *buf)
 
 	if (!strcasecmp(cmd, "reset")) {
 		printf("Resetting device\n");
-		if (gdb_device->control(DEVICE_CTL_RESET) < 0)
+		if (device_active()->control(DEVICE_CTL_RESET) < 0)
 			return gdb_send_hex("Reset failed\n");
 	} else if (!strcasecmp(cmd, "erase")) {
 		printf("Erasing device\n");
-		if (gdb_device->control(DEVICE_CTL_ERASE) < 0)
+		if (device_active()->control(DEVICE_CTL_ERASE) < 0)
 			return gdb_send_hex("Erase failed\n");
 	}
 
@@ -258,7 +257,7 @@ static int write_registers(char *buf)
 		buf += 4;
 	}
 
-	if (gdb_device->setregs(regs) < 0)
+	if (device_active()->setregs(regs) < 0)
 		return gdb_send("E00");
 
 	return gdb_send("OK");
@@ -286,7 +285,7 @@ static int read_memory(char *text)
 
 	printf("Reading %d bytes from 0x%04x\n", length, addr);
 
-	if (gdb_device->readmem(addr, buf, length) < 0)
+	if (device_active()->readmem(addr, buf, length) < 0)
 		return gdb_send("E00");
 
 	gdb_packet_start();
@@ -329,7 +328,7 @@ static int write_memory(char *text)
 
 	printf("Writing %d bytes to 0x%04x\n", buflen, addr);
 
-	if (gdb_device->writemem(addr, buf, buflen) < 0)
+	if (device_active()->writemem(addr, buf, buflen) < 0)
 		return gdb_send("E00");
 
 	return gdb_send("OK");
@@ -342,11 +341,11 @@ static int run_set_pc(char *buf)
 	if (!*buf)
 		return 0;
 
-	if (gdb_device->getregs(regs) < 0)
+	if (device_active()->getregs(regs) < 0)
 		return -1;
 
 	regs[0] = strtoul(buf, NULL, 16);
-	return gdb_device->setregs(regs);
+	return device_active()->setregs(regs);
 }
 
 static int run_final_status(void)
@@ -354,7 +353,7 @@ static int run_final_status(void)
 	u_int16_t regs[DEVICE_NUM_REGS];
 	int i;
 
-	if (gdb_device->getregs(regs) < 0)
+	if (device_active()->getregs(regs) < 0)
 		return gdb_send("E00");
 
 	gdb_packet_start();
@@ -371,7 +370,7 @@ static int single_step(char *buf)
 	printf("Single stepping\n");
 
 	if (run_set_pc(buf) < 0 ||
-	    gdb_device->control(DEVICE_CTL_STEP) < 0)
+	    device_active()->control(DEVICE_CTL_STEP) < 0)
 		gdb_send("E00");
 
 	return run_final_status();
@@ -382,13 +381,13 @@ static int run(char *buf)
 	printf("Running\n");
 
 	if (run_set_pc(buf) < 0 ||
-	    gdb_device->control(DEVICE_CTL_RUN) < 0) {
+	    device_active()->control(DEVICE_CTL_RUN) < 0) {
 		gdb_send("E00");
 		return run_final_status();
 	}
 
 	for (;;) {
-		device_status_t status = gdb_device->wait(0);
+		device_status_t status = device_active()->wait(0);
 
 		if (status == DEVICE_STATUS_ERROR) {
 			gdb_send("E00");
@@ -417,13 +416,13 @@ static int run(char *buf)
 	}
 
  out:
-	if (gdb_device->control(DEVICE_CTL_HALT) < 0)
+	if (device_active()->control(DEVICE_CTL_HALT) < 0)
 		gdb_send("E00");
 
 	return run_final_status();
 }
 
-static int process_command(char *buf, int len)
+static int process_gdb_command(char *buf, int len)
 {
 	switch (buf[0]) {
 	case '?': /* Return target halt reason */
@@ -457,7 +456,7 @@ static int process_command(char *buf, int len)
 	return gdb_send("");
 }
 
-static void reader_loop(void)
+static void gdb_reader_loop(void)
 {
 	for (;;) {
 		char buf[1024];
@@ -515,12 +514,12 @@ static void reader_loop(void)
 		if (gdb_flush() < 0)
 			return;
 
-		if (len && process_command(buf, len) < 0)
+		if (len && process_gdb_command(buf, len) < 0)
 			return;
 	}
 }
 
-int gdb_server(const struct device *dev, int port)
+static int gdb_server(int port)
 {
 	int sock;
 	int client;
@@ -573,9 +572,37 @@ int gdb_server(const struct device *dev, int port)
 	gdb_head = 0;
 	gdb_tail = 0;
 	gdb_outlen = 0;
-	gdb_device = dev;
 
-	reader_loop();
+	gdb_reader_loop();
 
 	return gdb_errno ? -1 : 0;
+}
+
+static int cmd_gdb(char **arg)
+{
+	char *port_text = get_arg(arg);
+	int port = 2000;
+
+	if (port_text)
+		port = atoi(port_text);
+
+	if (port <= 0 || port > 65535) {
+		fprintf(stderr, "gdb: invalid port: %d\n", port);
+		return -1;
+	}
+
+	return gdb_server(port);
+}
+
+static struct command command_gdb = {
+	.name = "gdb",
+	.func = cmd_gdb,
+	.help =
+	"gdb [port]\n"
+	"    Run a GDB remote stub on the given TCP/IP port.\n"
+};
+
+void gdb_init(void)
+{
+	register_command(&command_gdb);
 }

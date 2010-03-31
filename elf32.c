@@ -21,7 +21,6 @@
 #include <string.h>
 #include <elf.h>
 #include "binfile.h"
-#include "stab.h"
 
 #define EM_MSP430	0x69
 
@@ -265,7 +264,7 @@ static int syms_load_strings(FILE *in, Elf32_Shdr *s)
 
 #define N_SYMS	128
 
-static int syms_load_syms(FILE *in, Elf32_Shdr *s)
+static int syms_load_syms(FILE *in, Elf32_Shdr *s, symfunc_t cb)
 {
 	Elf32_Sym syms[N_SYMS];
 	int len = s->sh_size / sizeof(syms[0]);
@@ -299,7 +298,7 @@ static int syms_load_syms(FILE *in, Elf32_Shdr *s)
 				return -1;
 			}
 
-			if (stab_set(string_tab + y->st_name, y->st_value) < 0)
+			if (cb(string_tab + y->st_name, y->st_value) < 0)
 				return -1;
 		}
 
@@ -309,7 +308,7 @@ static int syms_load_syms(FILE *in, Elf32_Shdr *s)
 	return 0;
 }
 
-int elf32_syms(FILE *in)
+int elf32_syms(FILE *in, symfunc_t cb)
 {
 	Elf32_Shdr *s;
 
@@ -331,7 +330,7 @@ int elf32_syms(FILE *in)
 	string_len = 0;
 
 	if (syms_load_strings(in, &file_shdrs[s->sh_link]) < 0 ||
-	    syms_load_syms(in, s) < 0) {
+	    syms_load_syms(in, s, cb) < 0) {
 		if (string_tab)
 			free(string_tab);
 		return -1;

@@ -27,10 +27,12 @@ struct command {
 	const char	*name;
 	int		(*func)(char **arg);
 	const char	*help;
+
+	struct command  *next;
 };
 
-/* The global command table, defined in main.c */
-extern const struct command all_commands[];
+/* Add a command to the global command table */
+void register_command(struct command *c);
 
 /* Retrieve the next word from a pointer to the rest of a command
  * argument buffer. Returns NULL if no more words.
@@ -52,12 +54,9 @@ int process_command(char *arg, int interactive);
  */
 void reader_loop(void);
 
-/* Help command. Displays a command list with no argument, or help
- * for a particular command.
+/* Print an ANSI colour code, if the colour option has been set by
+ * the user.
  */
-int cmd_help(char **arg);
-
-/* Colourized output has been requested by the user. */
 int colorize(const char *text);
 
 /* Return non-zero if executing in an interactive context. */
@@ -66,7 +65,22 @@ int is_interactive(void);
 /* Parse an address expression, storing the result in the integer
  * pointed to. Returns 0 if parsed successfully, -1 if not.
  */
+typedef int (*token_func_t)(const char *text, int *value);
+
 int addr_exp(const char *text, int *value);
+void set_token_func(token_func_t func);
+
+/* Mark/unmark items as modified. The modify_prompt function, when
+ * called in interactive context, prompts the user before continuing
+ * if any of the items specified are modified. If the user elects
+ * to abort the operation, it returns non-zero.
+ */
+#define MODIFY_SYMS             0x01
+#define MODIFY_ALL              0x01
+
+void modify_set(int flags);
+void modify_clear(int flags);
+int modify_prompt(int flags);
 
 /* Options interface. Options may be declared by any module and
  * registered with the parser.
@@ -99,14 +113,10 @@ struct option {
  */
 void register_option(struct option *o);
 
-/* Command function for settings options. With no arguments, displays
- * a list of available options.
- */
-int cmd_opt(char **arg);
-
 /* Initialise the parser, and register built-ins. */
 void parse_init(void);
 
+/* Display a canonical hexdump */
 void hexdump(int addr, const u_int8_t *data, int len);
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))

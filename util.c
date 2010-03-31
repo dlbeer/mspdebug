@@ -33,10 +33,10 @@
 #include <readline/history.h>
 #endif
 
-#include "stab.h"
 #include "util.h"
 
 static struct option *option_list;
+static struct command *command_list;
 
 void register_option(struct option *o)
 {
@@ -55,7 +55,24 @@ static struct option *find_option(const char *name)
 	return NULL;
 }
 
-static int interactive_call;
+static struct command *find_command(const char *name)
+{
+	struct command *c;
+
+	for (c = command_list; c; c = c->next)
+		if (!strcasecmp(c->name, name))
+			return c;
+
+	return NULL;
+}
+
+void register_command(struct command *c)
+{
+	c->next = command_list;
+	command_list = c;
+}
+
+static int interactive_call = 1;
 
 int is_interactive(void)
 {
@@ -89,17 +106,6 @@ char *get_arg(char **text)
 	return start;
 }
 
-const struct command *find_command(const char *name)
-{
-	int i;
-
-	for (i = 0; all_commands[i].name; i++)
-		if (!strcasecmp(name, all_commands[i].name))
-			return &all_commands[i];
-
-	return NULL;
-}
-
 int process_command(char *arg, int interactive)
 {
 	const char *cmd_text;
@@ -130,6 +136,141 @@ int process_command(char *arg, int interactive)
 
 	return 0;
 }
+
+const char *type_text(option_type_t type)
+{
+	switch (type) {
+	case OPTION_BOOLEAN:
+		return "boolean";
+
+	case OPTION_NUMERIC:
+		return "numeric";
+
+	case OPTION_TEXT:
+		return "text";
+	}
+
+	return "unknown";
+}
+
+static const char *name_list[128];
+static int num_names;
+static int name_max_len;
+
+static void name_start(void)
+{
+	num_names = 0;
+	name_max_len = 0;
+}
+
+static void name_push(const char *text)
+{
+	if (num_names < ARRAY_LEN(name_list)) {
+		int len = strlen(text);
+
+		name_list[num_names++] = text;
+		if (len > name_max_len)
+			name_max_len = len;
+	}
+}
+
+static int compare_name(const void *left, const void *right)
+{
+	return strcasecmp(*(const char *const *)left,
+			  *(const char *const *)right);
+}
+
+static void name_list_show(void)
+{
+	int i;
+	int max_len = name_max_len + 2;
+	int rows, cols;
+
+	qsort(name_list, num_names, sizeof(name_list[0]),
+	      compare_name);
+
+	cols = 72 / max_len;
+	rows = (num_names + cols - 1) / cols;
+
+	for (i = 0; i < rows; i++) {
+		int j;
+
+		printf("    ");
+		for (j = 0; j < cols; j++) {
+			int k = j * rows + i;
+
+			if (k >= num_names)
+				break;
+
+			printf("%s", name_list[k]);
+			for (k = strlen(name_list[k]); k < max_len; k++)
+				printf(" ");
+		}
+
+		printf("\n");
+	}
+}
+
+static int cmd_help(char **arg)
+{
+	const char *topic = get_arg(arg);
+
+	if (topic) {
+		const struct command *cmd = find_command(topic);
+		const struct option *opt = find_option(topic);
+
+		if (cmd) {
+			printf("COMMAND: %s\n", cmd->name);
+			fputs(cmd->help, stdout);
+			if (opt)
+				printf("\n");
+		}
+
+		if (opt) {
+			printf("OPTION: %s (%s)\n", opt->name,
+			       type_text(opt->type));
+			fputs(opt->help, stdout);
+		}
+
+		if (!(cmd || opt)) {
+			fprintf(stderr, "help: unknown command: %s\n", topic);
+			return -1;
+		}
+	} else {
+		const struct command *cmd;
+		const struct option *opt;
+
+		name_start();
+		for (cmd = command_list; cmd; cmd = cmd->next)
+			name_push(cmd->name);
+
+		printf("Available commands:\n");
+		name_list_show();
+		printf("\n");
+
+		name_start();
+		for (opt = option_list; opt; opt = opt->next)
+			name_push(opt->name);
+
+		printf("Available options:\n");
+		name_list_show();
+		printf("\n");
+
+		printf("Type \"help <topic>\" for more information.\n");
+		printf("Press Ctrl+D to quit.\n");
+	}
+
+	return 0;
+}
+
+static struct command command_help = {
+	.func = cmd_help,
+	.name = "help",
+	.help =
+	"help [command]\n"
+	"    Without arguments, displays a list of commands. With a command\n"
+	"    name as an argument, displays help for that command.\n"
+};
 
 #ifndef USE_READLINE
 #define LINE_BUF_SIZE 128
@@ -165,175 +306,24 @@ static char *readline(const char *prompt)
 
 void reader_loop(void)
 {
-	for (;;) {
-		char *buf = readline("(mspdebug) ");
+	printf("\n");
+	cmd_help(NULL);
+	printf("\n");
 
-		if (!buf)
-			break;
+	do {
+		for (;;) {
+			char *buf = readline("(mspdebug) ");
 
-		add_history(buf);
-		process_command(buf, 1);
-		free(buf);
-	}
+			if (!buf)
+				break;
+
+			add_history(buf);
+			process_command(buf, 1);
+			free(buf);
+		}
+	} while (modify_prompt(MODIFY_ALL));
 
 	printf("\n");
-}
-
-const char *type_text(option_type_t type)
-{
-	switch (type) {
-	case OPTION_BOOLEAN:
-		return "boolean";
-
-	case OPTION_NUMERIC:
-		return "numeric";
-
-	case OPTION_TEXT:
-		return "text";
-	}
-
-	return "unknown";
-}
-
-int cmd_help(char **arg)
-{
-	char *topic = get_arg(arg);
-
-	if (topic) {
-		const struct command *cmd = find_command(topic);
-		const struct option *opt = find_option(topic);
-
-		if (cmd) {
-			printf("COMMAND: %s\n", cmd->name);
-			fputs(cmd->help, stdout);
-			if (opt)
-				printf("\n");
-		}
-
-		if (opt) {
-			printf("OPTION: %s (%s)\n", opt->name,
-			       type_text(opt->type));
-			fputs(opt->help, stdout);
-		}
-
-		if (!(cmd || opt)) {
-			fprintf(stderr, "help: unknown command: %s\n", topic);
-			return -1;
-		}
-	} else {
-		int i;
-		int max_len = 0;
-		int rows, cols;
-		int total = 0;
-
-		for (i = 0; all_commands[i].name; i++) {
-			int len = strlen(all_commands[i].name);
-
-			if (len > max_len)
-				max_len = len;
-			total++;
-		}
-
-		max_len += 2;
-		cols = 72 / max_len;
-		rows = (total + cols - 1) / cols;
-
-		printf("Available commands:\n");
-		for (i = 0; i < rows; i++) {
-			int j;
-
-			printf("    ");
-			for (j = 0; j < cols; j++) {
-				int k = j * rows + i;
-				const struct command *cmd = &all_commands[k];
-
-				if (k >= total)
-					break;
-
-				printf("%s", cmd->name);
-				for (k = strlen(cmd->name); k < max_len; k++)
-					printf(" ");
-			}
-
-			printf("\n");
-		}
-
-		printf("Type \"help <command>\" for more information.\n");
-		printf("Press Ctrl+D to quit.\n");
-	}
-
-	return 0;
-}
-
-static char token_buf[64];
-static int token_len;
-static int token_mult;
-static int token_sum;
-
-static int token_add(void)
-{
-	int i;
-	u_int16_t value;
-
-	if (!token_len)
-		return 0;
-
-	token_buf[token_len] = 0;
-	token_len = 0;
-
-	/* Is it a decimal? */
-	i = 0;
-	while (token_buf[i] && isdigit(token_buf[i]))
-		i++;
-	if (!token_buf[i]) {
-		token_sum += token_mult * atoi(token_buf);
-		return 0;
-	}
-
-	/* Is it hex? */
-	if (token_buf[0] == '0' && tolower(token_buf[1]) == 'x') {
-		token_sum += token_mult * strtol(token_buf + 2, NULL, 16);
-		return 0;
-	}
-
-	/* Look up the name in the symbol table */
-	if (!stab_get(token_buf, &value)) {
-		token_sum += token_mult * value;
-		return 0;
-	}
-
-	fprintf(stderr, "unknown token: %s\n", token_buf);
-	return -1;
-}
-
-int addr_exp(const char *text, int *addr)
-{
-	token_len = 0;
-	token_mult = 1;
-	token_sum = 0;
-
-	while (*text) {
-		if (isalnum(*text) || *text == '_' || *text == '$' ||
-		    *text == '.' || *text == ':') {
-			if (token_len + 1 < sizeof(token_buf))
-				token_buf[token_len++] = *text;
-		} else {
-			if (token_add() < 0)
-				return -1;
-			if (*text == '+')
-				token_mult = 1;
-			if (*text == '-')
-				token_mult = -1;
-		}
-
-		text++;
-	}
-
-	if (token_add() < 0)
-		return -1;
-
-	*addr = token_sum & 0xffff;
-	return 0;
 }
 
 static void display_option(const struct option *o)
@@ -379,7 +369,7 @@ static int parse_option(struct option *o, const char *word)
 	return 0;
 }
 
-int cmd_opt(char **arg)
+static int cmd_opt(char **arg)
 {
 	const char *opt_text = get_arg(arg);
 	struct option *opt = NULL;
@@ -411,6 +401,62 @@ int cmd_opt(char **arg)
 	return 0;
 }
 
+static struct command command_opt = {
+	.name = "opt",
+	.func = cmd_opt,
+	.help =
+	"opt [name] [value]\n"
+	"    Query or set option variables. With no arguments, displays all\n"
+	"    available options.\n"
+};
+
+static int cmd_read(char **arg)
+{
+	char *filename = get_arg(arg);
+	FILE *in;
+	char buf[1024];
+
+	if (!filename) {
+		fprintf(stderr, "read: filename must be specified\n");
+		return -1;
+	}
+
+	in = fopen(filename, "r");
+	if (!in) {
+		fprintf(stderr, "read: can't open %s: %s\n",
+			filename, strerror(errno));
+		return -1;
+	}
+
+	while (fgets(buf, sizeof(buf), in)) {
+		char *cmd = buf;
+
+		while (*cmd && isspace(*cmd))
+			cmd++;
+
+		if (*cmd == '#')
+			continue;
+
+		if (process_command(cmd, 0) < 0) {
+			fprintf(stderr, "read: error processing %s\n",
+				filename);
+			fclose(in);
+			return -1;
+		}
+	}
+
+	fclose(in);
+	return 0;
+}
+
+static struct command command_read = {
+	.name = "read",
+	.func = cmd_read,
+	.help =
+	"read <filename>\n"
+	"    Read commands from a file and evaluate them.\n"
+};
+
 static struct option option_color = {
 	.name = "color",
 	.type = OPTION_BOOLEAN,
@@ -432,7 +478,6 @@ static void sigint_handler(int signum)
 	ctrlc_flag = 1;
 }
 
-
 void parse_init(void)
 {
 	const static struct sigaction siga = {
@@ -441,7 +486,12 @@ void parse_init(void)
 	};
 
 	sigaction(SIGINT, &siga, NULL);
+
 	register_option(&option_color);
+
+	register_command(&command_help);
+	register_command(&command_opt);
+	register_command(&command_read);
 }
 
 void hexdump(int addr, const u_int8_t *data, int len)
@@ -604,4 +654,122 @@ void ctrlc_reset(void)
 int ctrlc_check(void)
 {
 	return ctrlc_flag;
+}
+
+static char token_buf[64];
+static int token_len;
+static int token_mult;
+static int token_sum;
+
+static token_func_t token_func;
+
+static int token_add(void)
+{
+	int i;
+	int value;
+
+	if (!token_len)
+		return 0;
+
+	token_buf[token_len] = 0;
+	token_len = 0;
+
+	/* Is it a decimal? */
+	i = 0;
+	while (token_buf[i] && isdigit(token_buf[i]))
+		i++;
+	if (!token_buf[i]) {
+		token_sum += token_mult * atoi(token_buf);
+		return 0;
+	}
+
+	/* Is it hex? */
+	if (token_buf[0] == '0' && tolower(token_buf[1]) == 'x') {
+		token_sum += token_mult * strtol(token_buf + 2, NULL, 16);
+		return 0;
+	}
+
+	/* Look up the name in the symbol table */
+	if (token_func && !token_func(token_buf, &value)) {
+		token_sum += token_mult * value;
+		return 0;
+	}
+
+	fprintf(stderr, "unknown token: %s\n", token_buf);
+	return -1;
+}
+
+void set_token_func(token_func_t func)
+{
+	token_func = func;
+}
+
+int addr_exp(const char *text, int *addr)
+{
+	token_len = 0;
+	token_mult = 1;
+	token_sum = 0;
+
+	while (*text) {
+		if (isalnum(*text) || *text == '_' || *text == '$' ||
+		    *text == '.' || *text == ':') {
+			if (token_len + 1 < sizeof(token_buf))
+				token_buf[token_len++] = *text;
+		} else {
+			if (token_add() < 0)
+				return -1;
+			if (*text == '+')
+				token_mult = 1;
+			if (*text == '-')
+				token_mult = -1;
+		}
+
+		text++;
+	}
+
+	if (token_add() < 0)
+		return -1;
+
+	*addr = token_sum & 0xffff;
+	return 0;
+}
+
+static int modify_flags;
+
+void modify_set(int flags)
+{
+	modify_flags |= flags;
+}
+
+void modify_clear(int flags)
+{
+	modify_flags &= ~flags;
+}
+
+int modify_prompt(int flags)
+{
+	char buf[32];
+
+	if (!(interactive_call && (modify_flags & flags)))
+		return 0;
+
+	for (;;) {
+		printf("Symbols have not been saved since modification. "
+		       "Continue (y/n)? ");
+		fflush(stdout);
+
+		if (!fgets(buf, sizeof(buf), stdin)) {
+			printf("\n");
+			return 1;
+		}
+
+		if (toupper(buf[0]) == 'Y')
+			return 0;
+		if (toupper(buf[0]) == 'N')
+			return 1;
+
+		printf("Please answer \"y\" or \"n\".\n");
+	}
+
+	return 0;
 }
