@@ -214,6 +214,11 @@ by MSPDebug, and all symbols are saved as type \fBt\fR.
 Search for symbols. If a regular expression is given, then all symbols
 matching the expression are printed. If no expression is specified, then
 the entire symbol table is listed.
+.IP "\fBsym rename\fR \fIregex\fR \fIstring\fR"
+Rename symbols by searching for those matching the given regular
+expression and substituting the given string for the matched portion. The
+symbols renamed are displayed, as well as a total count of all symbols
+renamed.
 .SH ADDRESS EXPRESSIONS
 Any command which accepts a memory address, length or register value
 as an argument may be given an address expression. An address

@@ -49,6 +49,8 @@ void btree_clear(btree_t bt);
 /* Add or update a record in a B+Tree. Any existing data for the key will
  * be overwritten.
  *
+ * Specifying a NULL key causes the cursor value to be overwritten.
+ *
  * Returns 1 if the key already existed, 0 if a new key was inserted,
  * or -1 if an error occurs (failed memory allocation).
  */

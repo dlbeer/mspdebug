@@ -500,6 +500,18 @@ int btree_put(btree_t bt, const void *key, const void *data)
 
 	check_btree(bt);
 
+	/* Special case: cursor overwrite */
+	if (!key) {
+		if (bt->slot[0] < 0) {
+			fprintf(stderr, "btree: put at invalid cursor\n");
+			return -1;
+		}
+
+		memcpy(PAGE_DATA(bt->path[0], bt->slot[0]), data,
+		       def->data_size);
+		return 1;
+	}
+
 	/* Find a path down the tree that leads to the page which should
 	 * contain this datum (though the page might be too big to hold it).
 	 */
