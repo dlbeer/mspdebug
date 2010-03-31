@@ -321,6 +321,8 @@ static void merge_pages(struct btree_page *lower,
 		       PAGE_DATA(higher, 0),
 		       higher->num_children * def->data_size);
 
+	lower->num_children += higher->num_children;
+
 	/* Fix up the cursor if we subsumed an active page */
 	if (bt->slot[0] >= 0) {
 		if (bt->path[higher->height] == higher) {
