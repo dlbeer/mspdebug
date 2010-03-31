@@ -195,18 +195,18 @@ Set or alter the value of a symbol. The value given may be an address
 expression.
 .IP "\fBsym del\fR \fIname\fR"
 Delete the given symbol from the symbol table.
-.IP "\fBsym load\fR \fIfilename\fR"
+.IP "\fBsym import\fR \fIfilename\fR"
 Load symbols from the specified file and add them to the symbol table.
 The file format will be auto-detected and may be either ELF32 or a
 BSD-style symbol listing (like the output from \fBnm\fR(1)).
 
 Symbols can be combined from many sources, as the syms command adds
 to the existing symbol table without discarding existing symbols.
-.IP "\fBsym add\fR \fIfilename\fR"
-This command is similar to \fBsym load\fR, except that the symbol table
+.IP "\fBsym import+\fR \fIfilename\fR"
+This command is similar to \fBsym import\fR, except that the symbol table
 is not cleared first. By using this command, symbols from multiple
 sources can be combined.
-.IP "\fBsym savemap\fR \fIfilename\fR"
+.IP "\fBsym export\fR \fIfilename\fR"
 Save all symbols currently defined to the given file. The symbols are
 saved as a BSD-style symbol table. Note that symbol types are not stored
 by MSPDebug, and all symbols are saved as type \fBt\fR.

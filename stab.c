@@ -410,12 +410,12 @@ static int cmd_sym(char **arg)
 		return 0;
 	}
 
-	if (!strcasecmp(subcmd, "load"))
+	if (!strcasecmp(subcmd, "import"))
 		return cmd_sym_load_add(1, arg);
-	if (!strcasecmp(subcmd, "add"))
+	if (!strcasecmp(subcmd, "import+"))
 		return cmd_sym_load_add(0, arg);
 
-	if (!strcasecmp(subcmd, "savemap"))
+	if (!strcasecmp(subcmd, "export"))
 		return cmd_sym_savemap(arg);
 
 	if (!strcasecmp(subcmd, "find")) {
@@ -443,11 +443,11 @@ static struct command command_sym = {
 	"    Set or overwrite the value of a symbol.\n"
 	"sym del <name>\n"
 	"    Delete a symbol from the symbol table.\n"
-	"sym load <filename>\n"
+	"sym import <filename>\n"
 	"    Load symbols from the given file.\n"
-	"sym add <filename>\n"
+	"sym import+ <filename>\n"
 	"    Load additional symbols from the given file.\n"
-	"sym savemap <filename>\n"
+	"sym export <filename>\n"
 	"    Save the current symbols to a BSD-style symbol file.\n"
 	"sym find <regex>\n"
 	"    Search for symbols by regular expression.\n"
