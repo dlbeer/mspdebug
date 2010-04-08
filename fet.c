@@ -305,6 +305,11 @@ static int parse_packet(int plen)
 		return -1;
 	}
 
+	if (type == PTYPE_NAK) {
+		fprintf(stderr, "fet: FET returned NAK\n");
+		return -1;
+	}
+
 	/* Parse packet parameters */
 	if (type == PTYPE_PARAM || type == PTYPE_MIXED) {
 		int j;
