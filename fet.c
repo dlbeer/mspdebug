@@ -39,42 +39,42 @@ static int fet_is_rf2500;
  * www.relavak.com
  */
 
-#define C_INITIALIZE            1
-#define C_CLOSE                 2
-#define C_IDENTIFY              3
-#define C_DEVICE                4
-#define C_CONFIGURE             5
-#define C_VCC                   6
-#define C_RESET                 7
-#define C_READREGISTERS         8
-#define C_WRITEREGISTERS        9
-#define C_READREGISTER          10
-#define C_WRITEREGISTER         11
-#define C_ERASE                 12
-#define C_READMEMORY            13
-#define C_WRITEMEMORY           14
-#define C_FASTFLASHER           15
-#define C_BREAKPOINT            16
-#define C_RUN                   17
-#define C_STATE                 18
-#define C_SECURE                19
-#define C_VERIFYMEMORY          20
-#define C_FASTVERIFYMEMORY      21
-#define C_ERASECHECK            22
-#define C_EEMOPEN               23
-#define C_EEMREADREGISTER       24
-#define C_EEMREADREGISTERTEST   25
-#define C_EEMWRITEREGISTER      26
-#define C_EEMCLOSE              27
-#define C_ERRORNUMBER           28
-#define C_GETCURVCCT            29
-#define C_GETEXTVOLTAGE         30
-#define C_FETSELFTEST           31
-#define C_FETSETSIGNALS         32
-#define C_FETRESET              33
-#define C_READI2C               34
-#define C_WRITEI2C              35
-#define C_ENTERBOOTLOADER       36
+#define C_INITIALIZE            0x01
+#define C_CLOSE                 0x02
+#define C_IDENTIFY              0x03
+#define C_DEVICE                0x04
+#define C_CONFIGURE             0x05
+#define C_VCC                   0x06
+#define C_RESET                 0x07
+#define C_READREGISTERS         0x08
+#define C_WRITEREGISTERS        0x09
+#define C_READREGISTER          0x0a
+#define C_WRITEREGISTER         0x0b
+#define C_ERASE                 0x0c
+#define C_READMEMORY            0x0d
+#define C_WRITEMEMORY           0x0e
+#define C_FASTFLASHER           0x0f
+#define C_BREAKPOINT            0x10
+#define C_RUN                   0x11
+#define C_STATE                 0x12
+#define C_SECURE                0x13
+#define C_VERIFYMEMORY          0x14
+#define C_FASTVERIFYMEMORY      0x15
+#define C_ERASECHECK            0x16
+#define C_EEMOPEN               0x17
+#define C_EEMREADREGISTER       0x18
+#define C_EEMREADREGISTERTEST   0x19
+#define C_EEMWRITEREGISTER      0x1a
+#define C_EEMCLOSE              0x1b
+#define C_ERRORNUMBER           0x1c
+#define C_GETCURVCCT            0x1d
+#define C_GETEXTVOLTAGE         0x1e
+#define C_FETSELFTEST           0x1f
+#define C_FETSETSIGNALS         0x20
+#define C_FETRESET              0x21
+#define C_READI2C               0x22
+#define C_WRITEI2C              0x23
+#define C_ENTERBOOTLOADER       0x24
 
 /* Constants for parameters of various FET commands */
 #define FET_RUN_FREE           1
@@ -784,7 +784,7 @@ const struct device *fet_open(const struct fet_transport *tr,
 	fet_version = fet_reply.argv[0];
 	printf("FET protocol version is %d\n", fet_version);
 
-	if (xfer(39, NULL, 0, 1, 4) < 0) {
+	if (xfer(0x27, NULL, 0, 1, 4) < 0) {
 		fprintf(stderr, "fet: init failed\n");
 		return NULL;
 	}
