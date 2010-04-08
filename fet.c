@@ -485,6 +485,9 @@ static int xfer(int command_code, const u_int8_t *data, int datalen,
 	va_end(ap);
 
 	if (data && fet_is_rf2500) {
+		assert (nparams + 1 <= MAX_PARAMS);
+		params[nparams++] = datalen;
+
 		if (send_rf2500_data(data, datalen) < 0)
 			return -1;
 		if (send_command(command_code, params, nparams, NULL, 0) < 0)
@@ -697,12 +700,7 @@ static int fet_setregs(const u_int16_t *regs)
 		buf[i * 4 + 1] = regs[i] >> 8;
 	}
 
-	if (fet_is_rf2500)
-		ret = xfer(C_WRITEREGISTERS, buf, sizeof(buf),
-			   2, 0xffff, sizeof(buf));
-	else
-		ret = xfer(C_WRITEREGISTERS, buf, sizeof(buf),
-			   1, 0xffff);
+	ret = xfer(C_WRITEREGISTERS, buf, sizeof(buf), 1, 0xffff);
 
 	if (ret < 0) {
 		fprintf(stderr, "fet: context set failed\n");
@@ -744,12 +742,7 @@ int fet_writemem(u_int16_t addr, const u_int8_t *buffer, int count)
 		int plen = count > 128 ? 128 : count;
 		int ret;
 
-		if (fet_is_rf2500)
-			ret = xfer(C_WRITEMEMORY, buffer, plen,
-				   2, addr, plen);
-		else
-			ret = xfer(C_WRITEMEMORY, buffer, plen,
-				   1, addr);
+		ret = xfer(C_WRITEMEMORY, buffer, plen, 1, addr);
 
 		if (ret < 0) {
 			fprintf(stderr, "fet: failed to write to 0x%04x\n",
