@@ -118,6 +118,71 @@ If the specified file already exists, then it will be overwritten. If
 you need to dump memory from several disjoint memory regions, you can
 do this by saving each section to a separate file. The resulting files
 can then be concatenated together to form a single valid HEX file.
+.IP "\fBisearch\fR \fIaddress\fR \fIlength\fR [\fIoptions\fR ...]"
+Search over the given range for an instruction which matches the specified
+search criteria. The search may be narrowed by specifying one or more of
+the following terms:
+.RS
+.IP "\fBopcode\fR \fIopcode\fR"
+Match the specified opcode. Byte/word specifiers are not recognised, as
+they are specified with other options.
+.IP "\fBbyte\fR"
+Match only byte operations.
+.IP "\fBword\fR"
+Match only word operations.
+.IP "\fBjump\fR"
+Match only jump instructions (conditional and unconditional jumps, but
+not instructions such as BR which load the program counter explicitly).
+.IP "\fBsingle\fR"
+Match only single-operand instructions.
+.IP "\fBdouble\fR"
+Match only double-operand instructions.
+.IP "\fBnoarg\fR"
+Match only instructions with no arguments.
+.IP "\fBsrc\fR \fIaddress\fR"
+Match instructions with the specified value in the source operand. The value
+may be given as an address expression. Specifying this option implies matching
+of only double-operand instructions.
+.IP "\fBdst\fR \fIaddress\fR"
+Match instructions with the specified value in the destination
+operand. This option implies that no-argument instructions are not
+matched.
+.IP "\fBsrcreg\fR \fIregister\fR"
+Match instructions using the specified register in the source operand. This
+option implies matching of only double-operand instructions.
+.IP "\fBdstreg\fR \fIregister\fR"
+Match instructions using the specified register in the destination operand.
+This option implies that no-argument instructions are not matched.
+.IP "\fBsrcmode\fR \fImode\fR"
+Match instructions using the specified mode in the source operand. See
+below for a list of modes recognised. This option implies matching of
+only double-operand instructions.
+.IP "\fBdstmode\fR \fImode\fR"
+Match instructions using the specified mode in the destination operand. See
+below for a list of modes. This option implies that no-argument instructions
+are not matched.
+.RE
+For single-operand instructions, the operand is considered to be the
+destination operand.
+
+The seven addressing modes used by the MSP430 are represented by single
+characters, and are listed here:
+.RS
+.IP "\fBR\fR"
+Register mode.
+.IP "\fBI\fR"
+Indexed mode.
+.IP "\fBS\fR"
+Symbolic mode.
+.IP "\fB&\fR"
+Absolute mode.
+.IP "\fB@\fR"
+Register-indirect mode.
+.IP "\fB+\fR"
+Register-indirect mode with auto-increment.
+.IP "\fB#\fR"
+Immediate mode.
+.RE
 .IP "\fBmd\fR \fIaddress\fR [\fIlength\fR]"
 Read the specified section of device memory and display it as a
 canonical\-style hexdump. Both arguments may be address expressions. If

@@ -449,6 +449,70 @@ int dis_decode(u_int8_t *code, u_int16_t offset, u_int16_t len,
 	return ret;
 }
 
+static const struct {
+	msp430_op_t     op;
+	const char      *mnemonic;
+} opcode_names[] = {
+	/* Single operand */
+	{MSP430_OP_RRC,         "RRC"},
+	{MSP430_OP_SWPB,        "SWPB"},
+	{MSP430_OP_RRA,         "RRA"},
+	{MSP430_OP_SXT,         "SXT"},
+	{MSP430_OP_PUSH,        "PUSH"},
+	{MSP430_OP_CALL,        "CALL"},
+	{MSP430_OP_RETI,        "RETI"},
+
+	/* Jump */
+	{MSP430_OP_JNZ,         "JNZ"},
+	{MSP430_OP_JZ,          "JZ"},
+	{MSP430_OP_JNC,         "JNC"},
+	{MSP430_OP_JC,          "JC"},
+	{MSP430_OP_JN,          "JN"},
+	{MSP430_OP_JL,          "JL"},
+	{MSP430_OP_JGE,         "JGE"},
+	{MSP430_OP_JMP,         "JMP"},
+
+	/* Double operand */
+	{MSP430_OP_MOV,         "MOV"},
+	{MSP430_OP_ADD,         "ADD"},
+	{MSP430_OP_ADDC,        "ADDC"},
+	{MSP430_OP_SUBC,        "SUBC"},
+	{MSP430_OP_SUB,         "SUB"},
+	{MSP430_OP_CMP,         "CMP"},
+	{MSP430_OP_DADD,        "DADD"},
+	{MSP430_OP_BIT,         "BIT"},
+	{MSP430_OP_BIC,         "BIC"},
+	{MSP430_OP_BIS,         "BIS"},
+	{MSP430_OP_XOR,         "XOR"},
+	{MSP430_OP_AND,         "AND"},
+
+	/* Emulated instructions */
+	{MSP430_OP_ADC,         "ADC"},
+	{MSP430_OP_BR,          "BR"},
+	{MSP430_OP_CLR,         "CLR"},
+	{MSP430_OP_CLRC,        "CLRC"},
+	{MSP430_OP_CLRN,        "CLRN"},
+	{MSP430_OP_CLRZ,        "CLRZ"},
+	{MSP430_OP_DADC,        "DADC"},
+	{MSP430_OP_DEC,         "DEC"},
+	{MSP430_OP_DECD,        "DECD"},
+	{MSP430_OP_DINT,        "DINT"},
+	{MSP430_OP_EINT,        "EINT"},
+	{MSP430_OP_INC,         "INC"},
+	{MSP430_OP_INCD,        "INCD"},
+	{MSP430_OP_INV,         "INV"},
+	{MSP430_OP_NOP,         "NOP"},
+	{MSP430_OP_POP,         "POP"},
+	{MSP430_OP_RET,         "RET"},
+	{MSP430_OP_RLA,         "RLA"},
+	{MSP430_OP_RLC,         "RLC"},
+	{MSP430_OP_SBC,         "SBC"},
+	{MSP430_OP_SETC,        "SETC"},
+	{MSP430_OP_SETN,        "SETN"},
+	{MSP430_OP_SETZ,        "SETZ"},
+	{MSP430_OP_TST,         "TST"}
+};
+
 /* Return the mnemonic for an operation, if possible.
  *
  * If the argument is not a valid operation, this function returns the
@@ -456,74 +520,11 @@ int dis_decode(u_int8_t *code, u_int16_t offset, u_int16_t len,
  */
 static const char *msp_op_name(msp430_op_t op)
 {
-	static const struct {
-		msp430_op_t     op;
-		const char      *mnemonic;
-	} ops[] = {
-		/* Single operand */
-		{MSP430_OP_RRC,         "RRC"},
-		{MSP430_OP_SWPB,        "SWPB"},
-		{MSP430_OP_RRA,         "RRA"},
-		{MSP430_OP_SXT,         "SXT"},
-		{MSP430_OP_PUSH,        "PUSH"},
-		{MSP430_OP_CALL,        "CALL"},
-		{MSP430_OP_RETI,        "RETI"},
-
-		/* Jump */
-		{MSP430_OP_JNZ,         "JNZ"},
-		{MSP430_OP_JZ,          "JZ"},
-		{MSP430_OP_JNC,         "JNC"},
-		{MSP430_OP_JC,          "JC"},
-		{MSP430_OP_JN,          "JN"},
-		{MSP430_OP_JL,          "JL"},
-		{MSP430_OP_JGE,         "JGE"},
-		{MSP430_OP_JMP,         "JMP"},
-
-		/* Double operand */
-		{MSP430_OP_MOV,         "MOV"},
-		{MSP430_OP_ADD,         "ADD"},
-		{MSP430_OP_ADDC,        "ADDC"},
-		{MSP430_OP_SUBC,        "SUBC"},
-		{MSP430_OP_SUB,         "SUB"},
-		{MSP430_OP_CMP,         "CMP"},
-		{MSP430_OP_DADD,        "DADD"},
-		{MSP430_OP_BIT,         "BIT"},
-		{MSP430_OP_BIC,         "BIC"},
-		{MSP430_OP_BIS,         "BIS"},
-		{MSP430_OP_XOR,         "XOR"},
-		{MSP430_OP_AND,         "AND"},
-
-		/* Emulated instructions */
-		{MSP430_OP_ADC,         "ADC"},
-		{MSP430_OP_BR,          "BR"},
-		{MSP430_OP_CLR,         "CLR"},
-		{MSP430_OP_CLRC,        "CLRC"},
-		{MSP430_OP_CLRN,        "CLRN"},
-		{MSP430_OP_CLRZ,        "CLRZ"},
-		{MSP430_OP_DADC,        "DADC"},
-		{MSP430_OP_DEC,         "DEC"},
-		{MSP430_OP_DECD,        "DECD"},
-		{MSP430_OP_DINT,        "DINT"},
-		{MSP430_OP_EINT,        "EINT"},
-		{MSP430_OP_INC,         "INC"},
-		{MSP430_OP_INCD,        "INCD"},
-		{MSP430_OP_INV,         "INV"},
-		{MSP430_OP_NOP,         "NOP"},
-		{MSP430_OP_POP,         "POP"},
-		{MSP430_OP_RET,         "RET"},
-		{MSP430_OP_RLA,         "RLA"},
-		{MSP430_OP_RLC,         "RLC"},
-		{MSP430_OP_SBC,         "SBC"},
-		{MSP430_OP_SETC,        "SETC"},
-		{MSP430_OP_SETN,        "SETN"},
-		{MSP430_OP_SETZ,        "SETZ"},
-		{MSP430_OP_TST,         "TST"}
-	};
 	int i;
 
-	for (i = 0; i < ARRAY_LEN(ops); i++)
-		if (op == ops[i].op)
-			return ops[i].mnemonic;
+	for (i = 0; i < ARRAY_LEN(opcode_names); i++)
+		if (op == opcode_names[i].op)
+			return opcode_names[i].mnemonic;
 
 	return "???";
 }
@@ -744,4 +745,18 @@ void disassemble(u_int16_t offset, u_int8_t *data, int length)
 		length -= count;
 		data += count;
 	}
+}
+
+int dis_opcode_by_name(const char *name, msp430_op_t *op)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(opcode_names); i++)
+		if (!strcasecmp(name, opcode_names[i].mnemonic)) {
+			if (op)
+				*op = opcode_names[i].op;
+			return 0;
+		}
+
+	return -1;
 }

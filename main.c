@@ -29,6 +29,7 @@
 #include "stab.h"
 #include "util.h"
 #include "gdb.h"
+#include "rtools.h"
 
 static void usage(const char *progname)
 {
@@ -70,6 +71,7 @@ int main(int argc, char **argv)
 	const char *bsl_device = NULL;
 	const struct device *msp430_dev = NULL;
 	int opt;
+	int ret = 0;
 	int flags = 0;
 	int want_jtag = 0;
 	int vcc_mv = 3000;
@@ -135,6 +137,7 @@ int main(int argc, char **argv)
 
 	parse_init();
 	gdb_init();
+	rtools_init();
 	if (stab_init() < 0)
 		return -1;
 
@@ -171,8 +174,12 @@ int main(int argc, char **argv)
 
 	/* Process commands */
 	if (optind < argc) {
-		while (optind < argc)
-			process_command(argv[optind++], 0);
+		while (optind < argc) {
+			if (process_command(argv[optind++], 0) < 0) {
+				ret = -1;
+				break;
+			}
+		}
 	} else {
 		reader_loop();
 	}
@@ -180,5 +187,5 @@ int main(int argc, char **argv)
 	device_exit();
 	stab_exit();
 
-	return 0;
+	return ret;
 }

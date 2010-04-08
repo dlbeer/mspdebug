@@ -208,4 +208,7 @@ int dis_decode(u_int8_t *code, u_int16_t offset, u_int16_t len,
 /* Print a disassembly on stdout */
 void disassemble(u_int16_t offset, u_int8_t *buf, int length);
 
+/* Look up an opcode by name. Returns 0 if successful, -1 otherwise. */
+int dis_opcode_by_name(const char *name, msp430_op_t *op);
+
 #endif
