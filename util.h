@@ -46,6 +46,7 @@ char *get_arg(char **text);
  * should be executed in an interactive context.
  */
 int process_command(char *arg, int interactive);
+int process_file(const char *filename);
 
 /* Run the reader loop, exiting when the user presses Ctrl+D.
  *

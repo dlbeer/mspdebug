@@ -34,10 +34,10 @@
 static void usage(const char *progname)
 {
 	fprintf(stderr,
-"Usage: %s -R [-v voltage] [command ...]\n"
-"       %s -u <device> [-j] [-v voltage] [command ...]\n"
-"       %s -B <device> [command ...]\n"
-"       %s -s [command ...]\n"
+"Usage: %s [options] -R [-v voltage] [command ...]\n"
+"       %s [options] -u <device> [-j] [-v voltage] [command ...]\n"
+"       %s [options] -B <device> [command ...]\n"
+"       %s [options] -s [command ...]\n"
 "\n"
 "    -R\n"
 "        Open the first available RF2500 device on the USB bus.\n"
@@ -51,12 +51,28 @@ static void usage(const char *progname)
 "        Debug the FET itself through the bootloader.\n"
 "    -s\n"
 "        Start in simulation mode.\n"
+"    -n\n"
+"        Do not read ~/.mspdebug on startup.\n"
+"    -?\n"
+"        Show this help text.\n"
 "\n"
 "By default, the first RF2500 device on the USB bus is opened.\n"
 "\n"
 "If commands are given, they will be executed. Otherwise, an interactive\n"
 "command reader is started.\n",
 		progname, progname, progname, progname);
+}
+
+static void process_rc_file(void)
+{
+	const char *home = getenv("HOME");
+	char text[256];
+
+	if (!home)
+		return;
+
+	snprintf(text, sizeof(text), "%s/.mspdebug", home);
+	process_file(text);
 }
 
 #define MODE_RF2500             0x01
@@ -71,6 +87,7 @@ int main(int argc, char **argv)
 	const char *bsl_device = NULL;
 	const struct device *msp430_dev = NULL;
 	int opt;
+	int no_rc = 0;
 	int ret = 0;
 	int flags = 0;
 	int want_jtag = 0;
@@ -84,7 +101,7 @@ int main(int argc, char **argv)
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
 
 	/* Parse arguments */
-	while ((opt = getopt(argc, argv, "u:jv:B:sR?")) >= 0)
+	while ((opt = getopt(argc, argv, "u:jv:B:sR?n")) >= 0)
 		switch (opt) {
 		case 'R':
 			mode |= MODE_RF2500;
@@ -110,6 +127,10 @@ int main(int argc, char **argv)
 
 		case 's':
 			mode |= MODE_SIM;
+			break;
+
+		case 'n':
+			no_rc = 1;
 			break;
 
 		case '?':
@@ -171,6 +192,8 @@ int main(int argc, char **argv)
 	}
 
 	device_init(msp430_dev);
+	if (!no_rc)
+		process_rc_file();
 
 	/* Process commands */
 	if (optind < argc) {

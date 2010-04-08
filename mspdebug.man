@@ -2,13 +2,13 @@
 .SH NAME
 MSPDebug - debugging tool for MSP430 MCUs
 .SH SYNOPSIS
-\fBmspdebug\fR \-R [\-v \fIvoltage\fR] [\fIcommand\fR ...]
+\fBmspdebug\fR [options] \-R [\-v \fIvoltage\fR] [\fIcommand\fR ...]
 .br
-\fBmspdebug\fR \-u \fIdevice\fR [\-j] [\-v \fIvoltage\fR] [\fIcommand\fR ...]
+\fBmspdebug\fR [options] \-u \fIdevice\fR [\-j] [\-v \fIvoltage\fR] [\fIcommand\fR ...]
 .br
-\fBmspdebug\fR \-B \fIdevice\fR [\fIcommand\fR ...]
+\fBmspdebug\fR [options] \-B \fIdevice\fR [\fIcommand\fR ...]
 .br
-\fBmspdebug\fR \-s [\fIcommand\fR ...]
+\fBmspdebug\fR [options] \-s [\fIcommand\fR ...]
 .SH DESCRIPTION
 MSPDebug is a command-line tool designed for debugging and programming
 the MSP430 family of MCUs. It supports the eZ430-F2013, eZ430-RF2500
@@ -24,6 +24,11 @@ run to breakpoint).
 It supports ELF32, Intel HEX and BSD-style symbol tables (such as the
 output produced by \fBnm\fR(1)). It can also be used as a remote stub
 for \fBgdb\fR(1).
+
+On startup, MSPDebug will look for a file called .mspdebug in the user's
+home directory. If it exists, commands will be read and executed from this
+file before executing any other commands or starting the interactive
+reader.
 .SH OPTIONS
 Command-line options accepted by MSPDebug are described below. If
 commands are specified on the end of the command-line, then they are
@@ -75,6 +80,10 @@ request and stop execution.
 This mode is intended for testing of changes to MSPDebug, and for
 aiding the disassembly of MSP430 binaries (as all binary and symbol
 table formats are still usable in this mode).
+.IP "\-n"
+Do not process the startup file (~/.mspdebug).
+.IP "\-?"
+Display a brief help message and exit.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported

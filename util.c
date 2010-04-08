@@ -410,16 +410,11 @@ static struct command command_opt = {
 	"    available options.\n"
 };
 
-static int cmd_read(char **arg)
+int process_file(const char *filename)
 {
-	char *filename = get_arg(arg);
 	FILE *in;
 	char buf[1024];
-
-	if (!filename) {
-		fprintf(stderr, "read: filename must be specified\n");
-		return -1;
-	}
+	int line_no = 0;
 
 	in = fopen(filename, "r");
 	if (!in) {
@@ -431,6 +426,8 @@ static int cmd_read(char **arg)
 	while (fgets(buf, sizeof(buf), in)) {
 		char *cmd = buf;
 
+		line_no++;
+
 		while (*cmd && isspace(*cmd))
 			cmd++;
 
@@ -438,8 +435,8 @@ static int cmd_read(char **arg)
 			continue;
 
 		if (process_command(cmd, 0) < 0) {
-			fprintf(stderr, "read: error processing %s\n",
-				filename);
+			fprintf(stderr, "read: error processing %s (line %d)\n",
+				filename, line_no);
 			fclose(in);
 			return -1;
 		}
@@ -447,6 +444,18 @@ static int cmd_read(char **arg)
 
 	fclose(in);
 	return 0;
+}
+
+static int cmd_read(char **arg)
+{
+	char *filename = get_arg(arg);
+
+	if (!filename) {
+		fprintf(stderr, "read: filename must be specified\n");
+		return -1;
+	}
+
+	return process_file(filename);
 }
 
 static struct command command_read = {
