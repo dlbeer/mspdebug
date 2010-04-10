@@ -75,7 +75,8 @@ static void process_rc_file(void)
 		return;
 
 	snprintf(text, sizeof(text), "%s/.mspdebug", home);
-	process_file(text);
+	if (!access(text, F_OK))
+		process_file(text);
 }
 
 #define MODE_RF2500             0x01
