@@ -31,6 +31,7 @@
 #include "gdb.h"
 #include "rtools.h"
 #include "sym.h"
+#include "devcmd.h"
 
 static void usage(const char *progname)
 {
@@ -160,11 +161,6 @@ int main(int argc, char **argv)
 	if (stab_init() < 0)
 		return -1;
 
-	parse_init();
-	sym_init();
-	gdb_init();
-	rtools_init();
-
 	/* Open a device */
 	if (mode == MODE_SIM) {
 		msp430_dev = sim_open();
@@ -194,7 +190,14 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	device_init(msp430_dev);
+	/* Initialise parsing */
+	device_set(msp430_dev);
+	parse_init();
+	sym_init();
+	devcmd_init();
+	gdb_init();
+	rtools_init();
+
 	if (!no_rc)
 		process_rc_file();
 
@@ -210,7 +213,7 @@ int main(int argc, char **argv)
 		reader_loop();
 	}
 
-	device_exit();
+	msp430_dev->close();
 	stab_exit();
 
 	return ret;

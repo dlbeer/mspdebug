@@ -697,6 +697,20 @@ static void dis_format(const struct msp430_instruction *insn)
 			       insn->dst_reg);
 }
 
+int dis_opcode_by_name(const char *name, msp430_op_t *op)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(opcode_names); i++)
+		if (!strcasecmp(name, opcode_names[i].mnemonic)) {
+			if (op)
+				*op = opcode_names[i].op;
+			return 0;
+		}
+
+	return -1;
+}
+
 void disassemble(u_int16_t offset, u_int8_t *data, int length)
 {
 	int first_line = 1;
@@ -745,18 +759,4 @@ void disassemble(u_int16_t offset, u_int8_t *data, int length)
 		length -= count;
 		data += count;
 	}
-}
-
-int dis_opcode_by_name(const char *name, msp430_op_t *op)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_LEN(opcode_names); i++)
-		if (!strcasecmp(name, opcode_names[i].mnemonic)) {
-			if (op)
-				*op = opcode_names[i].op;
-			return 0;
-		}
-
-	return -1;
 }

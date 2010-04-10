@@ -207,7 +207,7 @@ static int read_registers(void)
 	int i;
 
 	printf("Reading registers\n");
-	if (device_active()->getregs(regs) < 0)
+	if (device_get()->getregs(regs) < 0)
 		return gdb_send("E00");
 
 	gdb_packet_start();
@@ -229,11 +229,11 @@ static int monitor_command(char *buf)
 
 	if (!strcasecmp(cmd, "reset")) {
 		printf("Resetting device\n");
-		if (device_active()->control(DEVICE_CTL_RESET) < 0)
+		if (device_get()->control(DEVICE_CTL_RESET) < 0)
 			return gdb_send_hex("Reset failed\n");
 	} else if (!strcasecmp(cmd, "erase")) {
 		printf("Erasing device\n");
-		if (device_active()->control(DEVICE_CTL_ERASE) < 0)
+		if (device_get()->control(DEVICE_CTL_ERASE) < 0)
 			return gdb_send_hex("Erase failed\n");
 	}
 
@@ -257,7 +257,7 @@ static int write_registers(char *buf)
 		buf += 4;
 	}
 
-	if (device_active()->setregs(regs) < 0)
+	if (device_get()->setregs(regs) < 0)
 		return gdb_send("E00");
 
 	return gdb_send("OK");
@@ -285,7 +285,7 @@ static int read_memory(char *text)
 
 	printf("Reading %d bytes from 0x%04x\n", length, addr);
 
-	if (device_active()->readmem(addr, buf, length) < 0)
+	if (device_get()->readmem(addr, buf, length) < 0)
 		return gdb_send("E00");
 
 	gdb_packet_start();
@@ -328,7 +328,7 @@ static int write_memory(char *text)
 
 	printf("Writing %d bytes to 0x%04x\n", buflen, addr);
 
-	if (device_active()->writemem(addr, buf, buflen) < 0)
+	if (device_get()->writemem(addr, buf, buflen) < 0)
 		return gdb_send("E00");
 
 	return gdb_send("OK");
@@ -341,11 +341,11 @@ static int run_set_pc(char *buf)
 	if (!*buf)
 		return 0;
 
-	if (device_active()->getregs(regs) < 0)
+	if (device_get()->getregs(regs) < 0)
 		return -1;
 
 	regs[0] = strtoul(buf, NULL, 16);
-	return device_active()->setregs(regs);
+	return device_get()->setregs(regs);
 }
 
 static int run_final_status(void)
@@ -353,7 +353,7 @@ static int run_final_status(void)
 	u_int16_t regs[DEVICE_NUM_REGS];
 	int i;
 
-	if (device_active()->getregs(regs) < 0)
+	if (device_get()->getregs(regs) < 0)
 		return gdb_send("E00");
 
 	gdb_packet_start();
@@ -370,7 +370,7 @@ static int single_step(char *buf)
 	printf("Single stepping\n");
 
 	if (run_set_pc(buf) < 0 ||
-	    device_active()->control(DEVICE_CTL_STEP) < 0)
+	    device_get()->control(DEVICE_CTL_STEP) < 0)
 		gdb_send("E00");
 
 	return run_final_status();
@@ -381,13 +381,13 @@ static int run(char *buf)
 	printf("Running\n");
 
 	if (run_set_pc(buf) < 0 ||
-	    device_active()->control(DEVICE_CTL_RUN) < 0) {
+	    device_get()->control(DEVICE_CTL_RUN) < 0) {
 		gdb_send("E00");
 		return run_final_status();
 	}
 
 	for (;;) {
-		device_status_t status = device_active()->wait(0);
+		device_status_t status = device_get()->wait(0);
 
 		if (status == DEVICE_STATUS_ERROR) {
 			gdb_send("E00");
@@ -416,7 +416,7 @@ static int run(char *buf)
 	}
 
  out:
-	if (device_active()->control(DEVICE_CTL_HALT) < 0)
+	if (device_get()->control(DEVICE_CTL_HALT) < 0)
 		gdb_send("E00");
 
 	return run_final_status();

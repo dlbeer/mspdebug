@@ -16,10 +16,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef SYM_H_
-#define SYM_H_
+#ifndef DEVCMD_H_
+#define DEVCMD_H_
 
-/* Register symbol-table manipulation commands */
-void sym_init(void);
+/* Register device commands */
+void devcmd_init(void);
 
 #endif

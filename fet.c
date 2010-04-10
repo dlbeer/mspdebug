@@ -515,9 +515,9 @@ static int fet_version;
 
 static int do_identify(void)
 {
-	if (fet_version < 20300000) {
-		char idtext[64];
+	char idtext[64];
 
+	if (fet_version < 20300000) {
 		if (xfer(C_IDENTIFY, NULL, 0, 2, 70, 0) < 0)
 			return -1;
 
@@ -528,19 +528,27 @@ static int do_identify(void)
 
 		memcpy(idtext, fet_reply.data + 4, 32);
 		idtext[32] = 0;
-		printf("Device: %s\n", idtext);
-		return 0;
+	} else {
+		u_int16_t id;
+
+		if (xfer(0x28, NULL, 0, 2, 0, 0) < 0) {
+			fprintf(stderr, "fet: command 0x28 failed\n");
+			return -1;
+		}
+
+		if (fet_reply.datalen < 2) {
+			fprintf(stderr, "fet: missing info\n");
+			return -1;
+		}
+
+		id = (fet_reply.data[0] << 8) | fet_reply.data[1];
+		if (find_device_id(id, idtext, sizeof(idtext)) < 0) {
+			printf("Unknown device ID: 0x%04x\n", id);
+			return 0;
+		}
 	}
 
-	if (xfer(0x28, NULL, 0, 2, 0, 0) < 0)
-		return -1;
-
-	if (fet_reply.datalen < 2) {
-		fprintf(stderr, "fet: missing info\n");
-		return -1;
-	}
-
-	print_devid((fet_reply.data[0] << 8) | fet_reply.data[1]);
+	printf("Device: %s\n", idtext);
 	return 0;
 }
 

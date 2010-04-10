@@ -64,9 +64,11 @@ const struct device *bsl_open(const char *device);
 /* Dummy/simulation implementation. */
 const struct device *sim_open(void);
 
-/* Register device commands */
-void device_init(const struct device *dev);
-void device_exit(void);
-const struct device *device_active(void);
+/* Look up a device ID. Returns 0 on success or -1 if none found */
+int find_device_id(u_int16_t id, char *out, int max_len);
+
+/* Set/get the active device */
+void device_set(const struct device *dev);
+const struct device *device_get(void);
 
 #endif

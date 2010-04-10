@@ -121,8 +121,6 @@ void hexdump(int addr, const u_int8_t *data, int len);
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
-void print_devid(const u_int16_t id);
-
 int open_serial(const char *device, int rate);
 int read_with_timeout(int fd, u_int8_t *data, int len);
 int write_all(int fd, const u_int8_t *data, int len);

@@ -536,66 +536,6 @@ void hexdump(int addr, const u_int8_t *data, int len)
 	}
 }
 
-/* This table of device IDs is sourced mainly from the MSP430 Memory
- * Programming User's Guide (SLAU265).
- *
- * The table should be kept sorted by device ID.
- */
-
-static struct {
-	u_int16_t	id;
-	const char	*id_text;
-} id_table[] = {
-	{0x1132, "F1122"},
-	{0x1132, "F1132"},
-	{0x1232, "F1222"},
-	{0x1232, "F1232"},
-	{0xF112, "F11x"},   /* obsolete */
-	{0xF112, "F11x1"},  /* obsolete */
-	{0xF112, "F11x1A"}, /* obsolete */
-	{0xF123, "F122"},
-	{0xF123, "F123x"},
-	{0xF143, "F14x"},
-	{0xF149, "F13x"},
-	{0xF149, "F14x1"},
-	{0xF149, "F149"},
-	{0xF169, "F16x"},
-	{0xF16C, "F161x"},
-	{0xF201, "F20x3"},
-	{0xF213, "F21x1"},
-	{0xF227, "F22xx"},
-	{0xF249, "F24x"},
-	{0xF26F, "F261x"},
-	{0xF413, "F41x"},
-	{0xF427, "FE42x"},
-	{0xF427, "FW42x"},
-	{0xF427, "F415"},
-	{0xF427, "F417"},
-	{0xF427, "F42x0"},
-	{0xF439, "FG43x"},
-	{0xF449, "F43x"},
-	{0xF449, "F44x"},
-	{0xF46F, "FG46xx"},
-	{0xF46F, "F471xx"}
-};
-
-void print_devid(u_int16_t id)
-{
-	int i = 0;
-
-	while (i < ARRAY_LEN(id_table) && id_table[i].id != id)
-		i++;
-
-	if (i < ARRAY_LEN(id_table)) {
-		printf("Device: MSP430%s", id_table[i++].id_text);
-		while (id_table[i].id == id)
-			printf("/MSP430%s", id_table[i++].id_text);
-		printf("\n");
-	} else {
-		printf("Unknown device ID: 0x%04x\n", id);
-	}
-}
-
 int read_with_timeout(int fd, u_int8_t *data, int max_len)
 {
 	int r;

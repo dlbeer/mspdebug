@@ -316,7 +316,7 @@ static int isearch_match(const struct msp430_instruction *insn,
 static int do_isearch(int addr, int len, const struct isearch_query *q)
 {
 	u_int8_t *mbuf;
-	const struct device *dev = device_active();
+	const struct device *dev = device_get();
 	int i;
 
 	if (len <= 0 || len > 0x10000 ||

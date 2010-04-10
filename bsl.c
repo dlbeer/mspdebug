@@ -307,6 +307,9 @@ static int enter_via_fet(void)
 
 const struct device *bsl_open(const char *device)
 {
+	char idtext[64];
+	u_int16_t id;
+
 	serial_fd = open_serial(device, B460800);
 	if (serial_fd < 0) {
 		fprintf(stderr, "bsl: can't open %s: %s\n",
@@ -330,7 +333,12 @@ const struct device *bsl_open(const char *device)
 		return NULL;
 	}
 
-	print_devid((reply_buf[4] << 8) | reply_buf[5]);
+	id = (reply_buf[4] << 8) | reply_buf[5];
+	if (find_device_id(id, idtext, sizeof(idtext)) < 0)
+		printf("Unknown device ID: 0x%04x\n", id);
+	else
+		printf("Device: %s\n", idtext);
+
 	printf("BSL version is %x.%02x\n", reply_buf[14], reply_buf[15]);
 	return &bsl_device;
 }
