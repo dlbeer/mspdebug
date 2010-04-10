@@ -296,17 +296,21 @@ renamed.
 .SH ADDRESS EXPRESSIONS
 Any command which accepts a memory address, length or register value
 as an argument may be given an address expression. An address
-expression consists of a sequence of one or more address values
-separated by the operators \fB+\fR or \fB\-\fR.
+expression consists of an algebraic combination of values.
 
 An address value may be either a decimal value, a hexadecimal value
 preceeded by the prefix \fB0x\fR, or a symbol name.
 
+The operators recognised are the usual algebraic operators: \fB+\fR, \fB-\fR,
+\fB*\fR, \fB/\fR, \fB%\fR, \fB(\fR and \fB)\fR. Operator precedence is the
+same as in C-like languages, and the \fB-\fR operator may be used as a
+unary negation operator.
+
 The following are all valid examples of address expressions:
 
-.B 64
+.B 2+2
 .br
-.B 0xffe0
+.B table_start + (elem_size + elem_pad)*4
 .br
 .B main+0x3f
 .br
