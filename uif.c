@@ -27,6 +27,10 @@
 #include "transport.h"
 #include "util.h"
 
+#ifdef DEBUG_SERIAL
+#include "parse.h"
+#endif
+
 static int serial_fd = -1;
 
 static int serial_send(const u_int8_t *data, int len)

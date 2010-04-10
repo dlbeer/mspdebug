@@ -23,6 +23,10 @@
 #include "transport.h"
 #include "util.h"
 
+#ifdef DEBUG_USBTR
+#include "parse.h"
+#endif
+
 /*********************************************************************
  * USB transport
  *

@@ -43,8 +43,13 @@ static void show_regs(u_int16_t *regs)
 		for (j = 0; j < REG_COLUMNS; j++) {
 			int k = j * REG_ROWS + i;
 
-			if (k < DEVICE_NUM_REGS)
-				printf("(r%02d: %04x)  ", k, regs[k]);
+			if (k < DEVICE_NUM_REGS) {
+				printf("(");
+				colorize("1m");
+				printf("R%02d: ", k);
+				colorize("0m");
+				printf("%04x)  ", regs[k]);
+			}
 		}
 		printf("\n");
 	}

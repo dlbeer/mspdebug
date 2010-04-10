@@ -302,15 +302,19 @@ static int cmd_help(char **arg)
 		const struct option *opt = find_option(topic);
 
 		if (cmd) {
+			colorize("1m");
 			printf("COMMAND: %s\n", cmd->name);
+			colorize("0m");
 			fputs(cmd->help, stdout);
 			if (opt)
 				printf("\n");
 		}
 
 		if (opt) {
+			colorize("1m");
 			printf("OPTION: %s (%s)\n", opt->name,
 			       type_text(opt->type));
+			colorize("0m");
 			fputs(opt->help, stdout);
 		}
 
@@ -551,7 +555,7 @@ static struct command command_read = {
 static struct option option_color = {
 	.name = "color",
 	.type = OPTION_BOOLEAN,
-	.help = "Colorize disassembly output.\n"
+	.help = "Colorize debugging output.\n"
 };
 
 int colorize(const char *text)
@@ -867,4 +871,39 @@ int modify_prompt(int flags)
 	}
 
 	return 0;
+}
+
+void hexdump(int addr, const u_int8_t *data, int len)
+{
+	int offset = 0;
+
+	while (offset < len) {
+		int i, j;
+
+		/* Address label */
+		colorize("36m");
+		printf("    %04x:", offset + addr);
+		colorize("0m");
+
+		/* Hex portion */
+		for (i = 0; i < 16 && offset + i < len; i++)
+			printf(" %02x", data[offset + i]);
+		for (j = i; j < 16; j++)
+			printf("   ");
+
+		/* Printable characters */
+		colorize("32m");
+		printf(" |");
+		for (j = 0; j < i; j++) {
+			int c = data[offset + j];
+
+			printf("%c", (c >= 32 && c <= 126) ? c : '.');
+		}
+		for (; j < 16; j++)
+			printf(" ");
+		printf("|\n");
+		colorize("0m");
+
+		offset += i;
+	}
 }

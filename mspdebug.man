@@ -329,7 +329,7 @@ The following are all valid examples of address expressions:
 .SH OPTIONS
 MSPDebug's behaviour can be configured via the following variables:
 .IP "\fBcolor\fR (boolean)"
-If true, MSPDebug will colorize disassembly output.
+If true, MSPDebug will colorize debugging output.
 .SH BUGS
 If you find any bugs, you should report them to the author at
 daniel@tortek.co.nz. It would help if you could include a transcript

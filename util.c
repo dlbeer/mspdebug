@@ -58,37 +58,6 @@ int ctrlc_check(void)
 	return ctrlc_flag;
 }
 
-void hexdump(int addr, const u_int8_t *data, int len)
-{
-	int offset = 0;
-
-	while (offset < len) {
-		int i, j;
-
-		/* Address label */
-		printf("    %04x:", offset + addr);
-
-		/* Hex portion */
-		for (i = 0; i < 16 && offset + i < len; i++)
-			printf(" %02x", data[offset + i]);
-		for (j = i; j < 16; j++)
-			printf("   ");
-
-		/* Printable characters */
-		printf(" |");
-		for (j = 0; j < i; j++) {
-			int c = data[offset + j];
-
-			printf("%c", (c >= 32 && c <= 126) ? c : '.');
-		}
-		for (; j < 16; j++)
-			printf(" ");
-		printf("|\n");
-
-		offset += i;
-	}
-}
-
 int read_with_timeout(int fd, u_int8_t *data, int max_len)
 {
 	int r;

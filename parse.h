@@ -116,4 +116,7 @@ void register_option(struct option *o);
 /* Initialise the parser, and register built-ins. */
 void parse_init(void);
 
+/* Display a canonical hexdump */
+void hexdump(int addr, const u_int8_t *data, int len);
+
 #endif

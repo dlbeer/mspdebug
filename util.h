@@ -21,9 +21,6 @@
 
 #include <sys/types.h>
 
-/* Display a canonical hexdump */
-void hexdump(int addr, const u_int8_t *data, int len);
-
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 int open_serial(const char *device, int rate);
