@@ -26,6 +26,7 @@
 #include "stab.h"
 #include "binfile.h"
 #include "util.h"
+#include "parse.h"
 
 static int cmd_eval(char **arg)
 {

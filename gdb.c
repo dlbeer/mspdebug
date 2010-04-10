@@ -30,6 +30,7 @@
 #include "device.h"
 #include "util.h"
 #include "gdb.h"
+#include "parse.h"
 
 /************************************************************************
  * GDB IO routines

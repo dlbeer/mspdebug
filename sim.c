@@ -24,6 +24,7 @@
 #include "dis.h"
 #include "util.h"
 #include "stab.h"
+#include "parse.h"
 
 #define MEM_SIZE	65536
 
@@ -88,6 +89,16 @@ static int fetch_io(u_int16_t addr, int is_byte, u_int32_t *data_ret)
 			len--;
 		text[len] = 0;
 
+		if (!len) {
+			if (data_ret) {
+				if (is_byte)
+					*data_ret = MEM_GETB(addr);
+				else
+					*data_ret = MEM_GETW(addr);
+			}
+			return 0;
+		}
+
 		if (!addr_exp(text, &data)) {
 			if (data_ret)
 				*data_ret = data;
@@ -102,10 +113,13 @@ static void store_io(u_int16_t addr, int is_byte, u_int16_t data)
 {
 	io_prefix("WRITE", addr, is_byte);
 
-	if (is_byte)
+	if (is_byte) {
 		printf(" => 0x%02x\n", data & 0xff);
-	else
+		MEM_SETB(addr, data & 0xff);
+	} else {
 		printf(" => 0x%04x\n", data);
+		MEM_SETW(addr, data);
+	}
 }
 
 static int fetch_operand(int amode, int reg, int is_byte,

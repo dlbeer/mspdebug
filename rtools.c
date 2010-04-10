@@ -26,6 +26,7 @@
 #include "device.h"
 #include "dis.h"
 #include "rtools.h"
+#include "parse.h"
 
 #define ISEARCH_OPCODE          0x0001
 #define ISEARCH_BW              0x0002

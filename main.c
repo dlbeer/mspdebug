@@ -24,6 +24,7 @@
 #include <unistd.h>
 
 #include "dis.h"
+#include "parse.h"
 #include "device.h"
 #include "binfile.h"
 #include "stab.h"
@@ -192,6 +193,7 @@ int main(int argc, char **argv)
 
 	/* Initialise parsing */
 	device_set(msp430_dev);
+	ctrlc_init();
 	parse_init();
 	sym_init();
 	devcmd_init();

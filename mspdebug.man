@@ -72,10 +72,14 @@ core alone is emulated (no peripheral emulation).
 During simulation, addresses below 0x0200 are assumed to be IO memory.
 When data is written to an IO memory address, a message is displayed
 on the console showing the program counter location, address written
-to, and data. When data is read from IO memory, the user is notified
-similarly and prompted to supply the data. At this prompt, address
-expressions can be entered. The user can press Ctrl+C to abort an IO
-request and stop execution.
+to, and data. The data value is also written to simulated RAM at the
+relevant address.
+
+When data is read from IO memory, the user is notified similarly and
+prompted to supply the data. At this prompt, address expressions can
+be entered. If no value is entered, the value is read from simulated
+RAM. The user can press Ctrl+C to abort an IO request and stop
+execution.
 
 This mode is intended for testing of changes to MSPDebug, and for
 aiding the disassembly of MSP430 binaries (as all binary and symbol

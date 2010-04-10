@@ -25,6 +25,7 @@
 #include "device.h"
 #include "binfile.h"
 #include "stab.h"
+#include "parse.h"
 #include "util.h"
 #include "dis.h"
 

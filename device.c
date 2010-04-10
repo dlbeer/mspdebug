@@ -23,10 +23,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include "device.h"
-#include "binfile.h"
-#include "stab.h"
 #include "util.h"
-#include "dis.h"
 
 static const struct device *msp430_dev;
 
