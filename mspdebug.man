@@ -92,6 +92,11 @@ Display a brief help message and exit.
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
 commands are listed below.
+
+Commands take arguments separated by spaces. Any text string enclosed
+in double-quotation marks is considered to be a single argument, even
+if it contains space characters. Within a quoted string, the usual
+C-style backslash substitutions can be used.
 .IP "\fB=\fR \fIexpression\fR"
 Evaluate an address expression and show both its value, and the result
 when the value is looked up in reverse in the current symbol
