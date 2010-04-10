@@ -35,6 +35,7 @@
 #endif
 
 #include "util.h"
+#include "stab.h"
 
 static struct option *option_list;
 static struct command *command_list;
@@ -666,13 +667,6 @@ int ctrlc_check(void)
 	return ctrlc_flag;
 }
 
-static token_func_t token_func;
-
-void set_token_func(token_func_t func)
-{
-	token_func = func;
-}
-
 struct addr_exp_state {
 	int     last_operator;
 	int     data_stack[32];
@@ -695,7 +689,7 @@ static int addr_exp_data(struct addr_exp_state *s, const char *text)
 		value = strtoul(text + 2, NULL, 16);
 	else if (isdigit(*text))
 		value = atoi(text);
-	else if (!token_func || token_func(text, &value) < 0) {
+	else if (stab_get(text, &value) < 0) {
 		fprintf(stderr, "can't parse token: %s\n", text);
 		return -1;
 	}

@@ -30,6 +30,7 @@
 #include "util.h"
 #include "gdb.h"
 #include "rtools.h"
+#include "sym.h"
 
 static void usage(const char *progname)
 {
@@ -156,11 +157,13 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	parse_init();
-	gdb_init();
-	rtools_init();
 	if (stab_init() < 0)
 		return -1;
+
+	parse_init();
+	sym_init();
+	gdb_init();
+	rtools_init();
 
 	/* Open a device */
 	if (mode == MODE_SIM) {

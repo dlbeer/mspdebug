@@ -69,7 +69,6 @@ int is_interactive(void);
 typedef int (*token_func_t)(const char *text, int *value);
 
 int addr_exp(const char *text, int *value);
-void set_token_func(token_func_t func);
 
 /* Mark/unmark items as modified. The modify_prompt function, when
  * called in interactive context, prompts the user before continuing

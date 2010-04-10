@@ -41,4 +41,19 @@ int stab_set(const char *name, int value);
 int stab_nearest(u_int16_t addr, char *ret_name, int max_len,
 		 u_int16_t *ret_offset);
 
+/* Retrieve the value of a symbol. Returns 0 on success or -1 if the symbol
+ * doesn't exist.
+ */
+int stab_get(const char *name, int *value);
+
+/* Delete a symbol table entry. Returns 0 on success or -1 if the symbol
+ * doesn't exist.
+ */
+int stab_del(const char *name);
+
+/* Enumerate all symbols in the table */
+typedef int (*stab_callback_t)(const char *name, u_int16_t value);
+
+int stab_enum(stab_callback_t cb);
+
 #endif
