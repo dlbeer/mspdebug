@@ -96,7 +96,7 @@ int find_device_id(u_int16_t id, char *out, int max_len)
 	max_len -= len;
 
 	while (id_table[i].id == id) {
-		len = snprintf(out, max_len, "MSP430%s", id_table[i++].id_text);
+		len = snprintf(out, max_len, "/MSP430%s", id_table[i++].id_text);
 		out += len;
 		max_len -= len;
 	}
