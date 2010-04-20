@@ -27,6 +27,7 @@
 #include "binfile.h"
 #include "util.h"
 #include "parse.h"
+#include "vector.h"
 
 static int cmd_eval(char **arg)
 {
@@ -174,59 +175,16 @@ struct rename_record {
 	int     start, end;
 };
 
-struct rename_record *renames;
-static int renames_cap;
-static int renames_len;
-
-static void renames_free(void)
-{
-	if (!renames)
-		return;
-
-	free(renames);
-	renames = NULL;
-	renames_cap = 0;
-	renames_len = 0;
-}
-
-static int renames_push(const char *old_name,
-			int start, int end)
-{
-	struct rename_record *r;
-
-	if (renames_len + 1 > renames_cap) {
-		int new_cap = renames_cap * 2;
-		struct rename_record *new_array;
-
-		if (!new_cap)
-			new_cap = 64;
-
-		new_array = realloc(renames, new_cap * sizeof(renames[0]));
-		if (!new_array) {
-			perror("sym: can't allocate memory for renaming");
-			return -1;
-		}
-
-		renames = new_array;
-		renames_cap = new_cap;
-	}
-
-	r = &renames[renames_len++];
-	strncpy(r->old_name, old_name, sizeof(r->old_name));
-	r->old_name[sizeof(r->old_name) - 1] = 0;
-	r->start = start;
-	r->end = end;
-
-	return 0;
-}
+struct vector renames_vec;
 
 static int renames_do(const char *replace)
 {
 	int i;
 	int count = 0;
 
-	for (i = 0; i < renames_len; i++) {
-		struct rename_record *r = &renames[i];
+	for (i = 0; i < renames_vec.size; i++) {
+		struct rename_record *r =
+			VECTOR_PTR(renames_vec, i, struct rename_record);
 		char new_name[128];
 		int len = r->start;
 		int value;
@@ -269,8 +227,16 @@ static int find_renames(const char *name, u_int16_t value)
 	regmatch_t pmatch;
 
 	if (!regexec(&find_preg, name, 1, &pmatch, 0) &&
-	    pmatch.rm_so >= 0 && pmatch.rm_eo > pmatch.rm_so)
-		return renames_push(name, pmatch.rm_so, pmatch.rm_eo);
+	    pmatch.rm_so >= 0 && pmatch.rm_eo > pmatch.rm_so) {
+		struct rename_record r;
+
+		strncpy(r.old_name, name, sizeof(r.old_name));
+		r.old_name[sizeof(r.old_name) - 1] = 0;
+		r.start = pmatch.rm_so;
+		r.end = pmatch.rm_eo;
+
+		return vector_push(&renames_vec, &r, 1);
+	}
 
 	return 0;
 }
@@ -291,16 +257,18 @@ static int cmd_sym_rename(char **arg)
 		return -1;
 	}
 
+	vector_init(&renames_vec, sizeof(struct rename_record));
+
 	if (stab_enum(find_renames) < 0) {
 		fprintf(stderr, "sym: rename failed\n");
 		regfree(&find_preg);
-		renames_free();
+		vector_destroy(&renames_vec);
 		return -1;
 	}
 
 	regfree(&find_preg);
 	ret = renames_do(replace);
-	renames_free();
+	vector_destroy(&renames_vec);
 	return ret;
 }
 
