@@ -17,12 +17,12 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 
-#include "parse.h"
 #include "dis.h"
-#include "stab.h"
 #include "util.h"
 
 /**********************************************************************/
@@ -34,8 +34,8 @@
  * Returns the number of bytes consumed in decoding, or -1 if the a
  * valid single-operand instruction could not be found.
  */
-static int decode_single(u_int8_t *code, u_int16_t offset, u_int16_t size,
-			 struct msp430_instruction *insn)
+static int decode_single(const u_int8_t *code, u_int16_t offset,
+			 u_int16_t size, struct msp430_instruction *insn)
 {
 	u_int16_t op = (code[1] << 8) | code[0];
 	int need_arg = 0;
@@ -86,8 +86,8 @@ static int decode_single(u_int8_t *code, u_int16_t offset, u_int16_t size,
  * Returns the number of bytes consumed or -1 if a valid instruction
  * could not be found.
  */
-static int decode_double(u_int8_t *code, u_int16_t offset, u_int16_t size,
-			 struct msp430_instruction *insn)
+static int decode_double(const u_int8_t *code, u_int16_t offset,
+			 u_int16_t size, struct msp430_instruction *insn)
 {
 	u_int16_t op = (code[1] << 8) | code[0];
 	int need_src = 0;
@@ -175,7 +175,7 @@ static int decode_double(u_int8_t *code, u_int16_t offset, u_int16_t size,
  * All jump instructions are one word in length, so this function
  * always returns 2 (to indicate the consumption of 2 bytes).
  */
-static int decode_jump(u_int8_t *code, u_int16_t offset, u_int16_t len,
+static int decode_jump(const u_int8_t *code, u_int16_t offset, u_int16_t len,
 		       struct msp430_instruction *insn)
 {
 	u_int16_t op = (code[1] << 8) | code[0];
@@ -396,7 +396,7 @@ static void find_emulated_ops(struct msp430_instruction *insn)
  * successful, the decoded instruction is written into the structure
  * pointed to by insn.
  */
-int dis_decode(u_int8_t *code, u_int16_t offset, u_int16_t len,
+int dis_decode(const u_int8_t *code, u_int16_t offset, u_int16_t len,
 	       struct msp430_instruction *insn)
 {
 	u_int16_t op;
@@ -514,12 +514,8 @@ static const struct {
 	{MSP430_OP_TST,         "TST"}
 };
 
-/* Return the mnemonic for an operation, if possible.
- *
- * If the argument is not a valid operation, this function returns the
- * string "???".
- */
-static const char *msp_op_name(msp430_op_t op)
+/* Return the mnemonic for an operation, if possible. */
+const char *dis_opcode_name(msp430_op_t op)
 {
 	int i;
 
@@ -527,7 +523,18 @@ static const char *msp_op_name(msp430_op_t op)
 		if (op == opcode_names[i].op)
 			return opcode_names[i].mnemonic;
 
-	return "???";
+	return NULL;
+}
+
+msp430_op_t dis_opcode_from_name(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(opcode_names); i++)
+		if (!strcasecmp(name, opcode_names[i].mnemonic))
+			return opcode_names[i].op;
+
+	return -1;
 }
 
 static const char *const msp430_reg_names[] = {
@@ -537,227 +544,34 @@ static const char *const msp430_reg_names[] = {
 	"R12", "R13", "R14", "R15"
 };
 
-static int format_addr(msp430_amode_t amode, u_int16_t addr)
+msp430_reg_t dis_reg_from_name(const char *name)
 {
-	char name[64];
-	u_int16_t offset;
-	int numeric = 0;
-	int len;
-	int count = 0;
-	const char *prefix = "";
+	const char *num = name;
 
-	switch (amode) {
-	case MSP430_AMODE_REGISTER:
-	case MSP430_AMODE_INDIRECT:
-	case MSP430_AMODE_INDIRECT_INC:
+	while (num && isdigit(*num))
+		num++;
+
+	if (*num) {
+		msp430_reg_t r = atoi(num);
+
+		if (r >= 0 && r <= 15)
+			return r;
+	}
+
+	if (!strcasecmp(name, "pc"))
 		return 0;
-
-	case MSP430_AMODE_IMMEDIATE:
-		prefix = "#";
-	case MSP430_AMODE_INDEXED:
-		numeric = 1;
-		break;
-
-	case MSP430_AMODE_ABSOLUTE:
-		prefix = "&";
-		break;
-
-	case MSP430_AMODE_SYMBOLIC:
-		break;
-	}
-
-	len = printf("%s", prefix);
-	if (len >= 0)
-		count += len;
-
-	if ((!numeric ||
-	     (addr >= 0x200 && addr < 0xfff0)) &&
-	    !stab_nearest(addr, name, sizeof(name), &offset) &&
-	    !offset) {
-		colorize("1m");
-		len = printf("%s", name);
-		colorize("0m");
-	} else {
-		colorize("32m");
-		len = printf(numeric ? "0x%x" : "0x%04x", addr);
-		colorize("0m");
-	}
-
-	if (len >= 0)
-		count += len;
-
-	return count;
-}
-
-static int format_reg(msp430_amode_t amode, msp430_reg_t reg)
-{
-	const char *prefix = "";
-	const char *suffix = "";
-	int len;
-	int count = 0;
-
-	switch (amode) {
-	case MSP430_AMODE_REGISTER:
-		break;
-
-	case MSP430_AMODE_INDEXED:
-		prefix = "(";
-		suffix = ")";
-		break;
-
-	case MSP430_AMODE_IMMEDIATE:
-	case MSP430_AMODE_SYMBOLIC:
-	case MSP430_AMODE_ABSOLUTE:
-		return 0;
-
-	case MSP430_AMODE_INDIRECT_INC:
-		suffix = "+";
-	case MSP430_AMODE_INDIRECT:
-		prefix = "@";
-		break;
-	}
-
-	assert (reg >= 0 && reg < ARRAY_LEN(msp430_reg_names));
-
-	len = printf("%s", prefix);
-	if (len >= 0)
-		count += len;
-	colorize("33m");
-	len = printf("%s", msp430_reg_names[reg]);
-	colorize("0m");
-	if (len >= 0)
-		count += len;
-	len = printf("%s", suffix);
-	if (len >= 0)
-		count += len;
-
-	return count;
-}
-
-/* Given an operands addressing mode, value and associated register,
- * print the canonical representation of it to stdout.
- *
- * Returns the number of characters printed.
- */
-static int format_operand(msp430_amode_t amode, u_int16_t addr,
-			  msp430_reg_t reg)
-{
-	int len;
-	int count = 0;
-
-	len = format_addr(amode, addr);
-	if (len >= 0)
-		count += len;
-
-	len = format_reg(amode, reg);
-	if (len >= 0)
-		count += len;
-
-	return count;
-}
-
-/* Write assembly language for the instruction to this buffer */
-static void dis_format(const struct msp430_instruction *insn)
-{
-	int count = 0;
-	int len;
-
-	colorize("36m");
-	len = printf("%s%s", msp_op_name(insn->op),
-		     insn->is_byte_op ? ".B" : "");
-	colorize("0m");
-	if (len >= 0)
-		count += len;
-	while (count < 8) {
-		count++;
-		printf(" ");
-	}
-
-	/* Source operand */
-	if (insn->itype == MSP430_ITYPE_DOUBLE) {
-		len = format_operand(insn->src_mode,
-				     insn->src_addr,
-				     insn->src_reg);
-		if (len >= 0)
-			count += len;
-
-		printf(",");
-		count++;
-		while (count < 23) {
-			count++;
-			printf(" ");
-		}
-		printf(" ");
-		count++;
-	}
-
-	/* Destination operand */
-	if (insn->itype != MSP430_ITYPE_NOARG)
-		format_operand(insn->dst_mode,
-			       insn->dst_addr,
-			       insn->dst_reg);
-}
-
-int dis_opcode_by_name(const char *name, msp430_op_t *op)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_LEN(opcode_names); i++)
-		if (!strcasecmp(name, opcode_names[i].mnemonic)) {
-			if (op)
-				*op = opcode_names[i].op;
-			return 0;
-		}
+	if (!strcasecmp(name, "sp"))
+		return 1;
+	if (!strcasecmp(name, "sr"))
+		return 2;
 
 	return -1;
 }
 
-void disassemble(u_int16_t offset, u_int8_t *data, int length)
+const char *dis_reg_name(msp430_reg_t reg)
 {
-	int first_line = 1;
+	if (reg >= 0 && reg <= 15)
+		return msp430_reg_names[reg];
 
-	while (length) {
-		struct msp430_instruction insn;
-		int retval;
-		int count;
-		int i;
-		u_int16_t oboff;
-		char obname[64];
-
-		if (!stab_nearest(offset, obname, sizeof(obname), &oboff)) {
-			colorize("1m");
-			if (!oboff)
-				printf("%s:\n", obname);
-			else if (first_line)
-				printf("%s+0x%x:\n", obname, oboff);
-			colorize("0m");
-		}
-		first_line = 0;
-
-		retval = dis_decode(data, offset, length, &insn);
-		count = retval > 0 ? retval : 2;
-		if (count > length)
-			count = length;
-
-		colorize("36m");
-		printf("    %04x:", offset);
-		colorize("0m");
-
-		for (i = 0; i < count; i++)
-			printf(" %02x", data[i]);
-
-		while (i < 7) {
-			printf("   ");
-			i++;
-		}
-
-		if (retval >= 0)
-			dis_format(&insn);
-
-		printf("\n");
-
-		offset += count;
-		length -= count;
-		data += count;
-	}
+	return NULL;
 }

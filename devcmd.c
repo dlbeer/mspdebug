@@ -25,62 +25,29 @@
 #include "device.h"
 #include "binfile.h"
 #include "stab.h"
-#include "parse.h"
+#include "cproc.h"
+#include "cproc_util.h"
 #include "util.h"
 #include "dis.h"
 
-#define REG_COLUMNS	4
-#define REG_ROWS	((DEVICE_NUM_REGS + REG_COLUMNS - 1) / REG_COLUMNS)
-
-static void show_regs(u_int16_t *regs)
-{
-	int i;
-
-	for (i = 0; i < REG_ROWS; i++) {
-		int j;
-
-		printf("    ");
-		for (j = 0; j < REG_COLUMNS; j++) {
-			int k = j * REG_ROWS + i;
-
-			if (k < DEVICE_NUM_REGS) {
-				printf("(");
-				colorize("1m");
-				printf("R%02d: ", k);
-				colorize("0m");
-				printf("%04x)  ", regs[k]);
-			}
-		}
-		printf("\n");
-	}
-}
-
-static int cmd_regs(char **arg)
+static int cmd_regs(cproc_t cp, char **arg)
 {
 	u_int16_t regs[DEVICE_NUM_REGS];
 	u_int8_t code[16];
 
 	if (device_get()->getregs(regs) < 0)
 		return -1;
-	show_regs(regs);
+	cproc_regs(cp, regs);
 
 	/* Try to disassemble the instruction at PC */
 	if (device_get()->readmem(regs[0], code, sizeof(code)) < 0)
 		return 0;
 
-	disassemble(regs[0], (u_int8_t *)code, sizeof(code));
+	cproc_disassemble(cp, regs[0], (u_int8_t *)code, sizeof(code));
 	return 0;
 }
 
-static struct command command_regs = {
-	.name = "regs",
-	.func = cmd_regs,
-	.help =
-	"regs\n"
-	"    Read and display the current register contents.\n"
-};
-
-static int cmd_md(char **arg)
+static int cmd_md(cproc_t cp, char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
@@ -118,7 +85,7 @@ static int cmd_md(char **arg)
 
 		if (device_get()->readmem(offset, buf, blen) < 0)
 			return -1;
-		hexdump(offset, buf, blen);
+		cproc_hexdump(cp, offset, buf, blen);
 
 		offset += blen;
 		length -= blen;
@@ -127,16 +94,7 @@ static int cmd_md(char **arg)
 	return 0;
 }
 
-static struct command command_md = {
-	.name = "md",
-	.func = cmd_md,
-	.help =
-	"md <address> [length]\n"
-	"    Read the specified number of bytes from memory at the given\n"
-	"    address, and display a hexdump.\n"
-};
-
-static int cmd_mw(char **arg)
+static int cmd_mw(cproc_t cp, char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *byte_text;
@@ -177,29 +135,12 @@ static int cmd_mw(char **arg)
 	return 0;
 }
 
-static struct command command_mw = {
-	.name = "mw",
-	.func = cmd_mw,
-	.help =
-	"mw <address> bytes ...\n"
-	"    Write a sequence of bytes to a memory address. Byte values are\n"
-	"    two-digit hexadecimal numbers.\n"
-};
-
-static int cmd_reset(char **arg)
+static int cmd_reset(cproc_t cp, char **arg)
 {
 	return device_get()->control(DEVICE_CTL_RESET);
 }
 
-static struct command command_reset = {
-	.name = "reset",
-	.func = cmd_reset,
-	.help =
-	 "reset\n"
-	 "    Reset (and halt) the CPU.\n"
-};
-
-static int cmd_erase(char **arg)
+static int cmd_erase(cproc_t cp, char **arg)
 {
 	if (device_get()->control(DEVICE_CTL_HALT) < 0)
 		return -1;
@@ -208,15 +149,7 @@ static int cmd_erase(char **arg)
 	return device_get()->control(DEVICE_CTL_ERASE);
 }
 
-static struct command command_erase = {
-	.name = "erase",
-	.func = cmd_erase,
-	.help =
-	"erase\n"
-	"    Erase the device under test.\n"
-};
-
-static int cmd_step(char **arg)
+static int cmd_step(cproc_t cp, char **arg)
 {
 	char *count_text = get_arg(arg);
 	int count = 1;
@@ -230,18 +163,10 @@ static int cmd_step(char **arg)
 		count--;
 	}
 
-	return cmd_regs(NULL);
+	return cmd_regs(cp, NULL);
 }
 
-static struct command command_step = {
-	.name = "step",
-	.func = cmd_step,
-	.help =
-	"step [count]\n"
-	"    Single-step the CPU, and display the register state.\n"
-};
-
-static int cmd_run(char **arg)
+static int cmd_run(cproc_t cp, char **arg)
 {
 	char *bp_text = get_arg(arg);
 	int bp_addr;
@@ -274,19 +199,10 @@ static int cmd_run(char **arg)
 	if (device_get()->control(DEVICE_CTL_HALT) < 0)
 		return -1;
 
-	return cmd_regs(NULL);
+	return cmd_regs(cp, NULL);
 }
 
-static struct command command_run = {
-	.name = "run",
-	.func = cmd_run,
-	.help =
-	"run [breakpoint]\n"
-	"    Run the CPU until either a specified breakpoint occurs or the\n"
-	"    command is interrupted.\n"
-};
-
-static int cmd_set(char **arg)
+static int cmd_set(cproc_t cp, char **arg)
 {
 	char *reg_text = get_arg(arg);
 	char *val_text = get_arg(arg);
@@ -319,19 +235,11 @@ static int cmd_set(char **arg)
 	if (device_get()->setregs(regs) < 0)
 		return -1;
 
-	show_regs(regs);
+	cproc_regs(cp, regs);
 	return 0;
 }
 
-static struct command command_set = {
-	.name = "set",
-	.func = cmd_set,
-	.help =
-	"set <register> <value>\n"
-	"    Change the value of a CPU register.\n"
-};
-
-static int cmd_dis(char **arg)
+static int cmd_dis(cproc_t cp, char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
@@ -368,17 +276,9 @@ static int cmd_dis(char **arg)
 	if (device_get()->readmem(offset, buf, length) < 0)
 		return -1;
 
-	disassemble(offset, (u_int8_t *)buf, length);
+	cproc_disassemble(cp, offset, (u_int8_t *)buf, length);
 	return 0;
 }
-
-static struct command command_dis = {
-	.name = "dis",
-	.func = cmd_dis,
-	.help =
-	"dis <address> [length]\n"
-	"    Disassemble a section of memory.\n"
-};
 
 static FILE *hexout_file;
 static u_int16_t hexout_addr;
@@ -455,7 +355,7 @@ static int hexout_feed(u_int16_t addr, const u_int8_t *buf, int len)
 	return 0;
 }
 
-static int cmd_hexout(char **arg)
+static int cmd_hexout(cproc_t cp, char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
@@ -509,14 +409,6 @@ fail:
 	unlink(filename);
 	return -1;
 }
-
-static struct command command_hexout = {
-	.name = "hexout",
-	.func = cmd_hexout,
-	.help =
-	"hexout <address> <length> <filename.hex>\n"
-	"    Save a region of memory into a HEX file.\n"
-};
 
 static u_int8_t prog_buf[128];
 static u_int16_t prog_addr;
@@ -589,12 +481,12 @@ static int prog_feed(u_int16_t addr, const u_int8_t *data, int len)
 	return 0;
 }
 
-static int cmd_prog(char **arg)
+static int cmd_prog(cproc_t cp, char **arg)
 {
 	FILE *in;
 	int result = 0;
 
-	if (modify_prompt(MODIFY_SYMS))
+	if (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
 		return 0;
 
 	in = fopen(*arg, "r");
@@ -630,30 +522,95 @@ static int cmd_prog(char **arg)
 		return -1;
 	}
 
-	modify_clear(MODIFY_SYMS);
+	cproc_unmodify(cp, CPROC_MODIFY_SYMS);
 	return result;
 }
 
-static struct command command_prog = {
-	.name = "prog",
-	.func = cmd_prog,
-	.help =
-	"prog <filename>\n"
-	"    Erase the device and flash the data contained in a binary file.\n"
-	"    This command also loads symbols from the file, if available.\n"
+static const struct cproc_command commands[] = {
+	{
+		.name = "regs",
+		.func = cmd_regs,
+		.help =
+"regs\n"
+"    Read and display the current register contents.\n"
+	},
+	{
+		.name = "prog",
+		.func = cmd_prog,
+		.help =
+"prog <filename>\n"
+"    Erase the device and flash the data contained in a binary file.\n"
+"    This command also loads symbols from the file, if available.\n"
+	},
+	{
+		.name = "md",
+		.func = cmd_md,
+		.help =
+"md <address> [length]\n"
+"    Read the specified number of bytes from memory at the given\n"
+"    address, and display a hexdump.\n"
+	},
+	{
+		.name = "mw",
+		.func = cmd_mw,
+		.help =
+"mw <address> bytes ...\n"
+"    Write a sequence of bytes to a memory address. Byte values are\n"
+"    two-digit hexadecimal numbers.\n"
+	},
+	{
+		.name = "reset",
+		.func = cmd_reset,
+		.help =
+ "reset\n"
+ "    Reset (and halt) the CPU.\n"
+	},
+	{
+		.name = "erase",
+		.func = cmd_erase,
+		.help =
+"erase\n"
+"    Erase the device under test.\n"
+	},
+	{
+		.name = "step",
+		.func = cmd_step,
+		.help =
+"step [count]\n"
+"    Single-step the CPU, and display the register state.\n"
+	},
+	{
+		.name = "run",
+		.func = cmd_run,
+		.help =
+"run [breakpoint]\n"
+"    Run the CPU until either a specified breakpoint occurs or the\n"
+"    command is interrupted.\n"
+	},
+	{
+		.name = "set",
+		.func = cmd_set,
+		.help =
+"set <register> <value>\n"
+"    Change the value of a CPU register.\n"
+	},
+	{
+		.name = "dis",
+		.func = cmd_dis,
+		.help =
+"dis <address> [length]\n"
+"    Disassemble a section of memory.\n"
+	},
+	{
+		.name = "hexout",
+		.func = cmd_hexout,
+		.help =
+"hexout <address> <length> <filename.hex>\n"
+"    Save a region of memory into a HEX file.\n"
+	}
 };
 
-void devcmd_init(void)
+int devcmd_register(cproc_t cp)
 {
-	register_command(&command_md);
-	register_command(&command_mw);
-	register_command(&command_reset);
-	register_command(&command_erase);
-	register_command(&command_regs);
-	register_command(&command_run);
-	register_command(&command_step);
-	register_command(&command_set);
-	register_command(&command_dis);
-	register_command(&command_hexout);
-	register_command(&command_prog);
+	return cproc_register_commands(cp, commands, ARRAY_LEN(commands));
 }

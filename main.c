@@ -24,7 +24,6 @@
 #include <unistd.h>
 
 #include "dis.h"
-#include "parse.h"
 #include "device.h"
 #include "binfile.h"
 #include "stab.h"
@@ -66,7 +65,7 @@ static void usage(const char *progname)
 		progname, progname, progname, progname);
 }
 
-static void process_rc_file(void)
+static void process_rc_file(cproc_t cp)
 {
 	const char *home = getenv("HOME");
 	char text[256];
@@ -76,7 +75,7 @@ static void process_rc_file(void)
 
 	snprintf(text, sizeof(text), "%s/.mspdebug", home);
 	if (!access(text, F_OK))
-		process_file(text);
+		cproc_process_file(cp, text);
 }
 
 #define MODE_RF2500             0x01
@@ -90,6 +89,7 @@ int main(int argc, char **argv)
 	const char *uif_device = NULL;
 	const char *bsl_device = NULL;
 	const struct device *msp430_dev = NULL;
+	cproc_t cp;
 	int opt;
 	int no_rc = 0;
 	int ret = 0;
@@ -192,28 +192,33 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	cp = cproc_new();
+	if (!cp ||
+	    sym_register(cp) < 0 ||
+	    devcmd_register(cp) < 0 ||
+	    gdb_register(cp) < 0 ||
+	    rtools_register(cp) < 0) {
+		perror("couldn't set up command parser");
+		return -1;
+	}
+
 	/* Initialise parsing */
 	device_set(msp430_dev);
 	ctrlc_init();
-	parse_init();
-	sym_init();
-	devcmd_init();
-	gdb_init();
-	rtools_init();
 
 	if (!no_rc)
-		process_rc_file();
+		process_rc_file(cp);
 
 	/* Process commands */
 	if (optind < argc) {
 		while (optind < argc) {
-			if (process_command(argv[optind++], 0) < 0) {
+			if (cproc_process_command(cp, argv[optind++]) < 0) {
 				ret = -1;
 				break;
 			}
 		}
 	} else {
-		reader_loop();
+		cproc_reader_loop(cp);
 	}
 
 	msp430_dev->close();

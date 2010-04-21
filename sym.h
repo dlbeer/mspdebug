@@ -19,7 +19,9 @@
 #ifndef SYM_H_
 #define SYM_H_
 
+#include "cproc.h"
+
 /* Register symbol-table manipulation commands */
-void sym_init(void);
+int sym_register(cproc_t cp);
 
 #endif

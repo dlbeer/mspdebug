@@ -27,7 +27,7 @@
 #include "dis.h"
 #include "rtools.h"
 #include "stab.h"
-#include "parse.h"
+#include "cproc_util.h"
 
 #define ISEARCH_OPCODE          0x0001
 #define ISEARCH_BW              0x0002
@@ -59,7 +59,8 @@ static int isearch_opcode(const char *term, char **arg,
 		return -1;
 	}
 
-	if (dis_opcode_by_name(opname, &q->insn.op) < 0) {
+	q->insn.op = dis_opcode_from_name(opname);
+	if (q->insn.op < 0) {
 		fprintf(stderr, "isearch: unknown opcode: %s\n", opname);
 		return -1;
 	}
@@ -315,7 +316,8 @@ static int isearch_match(const struct msp430_instruction *insn,
 	return 1;
 }
 
-static int do_isearch(int addr, int len, const struct isearch_query *q)
+static int do_isearch(cproc_t cp,
+		      int addr, int len, const struct isearch_query *q)
 {
 	u_int8_t *mbuf;
 	const struct device *dev = device_get();
@@ -346,14 +348,14 @@ static int do_isearch(int addr, int len, const struct isearch_query *q)
 		int count = dis_decode(mbuf + i, addr + i, len - i, &insn);
 
 		if (count >= 0 && isearch_match(&insn, q))
-			disassemble(addr + i, mbuf + i, count);
+			cproc_disassemble(cp, addr + i, mbuf + i, count);
 	}
 
 	free(mbuf);
 	return 0;
 }
 
-static int cmd_isearch(char **arg)
+static int cmd_isearch(cproc_t cp, char **arg)
 {
 	const static struct {
 		const char      *name;
@@ -414,10 +416,10 @@ static int cmd_isearch(char **arg)
 		return -1;
 	}
 
-	return do_isearch(addr, len, &q);
+	return do_isearch(cp, addr, len, &q);
 }
 
-static struct command isearch_command = {
+static const struct cproc_command isearch_command = {
 	.name = "isearch",
 	.func = cmd_isearch,
 	.help =
@@ -437,7 +439,7 @@ static struct command isearch_command = {
 	"    destination operand.\n"
 };
 
-void rtools_init(void)
+int rtools_register(cproc_t cp)
 {
-	register_command(&isearch_command);
+	return cproc_register_commands(cp, &isearch_command, 1);
 }

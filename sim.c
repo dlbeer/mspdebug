@@ -24,7 +24,6 @@
 #include "dis.h"
 #include "util.h"
 #include "stab.h"
-#include "parse.h"
 
 #define MEM_SIZE	65536
 

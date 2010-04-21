@@ -57,7 +57,7 @@ int vector_realloc(struct vector *v, int capacity)
 	return 0;
 }
 
-int vector_push(struct vector *v, void *data, int count)
+int vector_push(struct vector *v, const void *data, int count)
 {
 	int needed = v->size + count;
 

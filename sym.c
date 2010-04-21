@@ -26,10 +26,10 @@
 #include "stab.h"
 #include "binfile.h"
 #include "util.h"
-#include "parse.h"
 #include "vector.h"
+#include "sym.h"
 
-static int cmd_eval(char **arg)
+static int cmd_eval(cproc_t cp, char **arg)
 {
 	int addr;
 	u_int16_t offset;
@@ -51,20 +51,12 @@ static int cmd_eval(char **arg)
 	return 0;
 }
 
-static struct command command_eval = {
-	.name = "=",
-	.func = cmd_eval,
-	.help =
-	"= <expression>\n"
-	"    Evaluate an expression using the symbol table.\n"
-};
-
-static int cmd_sym_load_add(int clear, char **arg)
+static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 {
 	FILE *in;
 	int result = 0;
 
-	if (clear && modify_prompt(MODIFY_SYMS))
+	if (clear && cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
 		return 0;
 
 	in = fopen(*arg, "r");
@@ -86,9 +78,9 @@ static int cmd_sym_load_add(int clear, char **arg)
 	fclose(in);
 
 	if (clear)
-		modify_clear(MODIFY_SYMS);
+		cproc_unmodify(cp, CPROC_MODIFY_SYMS);
 	else
-		modify_set(MODIFY_SYMS);
+		cproc_modify(cp, CPROC_MODIFY_SYMS);
 
 	return result;
 }
@@ -105,7 +97,7 @@ static int savemap_cb(const char *name, u_int16_t value)
 	return 0;
 }
 
-static int cmd_sym_savemap(char **arg)
+static int cmd_sym_savemap(cproc_t cp, char **arg)
 {
 	char *fname = get_arg(arg);
 
@@ -131,7 +123,7 @@ static int cmd_sym_savemap(char **arg)
 		return -1;
 	}
 
-	modify_clear(MODIFY_SYMS);
+	cproc_unmodify(cp, CPROC_MODIFY_SYMS);
 	return 0;
 }
 
@@ -151,7 +143,7 @@ static int find_sym(const char *name, u_int16_t value)
 	return 0;
 }
 
-static int cmd_sym_find(char **arg)
+static int cmd_sym_find(cproc_t cp, char **arg)
 {
 	char *expr = get_arg(arg);
 
@@ -215,9 +207,6 @@ static int renames_do(const char *replace)
 		count++;
 	}
 
-	if (count)
-		modify_set(MODIFY_SYMS);
-
 	printf("%d symbols renamed\n", count);
 	return 0;
 }
@@ -241,7 +230,7 @@ static int find_renames(const char *name, u_int16_t value)
 	return 0;
 }
 
-static int cmd_sym_rename(char **arg)
+static int cmd_sym_rename(cproc_t cp, char **arg)
 {
 	const char *expr = get_arg(arg);
 	const char *replace = get_arg(arg);
@@ -269,10 +258,14 @@ static int cmd_sym_rename(char **arg)
 	regfree(&find_preg);
 	ret = renames_do(replace);
 	vector_destroy(&renames_vec);
-	return ret;
+
+	if (ret > 0)
+		cproc_modify(cp, CPROC_MODIFY_SYMS);
+
+	return ret >= 0 ? 0 : -1;
 }
 
-static int cmd_sym_del(char **arg)
+static int cmd_sym_del(cproc_t cp, char **arg)
 {
 	char *name = get_arg(arg);
 
@@ -288,11 +281,11 @@ static int cmd_sym_del(char **arg)
 		return -1;
 	}
 
-	modify_set(MODIFY_SYMS);
+	cproc_modify(cp, CPROC_MODIFY_SYMS);
 	return 0;
 }
 
-static int cmd_sym(char **arg)
+static int cmd_sym(cproc_t cp, char **arg)
 {
 	char *subcmd = get_arg(arg);
 
@@ -303,10 +296,10 @@ static int cmd_sym(char **arg)
 	}
 
 	if (!strcasecmp(subcmd, "clear")) {
-		if (modify_prompt(MODIFY_SYMS))
+		if (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
 			return 0;
 		stab_clear();
-		modify_clear(MODIFY_SYMS);
+		cproc_unmodify(cp, CPROC_MODIFY_SYMS);
 		return 0;
 	}
 
@@ -330,53 +323,59 @@ static int cmd_sym(char **arg)
 		if (stab_set(name, value) < 0)
 			return -1;
 
-		modify_set(MODIFY_SYMS);
+		cproc_modify(cp, CPROC_MODIFY_SYMS);
 		return 0;
 	}
 
 	if (!strcasecmp(subcmd, "del"))
-		return cmd_sym_del(arg);
+		return cmd_sym_del(cp, arg);
 	if (!strcasecmp(subcmd, "import"))
-		return cmd_sym_load_add(1, arg);
+		return cmd_sym_load_add(cp, 1, arg);
 	if (!strcasecmp(subcmd, "import+"))
-		return cmd_sym_load_add(0, arg);
+		return cmd_sym_load_add(cp, 0, arg);
 	if (!strcasecmp(subcmd, "export"))
-		return cmd_sym_savemap(arg);
+		return cmd_sym_savemap(cp, arg);
 	if (!strcasecmp(subcmd, "rename"))
-		return cmd_sym_rename(arg);
+		return cmd_sym_rename(cp, arg);
 	if (!strcasecmp(subcmd, "find"))
-		return cmd_sym_find(arg);
+		return cmd_sym_find(cp, arg);
 
 	fprintf(stderr, "sym: unknown subcommand: %s\n", subcmd);
 	return -1;
 }
 
-static struct command command_sym = {
-	.name = "sym",
-	.func = cmd_sym,
-	.help =
-	"sym clear\n"
-	"    Clear the symbol table.\n"
-	"sym set <name> <value>\n"
-	"    Set or overwrite the value of a symbol.\n"
-	"sym del <name>\n"
-	"    Delete a symbol from the symbol table.\n"
-	"sym import <filename>\n"
-	"    Load symbols from the given file.\n"
-	"sym import+ <filename>\n"
-	"    Load additional symbols from the given file.\n"
-	"sym export <filename>\n"
-	"    Save the current symbols to a BSD-style symbol file.\n"
-	"sym find <regex>\n"
-	"    Search for symbols by regular expression.\n"
-	"sym rename <regex> <string>\n"
-	"    Replace every occurance of a pattern in symbol names.\n"
+static const struct cproc_command commands[] = {
+	{
+		.name = "=",
+		.func = cmd_eval,
+		.help =
+"= <expression>\n"
+"    Evaluate an expression using the symbol table.\n"
+	},
+	{
+		.name = "sym",
+		.func = cmd_sym,
+		.help =
+"sym clear\n"
+"    Clear the symbol table.\n"
+"sym set <name> <value>\n"
+"    Set or overwrite the value of a symbol.\n"
+"sym del <name>\n"
+"    Delete a symbol from the symbol table.\n"
+"sym import <filename>\n"
+"    Load symbols from the given file.\n"
+"sym import+ <filename>\n"
+"    Load additional symbols from the given file.\n"
+"sym export <filename>\n"
+"    Save the current symbols to a BSD-style symbol file.\n"
+"sym find <regex>\n"
+"    Search for symbols by regular expression.\n"
+"sym rename <regex> <string>\n"
+"    Replace every occurance of a pattern in symbol names.\n"
+	}
 };
 
-int sym_init(void)
+int sym_register(cproc_t cp)
 {
-	register_command(&command_eval);
-	register_command(&command_sym);
-
-	return 0;
+	return cproc_register_commands(cp, commands, ARRAY_LEN(commands));
 }

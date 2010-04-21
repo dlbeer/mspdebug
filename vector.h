@@ -45,7 +45,7 @@ int vector_realloc(struct vector *v, int capacity);
 /* Append any number of elements to the end of a vector, reallocating if
  * necessary. Returns 0 on success or -1 if memory could not be allocated.
  */
-int vector_push(struct vector *v, void *data, int count);
+int vector_push(struct vector *v, const void *data, int count);
 
 /* Dereference a vector, giving an expression for the element of type t at
  * position i in vector v. Use as follows:

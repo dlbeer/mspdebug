@@ -42,4 +42,7 @@ char *get_arg(char **text);
 void debug_hexdump(const char *label,
 		   const u_int8_t *data, int len);
 
+/* Get text length, not including ANSI codes */
+int textlen(const char *text);
+
 #endif

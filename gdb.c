@@ -30,7 +30,6 @@
 #include "device.h"
 #include "util.h"
 #include "gdb.h"
-#include "parse.h"
 
 /************************************************************************
  * GDB IO routines
@@ -579,7 +578,7 @@ static int gdb_server(int port)
 	return gdb_errno ? -1 : 0;
 }
 
-static int cmd_gdb(char **arg)
+static int cmd_gdb(cproc_t cp, char **arg)
 {
 	char *port_text = get_arg(arg);
 	int port = 2000;
@@ -595,7 +594,7 @@ static int cmd_gdb(char **arg)
 	return gdb_server(port);
 }
 
-static struct command command_gdb = {
+static const struct cproc_command command_gdb = {
 	.name = "gdb",
 	.func = cmd_gdb,
 	.help =
@@ -603,7 +602,7 @@ static struct command command_gdb = {
 	"    Run a GDB remote stub on the given TCP/IP port.\n"
 };
 
-void gdb_init(void)
+int gdb_register(cproc_t cp)
 {
-	register_command(&command_gdb);
+	return cproc_register_commands(cp, &command_gdb, 1);
 }
