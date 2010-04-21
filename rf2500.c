@@ -23,10 +23,6 @@
 #include "transport.h"
 #include "util.h"
 
-#ifdef DEBUG_USBTR
-#include "parse.h"
-#endif
-
 /*********************************************************************
  * USB transport
  *
@@ -111,8 +107,7 @@ static int usbtr_send(const u_int8_t *data, int len)
 		pbuf[0] = txlen - 1;
 
 #ifdef DEBUG_USBTR
-		puts("USB transfer out:");
-		hexdump(0, pbuf, txlen);
+		debug_hexdump("USB transfer out", pbuf, txlen);
 #endif
 		if (usb_bulk_write(usbtr_handle, USB_FET_OUT_EP,
 			(const char *)pbuf, txlen, 10000) < 0) {
@@ -154,8 +149,7 @@ static int usbtr_recv(u_int8_t *databuf, int max_len)
 		}
 
 #ifdef DEBUG_USBTR
-		puts("USB transfer in:");
-		hexdump(0, usbtr_buf, 64);
+		debug_hexdump("USB transfer in", usbtr_buf, 64);
 #endif
 
 		usbtr_len = usbtr_buf[1] + 2;

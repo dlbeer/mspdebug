@@ -27,10 +27,6 @@
 #include "transport.h"
 #include "util.h"
 
-#ifdef DEBUG_SERIAL
-#include "parse.h"
-#endif
-
 static int serial_fd = -1;
 
 static int serial_send(const u_int8_t *data, int len)
@@ -38,8 +34,7 @@ static int serial_send(const u_int8_t *data, int len)
 	assert (serial_fd >= 0);
 
 #ifdef DEBUG_SERIAL
-	puts("Serial transfer out:");
-	hexdump(0, data, len);
+	debug_hexdump("Serial transfer out:", data, len);
 #endif
 
 	if (write_all(serial_fd, data, len) < 0) {
@@ -63,8 +58,7 @@ static int serial_recv(u_int8_t *data, int max_len)
 	}
 
 #ifdef DEBUG_SERIAL
-	puts("Serial transfer in:");
-	hexdump(0, data, r);
+	debug_hexdump("Serial transfer in", data, r);
 #endif
 	return r;
 }

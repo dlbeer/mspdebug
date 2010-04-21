@@ -99,7 +99,7 @@ static int fetch_io(u_int16_t addr, int is_byte, u_int32_t *data_ret)
 			return 0;
 		}
 
-		if (!addr_exp(text, &data)) {
+		if (!stab_exp(text, &data)) {
 			if (data_ret)
 				*data_ret = data;
 			return 0;

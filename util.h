@@ -23,12 +23,23 @@
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
+/* Various utility functions for IO */
 int open_serial(const char *device, int rate);
 int read_with_timeout(int fd, u_int8_t *data, int len);
 int write_all(int fd, const u_int8_t *data, int len);
 
+/* Check and catch ^C from the user */
 void ctrlc_init(void);
 void ctrlc_reset(void);
 int ctrlc_check(void);
+
+/* Retrieve the next word from a pointer to the rest of a command
+ * argument buffer. Returns NULL if no more words.
+ */
+char *get_arg(char **text);
+
+/* Display hex output for debug purposes */
+void debug_hexdump(const char *label,
+		   const u_int8_t *data, int len);
 
 #endif

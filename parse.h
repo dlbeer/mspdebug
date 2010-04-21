@@ -34,11 +34,6 @@ struct command {
 /* Add a command to the global command table */
 void register_command(struct command *c);
 
-/* Retrieve the next word from a pointer to the rest of a command
- * argument buffer. Returns NULL if no more words.
- */
-char *get_arg(char **text);
-
 /* Process a command, returning -1 on error or 0 if executed
  * successfully.
  *
@@ -62,13 +57,6 @@ int colorize(const char *text);
 
 /* Return non-zero if executing in an interactive context. */
 int is_interactive(void);
-
-/* Parse an address expression, storing the result in the integer
- * pointed to. Returns 0 if parsed successfully, -1 if not.
- */
-typedef int (*token_func_t)(const char *text, int *value);
-
-int addr_exp(const char *text, int *value);
 
 /* Mark/unmark items as modified. The modify_prompt function, when
  * called in interactive context, prompts the user before continuing

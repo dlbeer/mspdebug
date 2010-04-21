@@ -23,8 +23,10 @@
 #include <sys/types.h>
 #include <regex.h>
 #include <errno.h>
+#include <assert.h>
 #include "btree.h"
 #include "stab.h"
+#include "util.h"
 
 struct sym_key {
 	char name[64];
@@ -225,4 +227,266 @@ void stab_exit(void)
 {
 	btree_free(sym_table);
 	btree_free(addr_table);
+}
+
+/************************************************************************
+ * Address expression parsing.
+ */
+
+struct addr_exp_state {
+	int     last_operator;
+	int     data_stack[32];
+	int     data_stack_size;
+	int     op_stack[32];
+	int     op_stack_size;
+};
+
+static int addr_exp_data(struct addr_exp_state *s, const char *text)
+{
+	int value;
+
+	if (!s->last_operator || s->last_operator == ')') {
+		fprintf(stderr, "syntax error at token %s\n", text);
+		return -1;
+	}
+
+	/* Hex value */
+	if (*text == '0' && text[1] == 'x')
+		value = strtoul(text + 2, NULL, 16);
+	else if (isdigit(*text))
+		value = atoi(text);
+	else if (stab_get(text, &value) < 0) {
+		fprintf(stderr, "can't parse token: %s\n", text);
+		return -1;
+	}
+
+	if (s->data_stack_size + 1 > ARRAY_LEN(s->data_stack)) {
+		fprintf(stderr, "data stack overflow at token %s\n", text);
+		return -1;
+	}
+
+	s->data_stack[s->data_stack_size++] = value;
+	s->last_operator = 0;
+	return 0;
+}
+
+static int addr_exp_pop(struct addr_exp_state *s)
+{
+	char op = s->op_stack[--s->op_stack_size];
+	int data1 = s->data_stack[--s->data_stack_size];
+	int data2 = 0;
+
+	int result = 0;
+
+	if (op != 'N')
+		data2 = s->data_stack[--s->data_stack_size];
+
+	assert (s->op_stack_size >= 0);
+	assert (s->data_stack_size >= 0);
+
+	switch (op) {
+	case '+':
+		result = data2 + data1;
+		break;
+
+	case '-':
+		result = data2 - data1;
+		break;
+
+	case '*':
+		result = data2 * data1;
+		break;
+
+	case '/':
+		if (!data1)
+			goto divzero;
+		result = data2 / data1;
+		break;
+
+	case '%':
+		if (!data1)
+			goto divzero;
+		result = data2 % data1;
+		break;
+
+	case 'N':
+		result = -data1;
+		break;
+	}
+
+	s->data_stack[s->data_stack_size++] = result;
+	return 0;
+
+ divzero:
+	fprintf(stderr, "divide by zero\n");
+	return -1;
+}
+
+static int can_push(struct addr_exp_state *s, char op)
+{
+	char top;
+
+	if (!s->op_stack_size || op == '(')
+		return 1;
+
+	top = s->op_stack[s->op_stack_size - 1];
+
+	if (top == '(')
+		return 1;
+
+	switch (op) {
+	case 'N':
+		return 1;
+
+	case '*':
+	case '%':
+	case '/':
+		return top == '+' || top == '-';
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int addr_exp_op(struct addr_exp_state *s, char op)
+{
+	if (op == '(') {
+		if (!s->last_operator || s->last_operator == ')')
+			goto syntax_error;
+	} else if (op == '-') {
+		if (s->last_operator && s->last_operator != ')')
+			op = 'N';
+	} else {
+		if (s->last_operator && s->last_operator != ')')
+			goto syntax_error;
+	}
+
+	if (op == ')') {
+		/* ) collapses the stack to the last matching ( */
+		while (s->op_stack_size &&
+		       s->op_stack[s->op_stack_size - 1] != '(')
+			if (addr_exp_pop(s) < 0)
+				return -1;
+
+		if (!s->op_stack_size) {
+			fprintf(stderr, "parenthesis mismatch: )\n");
+			return -1;
+		}
+
+		s->op_stack_size--;
+	} else {
+		while (!can_push(s, op))
+			if (addr_exp_pop(s) < 0)
+				return -1;
+
+		if (s->op_stack_size + 1 > ARRAY_LEN(s->op_stack)) {
+			fprintf(stderr, "operator stack overflow: %c\n", op);
+			return -1;
+		}
+
+		s->op_stack[s->op_stack_size++] = op;
+	}
+
+	s->last_operator = op;
+	return 0;
+
+ syntax_error:
+	fprintf(stderr, "syntax error at operator %c\n", op);
+	return -1;
+}
+
+static int addr_exp_finish(struct addr_exp_state *s, int *ret)
+{
+	if (s->last_operator && s->last_operator != ')') {
+		fprintf(stderr, "syntax error at end of expression\n");
+		return -1;
+	}
+
+	while (s->op_stack_size) {
+		if (s->op_stack[s->op_stack_size - 1] == '(') {
+			fprintf(stderr, "parenthesis mismatch: (\n");
+			return -1;
+		}
+
+		if (addr_exp_pop(s) < 0)
+			return -1;
+	}
+
+	if (s->data_stack_size != 1) {
+		fprintf(stderr, "no data: stack size is %d\n",
+			s->data_stack_size);
+		return -1;
+	}
+
+	if (ret)
+		*ret = s->data_stack[0];
+
+	return 0;
+}
+
+int stab_exp(const char *text, int *addr)
+{
+	const char *text_save = text;
+	int last_cc = 1;
+	char token_buf[64];
+	int token_len = 0;
+	struct addr_exp_state s = {0};
+
+	s.last_operator = '(';
+
+	for (;;) {
+		int cc;
+
+		/* Figure out what class this character is */
+		if (*text == '+' || *text == '-' ||
+		    *text == '*' || *text == '/' ||
+		    *text == '%' || *text == '(' ||
+		    *text == ')')
+			cc = 1;
+		else if (!*text || isspace(*text))
+			cc = 2;
+		else if (isalnum(*text) || *text == '.' || *text == '_' ||
+			 *text == '$' || *text == ':')
+			cc = 3;
+		else {
+			fprintf(stderr, "illegal character in expression: %c\n",
+				*text);
+			return -1;
+		}
+
+		/* Accumulate and process token text */
+		if (cc == 3) {
+			if (token_len + 1 < sizeof(token_buf))
+				token_buf[token_len++] = *text;
+		} else if (token_len) {
+			token_buf[token_len] = 0;
+			token_len = 0;
+
+			if (addr_exp_data(&s, token_buf) < 0)
+				goto fail;
+		}
+
+		/* Process operators */
+		if (cc == 1) {
+			if (addr_exp_op(&s, *text) < 0)
+				goto fail;
+		}
+
+		if (!*text)
+			break;
+
+		last_cc = cc;
+		text++;
+	}
+
+	if (addr_exp_finish(&s, addr) < 0)
+		goto fail;
+
+	return 0;
+
+ fail:
+	fprintf(stderr, "bad address expression: %s\n", text_save);
+	return -1;
 }

@@ -35,7 +35,7 @@ static int cmd_eval(char **arg)
 	u_int16_t offset;
 	char name[64];
 
-	if (addr_exp(*arg, &addr) < 0) {
+	if (stab_exp(*arg, &addr) < 0) {
 		fprintf(stderr, "=: can't parse: %s\n", *arg);
 		return -1;
 	}
@@ -321,7 +321,7 @@ static int cmd_sym(char **arg)
 			return -1;
 		}
 
-		if (addr_exp(val_text, &value) < 0) {
+		if (stab_exp(val_text, &value) < 0) {
 			fprintf(stderr, "sym: can't parse value: %s\n",
 				val_text);
 			return -1;

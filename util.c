@@ -118,3 +118,126 @@ int open_serial(const char *device, int rate)
 
 	return fd;
 }
+
+char *get_arg(char **text)
+{
+	char *start;
+	char *rewrite;
+	char *end;
+	int qstate = 0;
+	int qval = 0;
+
+	if (!text)
+		return NULL;
+
+	start = *text;
+	while (*start && isspace(*start))
+		start++;
+
+	if (!*start)
+		return NULL;
+
+	/* We've found the start of the argument. Parse it. */
+	end = start;
+	rewrite = start;
+	while (*end) {
+		switch (qstate) {
+		case 0: /* Bare */
+			if (isspace(*end))
+				goto out;
+			else if (*end == '"')
+				qstate = 1;
+			else
+				*(rewrite++) = *end;
+			break;
+
+		case 1: /* In quotes */
+			if (*end == '"')
+				qstate = 0;
+			else if (*end == '\\')
+				qstate = 2;
+			else
+				*(rewrite++) = *end;
+			break;
+
+		case 2: /* Backslash */
+			if (*end == '\\')
+				*(rewrite++) = '\\';
+			else if (*end == 'n')
+				*(rewrite++) = '\n';
+			else if (*end == 'r')
+				*(rewrite++) = '\r';
+			else if (*end == 't')
+				*(rewrite++) = '\t';
+			else if (*end >= '0' && *end <= '3') {
+				qstate = 30;
+				qval = *end - '0';
+			} else if (*end == 'x') {
+				qstate = 40;
+				qval = 0;
+			} else
+				*(rewrite++) = *end;
+
+			if (qstate == 2)
+				qstate = 1;
+			break;
+
+		case 30: /* Octal */
+		case 31:
+			if (*end >= '0' && *end <= '7')
+				qval = (qval << 3) | (*end - '0');
+
+			if (qstate == 31) {
+				*(rewrite++) = qval;
+				qstate = 1;
+			} else {
+				qstate++;
+			}
+			break;
+
+		case 40: /* Hex */
+		case 41:
+			if (isdigit(*end))
+				qval = (qval << 4) | (*end - '0');
+			else if (isupper(*end))
+				qval = (qval << 4) | (*end - 'A' + 10);
+			else if (islower(*end))
+				qval = (qval << 4) | (*end - 'a' + 10);
+
+			if (qstate == 41) {
+				*(rewrite++) = qval;
+				qstate = 1;
+			} else {
+				qstate++;
+			}
+			break;
+		}
+
+		end++;
+	}
+ out:
+	/* Leave the text pointer at the end of the next argument */
+	while (*end && isspace(*end))
+		end++;
+
+	*rewrite = 0;
+	*text = end;
+	return start;
+}
+
+void debug_hexdump(const char *label, const u_int8_t *data, int len)
+{
+	int offset = 0;
+
+	printf("%s [0x%x bytes]\n", label, len);
+	while (offset < len) {
+		int i;
+
+		printf("    ");
+		for (i = 0; i < 16 && offset + i < len; i++)
+			printf("%02x ", data[offset + i]);
+		printf("\n");
+
+		offset += i;
+	}
+}

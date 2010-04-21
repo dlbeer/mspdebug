@@ -56,4 +56,9 @@ typedef int (*stab_callback_t)(const char *name, u_int16_t value);
 
 int stab_enum(stab_callback_t cb);
 
+/* Parse an address expression, storing the result in the integer
+ * pointed to. Returns 0 if parsed successfully, -1 if not.
+ */
+int stab_exp(const char *text, int *value);
+
 #endif
