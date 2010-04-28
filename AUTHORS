@@ -1,0 +1,6 @@
+MSPDebug is mostly written by Daniel Beer <daniel@tortek.co.nz>. Other
+people who have made significant contributions are listed here.
+
+Doug Forman <doug.dougforman@gmail.com>:
+	* Testing and analysis for TI Chronos devices.
+	* Testing and analysis for FET430UIF firmware version 20404000.
