@@ -73,7 +73,6 @@ static int format_reg(char *buf, int max_len,
 	const char *suffix = "";
 	const char *name;
 
-
 	switch (amode) {
 	case MSP430_AMODE_REGISTER:
 		break;
@@ -116,7 +115,7 @@ static int format_operand(char *buf, int max_len,
 	int len = 0;
 
 	len += format_addr(buf, max_len, amode, addr);
-	len += format_reg(buf + len, max_len - len, amode, addr);
+	len += format_reg(buf + len, max_len - len, amode, reg);
 	return len;
 }
 
