@@ -83,58 +83,50 @@ static void process_rc_file(cproc_t cp)
 #define MODE_UIF_BSL            0x04
 #define MODE_SIM                0x08
 
-int main(int argc, char **argv)
+struct cmdline_args {
+	const char      *uif_device;
+	const char      *bsl_device;
+	int             mode;
+	int             want_jtag;
+	int             no_rc;
+	int             vcc_mv;
+};
+
+static int parse_cmdline_args(int argc, char **argv,
+			      struct cmdline_args *args)
 {
-	const struct fet_transport *trans;
-	const char *uif_device = NULL;
-	const char *bsl_device = NULL;
-	const struct device *msp430_dev = NULL;
-	cproc_t cp;
 	int opt;
-	int no_rc = 0;
-	int ret = 0;
-	int flags = 0;
-	int want_jtag = 0;
-	int vcc_mv = 3000;
-	int mode = 0;
 
-	puts(
-"MSPDebug version 0.6 - debugging tool for MSP430 MCUs\n"
-"Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
-"This is free software; see the source for copying conditions.  There is NO\n"
-"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
-
-	/* Parse arguments */
 	while ((opt = getopt(argc, argv, "u:jv:B:sR?n")) >= 0)
 		switch (opt) {
 		case 'R':
-			mode |= MODE_RF2500;
+			args->mode |= MODE_RF2500;
 			break;
 
 		case 'u':
-			uif_device = optarg;
-			mode |= MODE_UIF;
+			args->uif_device = optarg;
+			args->mode |= MODE_UIF;
 			break;
 
 		case 'v':
-			vcc_mv = atoi(optarg);
+			args->vcc_mv = atoi(optarg);
 			break;
 
 		case 'j':
-			want_jtag = 1;
+			args->want_jtag = 1;
 			break;
 
 		case 'B':
-			bsl_device = optarg;
-			mode |= MODE_UIF_BSL;
+			args->bsl_device = optarg;
+			args->mode |= MODE_UIF_BSL;
 			break;
 
 		case 's':
-			mode |= MODE_SIM;
+			args->mode |= MODE_SIM;
 			break;
 
 		case 'n':
-			no_rc = 1;
+			args->no_rc = 1;
 			break;
 
 		case '?':
@@ -148,45 +140,85 @@ int main(int argc, char **argv)
 		}
 
 	/* Check for incompatible arguments */
-	if (mode & (mode - 1)) {
+	if (args->mode & (args->mode - 1)) {
 		fprintf(stderr, "Multiple incompatible options specified.\n"
 			"Try -? for help.\n");
 		return -1;
 	}
 
-	if (!mode) {
+	if (!args->mode) {
 		fprintf(stderr, "You need to specify an operating mode.\n"
 			"Try -? for help.\n");
 		return -1;
 	}
 
-	if (stab_init() < 0)
-		return -1;
+	return 0;
+}
+
+const struct device *setup_device(const struct cmdline_args *args)
+{
+	const struct device *msp430_dev = NULL;
+	const struct fet_transport *trans = NULL;
 
 	/* Open a device */
-	if (mode == MODE_SIM) {
+	if (args->mode == MODE_SIM) {
 		msp430_dev = sim_open();
-	} else if (mode == MODE_UIF_BSL) {
-		msp430_dev = bsl_open(bsl_device);
-	} else if (mode == MODE_RF2500 || mode == MODE_UIF) {
+	} else if (args->mode == MODE_UIF_BSL) {
+		msp430_dev = bsl_open(args->bsl_device);
+	} else if (args->mode == MODE_RF2500 || args->mode == MODE_UIF) {
+		int flags = 0;
+
 		/* Open the appropriate transport */
-		if (mode == MODE_UIF) {
-			trans = uif_open(uif_device);
+		if (args->mode == MODE_UIF) {
+			trans = uif_open(args->uif_device);
 		} else {
 			trans = rf2500_open();
 			flags |= FET_PROTO_RF2500;
 		}
 
 		if (!trans)
-			return -1;
+			return NULL;
 
 		/* Then initialize the device */
-		if (!want_jtag)
+		if (!args->want_jtag)
 			flags |= FET_PROTO_SPYBIWIRE;
 
-		msp430_dev = fet_open(trans, flags, vcc_mv);
+		msp430_dev = fet_open(trans, flags, args->vcc_mv);
 	}
 
+	if (!msp430_dev) {
+		if (trans)
+			trans->close();
+		return NULL;
+	}
+
+	device_set(msp430_dev);
+	return msp430_dev;
+}
+
+int main(int argc, char **argv)
+{
+	const struct device *msp430_dev;
+	struct cmdline_args args = {0};
+	cproc_t cp;
+	int ret = 0;
+
+	puts(
+"MSPDebug version 0.6 - debugging tool for MSP430 MCUs\n"
+"Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
+"This is free software; see the source for copying conditions.  There is NO\n"
+"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
+
+	args.vcc_mv = 3000;
+	if (parse_cmdline_args(argc, argv, &args) < 0)
+		return -1;
+
+	ctrlc_init();
+
+	if (stab_init() < 0)
+		return -1;
+
+	msp430_dev = setup_device(&args);
 	if (!msp430_dev) {
 		stab_exit();
 		return -1;
@@ -199,14 +231,14 @@ int main(int argc, char **argv)
 	    gdb_register(cp) < 0 ||
 	    rtools_register(cp) < 0) {
 		perror("couldn't set up command parser");
+		if (cp)
+			cproc_destroy(cp);
+		msp430_dev->close();
+		stab_exit();
 		return -1;
 	}
 
-	/* Initialise parsing */
-	device_set(msp430_dev);
-	ctrlc_init();
-
-	if (!no_rc)
+	if (!args.no_rc)
 		process_rc_file(cp);
 
 	/* Process commands */
@@ -221,6 +253,7 @@ int main(int argc, char **argv)
 		cproc_reader_loop(cp);
 	}
 
+	cproc_destroy(cp);
 	msp430_dev->close();
 	stab_exit();
 
