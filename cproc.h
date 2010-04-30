@@ -19,6 +19,8 @@
 #ifndef CPROC_H_
 #define CPROC_H_
 
+#include "device.h"
+
 /* Command processor.
  *
  * This contains a list of all defined commands and options, plus modification
@@ -82,9 +84,16 @@ struct cproc_option {
 
 /* Create/destroy a command processor. The init function returns 0 if
  * successful, or -1 if an error occurs.
+ *
+ * The command processor takes responsibility for the device object it
+ * has been given. When you destroy a command processor, the device is
+ * also destroyed.
  */
-cproc_t cproc_new(void);
+cproc_t cproc_new(device_t dev);
 void cproc_destroy(cproc_t cp);
+
+/* Fetch the command processor's device */
+device_t cproc_device(cproc_t cp);
 
 /* Register commands and options with the command processor. These functions
  * return 0 on success or -1 if an error occurs (failure to allocate memory).

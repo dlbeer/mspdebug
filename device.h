@@ -1,4 +1,4 @@
-/* MSPDebug - debugging tool for the eZ430
+/* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009, 2010 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,15 +20,14 @@
 #define DEVICE_H_
 
 #include <sys/types.h>
-#include "transport.h"
 
-#define DEVICE_NUM_REGS		16
+struct device;
+typedef struct device *device_t;
 
 typedef enum {
 	DEVICE_CTL_RESET,
 	DEVICE_CTL_RUN,
 	DEVICE_CTL_HALT,
-	DEVICE_CTL_RUN_BP,
 	DEVICE_CTL_STEP,
 	DEVICE_CTL_ERASE
 } device_ctl_t;
@@ -40,35 +39,33 @@ typedef enum {
 	DEVICE_STATUS_ERROR
 } device_status_t;
 
+#define DEVICE_NUM_REGS		16
+
 struct device {
-	void (*close)(void);
-	int (*control)(device_ctl_t action);
-	device_status_t (*wait)(int blocking);
-	int (*breakpoint)(u_int16_t addr);
-	int (*getregs)(u_int16_t *regs);
-	int (*setregs)(const u_int16_t *regs);
-	int (*readmem)(u_int16_t addr, u_int8_t *mem, int len);
-	int (*writemem)(u_int16_t addr, const u_int8_t *mem, int len);
+	/* Close the connection to the device and destroy the driver object */
+	void (*destroy)(device_t dev);
+
+	/* Read/write memory */
+	int (*readmem)(device_t dev, u_int16_t addr,
+		       u_int8_t *mem, int len);
+	int (*writemem)(device_t dev, u_int16_t addr,
+			const u_int8_t *mem, int len);
+
+	/* Read/write registers */
+	int (*getregs)(device_t dev, u_int16_t *regs);
+	int (*setregs)(device_t dev, const u_int16_t *regs);
+
+	/* Breakpoint control */
+	int (*breakpoint)(device_t dev, int enabled, u_int16_t addr);
+
+	/* CPU control */
+	int (*ctl)(device_t dev, device_ctl_t op);
+
+	/* Wait a little while for the CPU to change state */
+	device_status_t (*poll)(device_t dev);
 };
 
-/* MSP430 FET protocol implementation. */
-#define FET_PROTO_SPYBIWIRE	0x01
-#define FET_PROTO_RF2500	0x02
-
-const struct device *fet_open(const struct fet_transport *transport,
-			      int proto_flags, int vcc_mv);
-
-/* MSP430 FET Bootloader implementation. */
-const struct device *bsl_open(const char *device);
-
-/* Dummy/simulation implementation. */
-const struct device *sim_open(void);
-
 /* Look up a device ID. Returns 0 on success or -1 if none found */
-int find_device_id(u_int16_t id, char *out, int max_len);
-
-/* Set/get the active device */
-void device_set(const struct device *dev);
-const struct device *device_get(void);
+int device_id_text(u_int16_t id, char *out, int max_len);
 
 #endif

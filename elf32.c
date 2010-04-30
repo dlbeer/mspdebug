@@ -126,7 +126,8 @@ static u_int32_t file_to_phys(u_int32_t v)
 	return v;
 }
 
-static int feed_section(FILE *in, int offset, int size, imgfunc_t cb)
+static int feed_section(FILE *in, int offset, int size, imgfunc_t cb,
+			void *user_data)
 {
 	u_int8_t buf[1024];
 	u_int16_t addr = file_to_phys(offset);
@@ -145,7 +146,7 @@ static int feed_section(FILE *in, int offset, int size, imgfunc_t cb)
 			return -1;
 		}
 
-		if (cb(addr, buf, len) < 0)
+		if (cb(user_data, addr, buf, len) < 0)
 			return -1;
 
 		size -= len;
@@ -173,7 +174,7 @@ static int read_all(FILE *in)
 	return 0;
 }
 
-int elf32_extract(FILE *in, imgfunc_t cb)
+int elf32_extract(FILE *in, imgfunc_t cb, void *user_data)
 {
 	int i;
 
@@ -184,7 +185,8 @@ int elf32_extract(FILE *in, imgfunc_t cb)
 		Elf32_Shdr *s = &file_shdrs[i];
 
 		if (s->sh_type == SHT_PROGBITS && s->sh_flags & SHF_ALLOC &&
-			feed_section(in, s->sh_offset, s->sh_size, cb) < 0)
+			feed_section(in, s->sh_offset, s->sh_size,
+				     cb, user_data) < 0)
 			return -1;
 	}
 

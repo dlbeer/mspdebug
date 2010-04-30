@@ -35,43 +35,47 @@
  * GDB IO routines
  */
 
-static int gdb_socket;
-static int gdb_errno;
+struct gdb_data {
+	int             sock;
+	int             error;
 
-static char gdb_xbuf[1024];
-static int gdb_head;
-static int gdb_tail;
+	char            xbuf[1024];
+	int             head;
+	int             tail;
 
-static char gdb_outbuf[1024];
-static int gdb_outlen;
+	char            outbuf[1024];
+	int             outlen;
 
-static void gdb_printf(const char *fmt, ...)
+	device_t        device;
+};
+
+static void gdb_printf(struct gdb_data *data, const char *fmt, ...)
 {
 	va_list ap;
 	int len;
 
 	va_start(ap, fmt);
-	len = vsnprintf(gdb_outbuf + gdb_outlen,
-			sizeof(gdb_outbuf) - gdb_outlen,
+	len = vsnprintf(data->outbuf + data->outlen,
+			sizeof(data->outbuf) - data->outlen,
 			fmt, ap);
 	va_end(ap);
 
-	gdb_outlen += len;
+	data->outlen += len;
 }
 
-static int gdb_flush(void)
+static int gdb_flush(struct gdb_data *data)
 {
-	if (send(gdb_socket, gdb_outbuf, gdb_outlen, 0) < 0) {
-		gdb_errno = errno;
+	if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
+		data->error = errno;
 		perror("gdb: send");
 		return -1;
 	}
 
-	gdb_outlen = 0;
+	data->outlen = 0;
 	return 0;
 }
 
-static int gdb_read(int blocking)
+static int gdb_read(struct gdb_data *data, int blocking)
 {
 	fd_set r;
 	int len;
@@ -81,21 +85,21 @@ static int gdb_read(int blocking)
 	};
 
 	FD_ZERO(&r);
-	FD_SET(gdb_socket, &r);
+	FD_SET(data->sock, &r);
 
-	if (select(gdb_socket + 1, &r, NULL, NULL,
+	if (select(data->sock + 1, &r, NULL, NULL,
 		   blocking ? NULL : &to) < 0) {
 		perror("gdb: select");
 		return -1;
 	}
 
-	if (!FD_ISSET(gdb_socket, &r))
+	if (!FD_ISSET(data->sock, &r))
 		return 0;
 
-	len = recv(gdb_socket, gdb_xbuf, sizeof(gdb_xbuf), 0);
+	len = recv(data->sock, data->xbuf, sizeof(data->xbuf), 0);
 
 	if (len < 0) {
-		gdb_errno = errno;
+		data->error = errno;
 		perror("gdb: recv");
 		return -1;
 	}
@@ -105,46 +109,46 @@ static int gdb_read(int blocking)
 		return -1;
 	}
 
-	gdb_head = 0;
-	gdb_tail = len;
+	data->head = 0;
+	data->tail = len;
 	return len;
 }
 
-static int gdb_peek(void)
+static int gdb_peek(struct gdb_data *data)
 {
-	if (gdb_head == gdb_tail && gdb_read(0) < 0)
+	if (data->head == data->tail && gdb_read(data, 0) < 0)
 		return -1;
 
-	return gdb_head != gdb_tail;
+	return data->head != data->tail;
 }
 
-static int gdb_getc(void)
+static int gdb_getc(struct gdb_data *data)
 {
 	int c;
 
 	/* If the buffer is empty, receive some more data */
-	if (gdb_head == gdb_tail && gdb_read(1) < 0)
+	if (data->head == data->tail && gdb_read(data, 1) < 0)
 		return -1;
 
-	c = gdb_xbuf[gdb_head];
-	gdb_head++;
+	c = data->xbuf[data->head];
+	data->head++;
 
 	return c;
 }
 
-static int gdb_flush_ack(void)
+static int gdb_flush_ack(struct gdb_data *data)
 {
 	int c;
 
 	do {
-		gdb_outbuf[gdb_outlen] = 0;
+		data->outbuf[data->outlen] = 0;
 #ifdef DEBUG_GDB
-		printf("-> %s\n", gdb_outbuf);
+		printf("-> %s\n", data->outbuf);
 #endif
-		if (gdb_flush() < 0)
+		if (gdb_flush(data) < 0)
 			return -1;
 
-		c = gdb_getc();
+		c = gdb_getc(data);
 		if (c < 0)
 			return -1;
 	} while (c != '+');
@@ -152,29 +156,29 @@ static int gdb_flush_ack(void)
 	return 0;
 }
 
-static void gdb_packet_start(void)
+static void gdb_packet_start(struct gdb_data *data)
 {
-	gdb_printf("$");
+	gdb_printf(data, "$");
 }
 
-static void gdb_packet_end(void)
+static void gdb_packet_end(struct gdb_data *data)
 {
 	int i;
 	int c = 0;
 
-	for (i = 1; i < gdb_outlen; i++)
-		c = (c + gdb_outbuf[i]) & 0xff;
-	gdb_printf("#%02x", c);
+	for (i = 1; i < data->outlen; i++)
+		c = (c + data->outbuf[i]) & 0xff;
+	gdb_printf(data, "#%02x", c);
 }
 
-static int gdb_send_hex(const char *text)
+static int gdb_send_hex(struct gdb_data *data, const char *text)
 {
-	gdb_packet_start();
+	gdb_packet_start(data);
 	while (*text)
-		gdb_printf("%02x", *(text++));
-	gdb_packet_end();
+		gdb_printf(data, "%02x", *(text++));
+	gdb_packet_end(data);
 
-	return gdb_flush_ack();
+	return gdb_flush_ack(data);
 }
 
 static int hexval(int c)
@@ -189,35 +193,35 @@ static int hexval(int c)
 	return 0;
 }
 
-static int gdb_send(const char *msg)
+static int gdb_send(struct gdb_data *data, const char *msg)
 {
-	gdb_packet_start();
-	gdb_printf("%s", msg);
-	gdb_packet_end();
-	return gdb_flush_ack();
+	gdb_packet_start(data);
+	gdb_printf(data, "%s", msg);
+	gdb_packet_end(data);
+	return gdb_flush_ack(data);
 }
 
 /************************************************************************
  * GDB server
  */
 
-static int read_registers(void)
+static int read_registers(struct gdb_data *data)
 {
 	u_int16_t regs[DEVICE_NUM_REGS];
 	int i;
 
 	printf("Reading registers\n");
-	if (device_get()->getregs(regs) < 0)
-		return gdb_send("E00");
+	if (data->device->getregs(data->device, regs) < 0)
+		return gdb_send(data, "E00");
 
-	gdb_packet_start();
+	gdb_packet_start(data);
 	for (i = 0; i < DEVICE_NUM_REGS; i++)
-		gdb_printf("%02x%02x", regs[i] & 0xff, regs[i] >> 8);
-	gdb_packet_end();
-	return gdb_flush_ack();
+		gdb_printf(data, "%02x%02x", regs[i] & 0xff, regs[i] >> 8);
+	gdb_packet_end(data);
+	return gdb_flush_ack(data);
 }
 
-static int monitor_command(char *buf)
+static int monitor_command(struct gdb_data *data, char *buf)
 {
 	char cmd[128];
 	int len = 0;
@@ -229,24 +233,24 @@ static int monitor_command(char *buf)
 
 	if (!strcasecmp(cmd, "reset")) {
 		printf("Resetting device\n");
-		if (device_get()->control(DEVICE_CTL_RESET) < 0)
-			return gdb_send_hex("Reset failed\n");
+		if (data->device->ctl(data->device, DEVICE_CTL_RESET) < 0)
+			return gdb_send_hex(data, "Reset failed\n");
 	} else if (!strcasecmp(cmd, "erase")) {
 		printf("Erasing device\n");
-		if (device_get()->control(DEVICE_CTL_ERASE) < 0)
-			return gdb_send_hex("Erase failed\n");
+		if (data->device->ctl(data->device, DEVICE_CTL_ERASE) < 0)
+			return gdb_send_hex(data, "Erase failed\n");
 	}
 
-	return gdb_send("OK");
+	return gdb_send(data, "OK");
 }
 
-static int write_registers(char *buf)
+static int write_registers(struct gdb_data *data, char *buf)
 {
 	u_int16_t regs[DEVICE_NUM_REGS];
 	int i;
 
 	if (strlen(buf) < DEVICE_NUM_REGS * 4)
-		return gdb_send("E00");
+		return gdb_send(data, "E00");
 
 	printf("Writing registers\n");
 	for (i = 0; i < DEVICE_NUM_REGS; i++) {
@@ -257,13 +261,13 @@ static int write_registers(char *buf)
 		buf += 4;
 	}
 
-	if (device_get()->setregs(regs) < 0)
-		return gdb_send("E00");
+	if (data->device->setregs(data->device, regs) < 0)
+		return gdb_send(data, "E00");
 
-	return gdb_send("OK");
+	return gdb_send(data, "OK");
 }
 
-static int read_memory(char *text)
+static int read_memory(struct gdb_data *data, char *text)
 {
 	char *length_text = strchr(text, ',');
 	int length, addr;
@@ -272,7 +276,7 @@ static int read_memory(char *text)
 
 	if (!length_text) {
 		fprintf(stderr, "gdb: malformed memory read request\n");
-		return gdb_send("E00");
+		return gdb_send(data, "E00");
 	}
 
 	*(length_text++) = 0;
@@ -285,18 +289,18 @@ static int read_memory(char *text)
 
 	printf("Reading %d bytes from 0x%04x\n", length, addr);
 
-	if (device_get()->readmem(addr, buf, length) < 0)
-		return gdb_send("E00");
+	if (data->device->readmem(data->device, addr, buf, length) < 0)
+		return gdb_send(data, "E00");
 
-	gdb_packet_start();
+	gdb_packet_start(data);
 	for (i = 0; i < length; i++)
-		gdb_printf("%02x", buf[i]);
-	gdb_packet_end();
+		gdb_printf(data, "%02x", buf[i]);
+	gdb_packet_end(data);
 
-	return gdb_flush_ack();
+	return gdb_flush_ack(data);
 }
 
-static int write_memory(char *text)
+static int write_memory(struct gdb_data *data, char *text)
 {
 	char *data_text = strchr(text, ':');
 	char *length_text = strchr(text, ',');
@@ -306,7 +310,7 @@ static int write_memory(char *text)
 
 	if (!(data_text && length_text)) {
 		fprintf(stderr, "gdb: malformed memory write request\n");
-		return gdb_send("E00");
+		return gdb_send(data, "E00");
 	}
 
 	*(data_text++) = 0;
@@ -323,75 +327,76 @@ static int write_memory(char *text)
 
 	if (buflen != length) {
 		fprintf(stderr, "gdb: length mismatch\n");
-		return gdb_send("E00");
+		return gdb_send(data, "E00");
 	}
 
 	printf("Writing %d bytes to 0x%04x\n", buflen, addr);
 
-	if (device_get()->writemem(addr, buf, buflen) < 0)
-		return gdb_send("E00");
+	if (data->device->writemem(data->device, addr, buf, buflen) < 0)
+		return gdb_send(data, "E00");
 
-	return gdb_send("OK");
+	return gdb_send(data, "OK");
 }
 
-static int run_set_pc(char *buf)
+static int run_set_pc(struct gdb_data *data, char *buf)
 {
 	u_int16_t regs[DEVICE_NUM_REGS];
 
 	if (!*buf)
 		return 0;
 
-	if (device_get()->getregs(regs) < 0)
+	if (data->device->getregs(data->device, regs) < 0)
 		return -1;
 
 	regs[0] = strtoul(buf, NULL, 16);
-	return device_get()->setregs(regs);
+	return data->device->setregs(data->device, regs);
 }
 
-static int run_final_status(void)
+static int run_final_status(struct gdb_data *data)
 {
 	u_int16_t regs[DEVICE_NUM_REGS];
 	int i;
 
-	if (device_get()->getregs(regs) < 0)
-		return gdb_send("E00");
+	if (data->device->getregs(data->device, regs) < 0)
+		return gdb_send(data, "E00");
 
-	gdb_packet_start();
-	gdb_printf("T00");
+	gdb_packet_start(data);
+	gdb_printf(data, "T00");
 	for (i = 0; i < 16; i++)
-		gdb_printf("%02x:%02x%02x;", i, regs[i] & 0xff, regs[i] >> 8);
-	gdb_packet_end();
+		gdb_printf(data, "%02x:%02x%02x;", i,
+			   regs[i] & 0xff, regs[i] >> 8);
+	gdb_packet_end(data);
 
-	return gdb_flush_ack();
+	return gdb_flush_ack(data);
 }
 
-static int single_step(char *buf)
+static int single_step(struct gdb_data *data, char *buf)
 {
 	printf("Single stepping\n");
 
-	if (run_set_pc(buf) < 0 ||
-	    device_get()->control(DEVICE_CTL_STEP) < 0)
-		gdb_send("E00");
+	if (run_set_pc(data, buf) < 0 ||
+	    data->device->ctl(data->device, DEVICE_CTL_STEP) < 0)
+		gdb_send(data, "E00");
 
-	return run_final_status();
+	return run_final_status(data);
 }
 
-static int run(char *buf)
+static int run(struct gdb_data *data, char *buf)
 {
 	printf("Running\n");
 
-	if (run_set_pc(buf) < 0 ||
-	    device_get()->control(DEVICE_CTL_RUN) < 0) {
-		gdb_send("E00");
-		return run_final_status();
+	if (run_set_pc(data, buf) < 0 ||
+	    data->device->ctl(data->device, DEVICE_CTL_RUN) < 0) {
+		gdb_send(data, "E00");
+		return run_final_status(data);
 	}
 
 	for (;;) {
-		device_status_t status = device_get()->wait(0);
+		device_status_t status = data->device->poll(data->device);
 
 		if (status == DEVICE_STATUS_ERROR) {
-			gdb_send("E00");
-			return run_final_status();
+			gdb_send(data, "E00");
+			return run_final_status(data);
 		}
 
 		if (status == DEVICE_STATUS_HALTED) {
@@ -402,8 +407,8 @@ static int run(char *buf)
 		if (status == DEVICE_STATUS_INTR)
 			goto out;
 
-		while (gdb_peek()) {
-			int c = gdb_getc();
+		while (gdb_peek(data)) {
+			int c = gdb_getc(data);
 
 			if (c < 0)
 				return -1;
@@ -416,47 +421,47 @@ static int run(char *buf)
 	}
 
  out:
-	if (device_get()->control(DEVICE_CTL_HALT) < 0)
-		gdb_send("E00");
+	if (data->device->ctl(data->device, DEVICE_CTL_HALT) < 0)
+		gdb_send(data, "E00");
 
-	return run_final_status();
+	return run_final_status(data);
 }
 
-static int process_gdb_command(char *buf, int len)
+static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 {
 	switch (buf[0]) {
 	case '?': /* Return target halt reason */
-		return gdb_send("T00");
+		return gdb_send(data, "T00");
 
 	case 'g': /* Read registers */
-		return read_registers();
+		return read_registers(data);
 
 	case 'G': /* Write registers */
-		return write_registers(buf + 1);
+		return write_registers(data, buf + 1);
 
 	case 'q': /* Query */
 		if (!strncmp(buf, "qRcmd,", 6))
-			return monitor_command(buf + 6);
+			return monitor_command(data, buf + 6);
 		break;
 
 	case 'm': /* Read memory */
-		return read_memory(buf + 1);
+		return read_memory(data, buf + 1);
 
 	case 'M': /* Write memory */
-		return write_memory(buf + 1);
+		return write_memory(data, buf + 1);
 
 	case 'c': /* Continue */
-		return run(buf + 1);
+		return run(data, buf + 1);
 
 	case 's': /* Single step */
-		return single_step(buf + 1);
+		return single_step(data, buf + 1);
 	}
 
 	/* For unknown/unsupported packets, return an empty reply */
-	return gdb_send("");
+	return gdb_send(data, "");
 }
 
-static void gdb_reader_loop(void)
+static void gdb_reader_loop(struct gdb_data *data)
 {
 	for (;;) {
 		char buf[1024];
@@ -467,14 +472,14 @@ static void gdb_reader_loop(void)
 
 		/* Wait for packet start */
 		do {
-			c = gdb_getc();
+			c = gdb_getc(data);
 			if (c < 0)
 				return;
 		} while (c != '$');
 
 		/* Read packet payload */
 		while (len + 1 < sizeof(buf)) {
-			c = gdb_getc();
+			c = gdb_getc(data);
 			if (c < 0)
 				return;
 			if (c == '#')
@@ -486,11 +491,11 @@ static void gdb_reader_loop(void)
 		buf[len] = 0;
 
 		/* Read packet checksum */
-		c = gdb_getc();
+		c = gdb_getc(data);
 		if (c < 0)
 			return;
 		cksum_recv = hexval(c);
-		c = gdb_getc();
+		c = gdb_getc(data);
 		if (c < 0)
 			return;
 		cksum_recv = (cksum_recv << 4) | hexval(c);
@@ -503,29 +508,30 @@ static void gdb_reader_loop(void)
 			fprintf(stderr, "gdb: bad checksum (calc = 0x%02x, "
 				"recv = 0x%02x)\n", cksum_calc, cksum_recv);
 			fprintf(stderr, "gdb: packet data was: %s\n", buf);
-			gdb_printf("-");
-			if (gdb_flush() < 0)
+			gdb_printf(data, "-");
+			if (gdb_flush(data) < 0)
 				return;
 			continue;
 		}
 
 		/* Send acknowledgement */
-		gdb_printf("+");
-		if (gdb_flush() < 0)
+		gdb_printf(data, "+");
+		if (gdb_flush(data) < 0)
 			return;
 
-		if (len && process_gdb_command(buf, len) < 0)
+		if (len && process_gdb_command(data, buf, len) < 0)
 			return;
 	}
 }
 
-static int gdb_server(int port)
+static int gdb_server(device_t device, int port)
 {
 	int sock;
 	int client;
 	struct sockaddr_in addr;
 	socklen_t len;
 	int arg;
+	struct gdb_data data;
 
 	sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {
@@ -567,15 +573,16 @@ static int gdb_server(int port)
 	printf("Client connected from %s:%d\n",
 	       inet_ntoa(addr.sin_addr), htons(addr.sin_port));
 
-	gdb_socket = client;
-	gdb_errno = 0;
-	gdb_head = 0;
-	gdb_tail = 0;
-	gdb_outlen = 0;
+	data.sock = client;
+	data.error = 0;
+	data.head = 0;
+	data.tail = 0;
+	data.outlen = 0;
+	data.device = device;
 
-	gdb_reader_loop();
+	gdb_reader_loop(&data);
 
-	return gdb_errno ? -1 : 0;
+	return data.error ? -1 : 0;
 }
 
 static int cmd_gdb(cproc_t cp, char **arg)
@@ -591,7 +598,7 @@ static int cmd_gdb(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	return gdb_server(port);
+	return gdb_server(cproc_device(cp), port);
 }
 
 static const struct cproc_command command_gdb = {

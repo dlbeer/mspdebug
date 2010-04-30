@@ -40,6 +40,8 @@ struct cproc {
 
 	int                     modify_flags;
 	int                     in_reader_loop;
+
+	device_t                device;
 };
 
 static struct cproc_option *find_option(cproc_t cp, const char *name)
@@ -319,7 +321,7 @@ static const struct cproc_option built_in_options[] = {
 	}
 };
 
-cproc_t cproc_new(void)
+cproc_t cproc_new(device_t dev)
 {
 	cproc_t cp = malloc(sizeof(*cp));
 
@@ -327,6 +329,8 @@ cproc_t cproc_new(void)
 		return NULL;
 
 	memset(cp, 0, sizeof(*cp));
+
+	cp->device = dev;
 
 	vector_init(&cp->command_list, sizeof(struct cproc_command));
 	vector_init(&cp->option_list, sizeof(struct cproc_option));
@@ -346,9 +350,15 @@ cproc_t cproc_new(void)
 
 void cproc_destroy(cproc_t cp)
 {
+	cp->device->destroy(cp->device);
 	vector_destroy(&cp->command_list);
 	vector_destroy(&cp->option_list);
 	free(cp);
+}
+
+device_t cproc_device(cproc_t cp)
+{
+	return cp->device;
 }
 
 int cproc_register_commands(cproc_t cp, const struct cproc_command *cmd,

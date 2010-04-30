@@ -27,7 +27,8 @@ int ihex_check(FILE *in)
 	return fgetc(in) == ':';
 }
 
-static int feed_line(FILE *in, u_int8_t *data, int nbytes, imgfunc_t cb)
+static int feed_line(FILE *in, u_int8_t *data, int nbytes, imgfunc_t cb,
+		     void *user_data)
 {
 	u_int8_t cksum = 0;
 	int i;
@@ -46,11 +47,12 @@ static int feed_line(FILE *in, u_int8_t *data, int nbytes, imgfunc_t cb)
 		return -1;
 	}
 
-	return cb(((u_int16_t)data[1]) << 8 | ((u_int16_t)data[2]),
+	return cb(user_data,
+		  ((u_int16_t)data[1]) << 8 | ((u_int16_t)data[2]),
 		  data + 4, nbytes - 5);
 }
 
-int ihex_extract(FILE *in, imgfunc_t cb)
+int ihex_extract(FILE *in, imgfunc_t cb, void *user_data)
 {
 	char buf[128];
 	int lno = 0;
@@ -83,7 +85,7 @@ int ihex_extract(FILE *in, imgfunc_t cb)
 		}
 
 		/* Handle the line */
-		if (feed_line(in, data, nbytes, cb) < 0) {
+		if (feed_line(in, data, nbytes, cb, user_data) < 0) {
 			fprintf(stderr, "ihex: error on line %d\n", lno);
 			return -1;
 		}

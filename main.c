@@ -33,6 +33,78 @@
 #include "sym.h"
 #include "devcmd.h"
 
+#include "sim.h"
+#include "bsl.h"
+#include "fet.h"
+
+static void io_prefix(const char *prefix, u_int16_t pc,
+		      u_int16_t addr, int is_byte)
+{
+	char name[64];
+
+	if (!stab_nearest(pc, name, sizeof(name), &pc)) {
+		printf("%s", name);
+		if (pc)
+			printf("+0x%x", pc);
+	} else {
+		printf("0x%04x", pc);
+	}
+
+	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
+	if (!stab_nearest(addr, name, sizeof(name), &addr)) {
+		printf(" (%s", name);
+		if (addr)
+			printf("+0x%x", addr);
+		printf(")");
+	}
+}
+
+static int fetch_io(void *user_data, u_int16_t pc,
+		    u_int16_t addr, int is_byte, u_int16_t *data_ret)
+{
+	io_prefix("READ", pc, addr, is_byte);
+
+	for (;;) {
+		char text[128];
+		int len;
+		int data;
+
+		printf("? ");
+		fflush(stdout);
+		if (!fgets(text, sizeof(text), stdin)) {
+			printf("\nAborted IO request\n");
+			return -1;
+		}
+
+		len = strlen(text);
+		while (len && isspace(text[len - 1]))
+			len--;
+		text[len] = 0;
+
+		if (!len)
+			return 0;
+
+		if (!stab_exp(text, &data)) {
+			if (data_ret)
+				*data_ret = data;
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+static void store_io(void *user_data, u_int16_t pc,
+		     u_int16_t addr, int is_byte, u_int16_t data)
+{
+	io_prefix("WRITE", pc, addr, is_byte);
+
+	if (is_byte)
+		printf(" => 0x%02x\n", data & 0xff);
+	else
+		printf(" => 0x%04x\n", data);
+}
+
 static void usage(const char *progname)
 {
 	fprintf(stderr,
@@ -155,14 +227,14 @@ static int parse_cmdline_args(int argc, char **argv,
 	return 0;
 }
 
-const struct device *setup_device(const struct cmdline_args *args)
+device_t setup_device(const struct cmdline_args *args)
 {
-	const struct device *msp430_dev = NULL;
+	device_t msp430_dev = NULL;
 	const struct fet_transport *trans = NULL;
 
 	/* Open a device */
 	if (args->mode == MODE_SIM) {
-		msp430_dev = sim_open();
+		msp430_dev = sim_open(fetch_io, store_io, NULL);
 	} else if (args->mode == MODE_UIF_BSL) {
 		msp430_dev = bsl_open(args->bsl_device);
 	} else if (args->mode == MODE_RF2500 || args->mode == MODE_UIF) {
@@ -192,13 +264,36 @@ const struct device *setup_device(const struct cmdline_args *args)
 		return NULL;
 	}
 
-	device_set(msp430_dev);
 	return msp430_dev;
+}
+
+cproc_t setup_cproc(const struct cmdline_args *args)
+{
+	device_t msp430_dev = setup_device(args);
+	cproc_t cp;
+
+	if (!msp430_dev)
+		return NULL;
+
+	cp = cproc_new(msp430_dev);
+	if (!cp) {
+		msp430_dev->destroy(msp430_dev);
+		return NULL;
+	}
+
+	if (sym_register(cp) < 0 ||
+	    devcmd_register(cp) < 0 ||
+	    gdb_register(cp) < 0 ||
+	    rtools_register(cp) < 0) {
+		cproc_destroy(cp);
+		return NULL;
+	}
+
+	return cp;
 }
 
 int main(int argc, char **argv)
 {
-	const struct device *msp430_dev;
 	struct cmdline_args args = {0};
 	cproc_t cp;
 	int ret = 0;
@@ -218,22 +313,9 @@ int main(int argc, char **argv)
 	if (stab_init() < 0)
 		return -1;
 
-	msp430_dev = setup_device(&args);
-	if (!msp430_dev) {
-		stab_exit();
-		return -1;
-	}
-
-	cp = cproc_new();
-	if (!cp ||
-	    sym_register(cp) < 0 ||
-	    devcmd_register(cp) < 0 ||
-	    gdb_register(cp) < 0 ||
-	    rtools_register(cp) < 0) {
+	cp = setup_cproc(&args);
+	if (!cp) {
 		perror("couldn't set up command parser");
-		if (cp)
-			cproc_destroy(cp);
-		msp430_dev->close();
 		stab_exit();
 		return -1;
 	}
@@ -254,7 +336,6 @@ int main(int argc, char **argv)
 	}
 
 	cproc_destroy(cp);
-	msp430_dev->close();
 	stab_exit();
 
 	return ret;

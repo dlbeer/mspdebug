@@ -17,25 +17,9 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <errno.h>
-#include <unistd.h>
 #include "device.h"
 #include "util.h"
-
-static const struct device *msp430_dev;
-
-void device_set(const struct device *dev)
-{
-	msp430_dev = dev;
-}
-
-const struct device *device_get(void)
-{
-	return msp430_dev;
-}
 
 /* This table of device IDs is sourced mainly from the MSP430 Memory
  * Programming User's Guide (SLAU265).
@@ -80,7 +64,7 @@ static struct {
 	{0xF46F, "F471xx"}
 };
 
-int find_device_id(u_int16_t id, char *out, int max_len)
+int device_id_text(u_int16_t id, char *out, int max_len)
 {
 	int i = 0;
 	int len;

@@ -1,4 +1,4 @@
-/* MSPDebug - debugging tool for the eZ430
+/* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009, 2010 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,30 +16,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef BINFILE_H_
-#define BINFILE_H_
+#ifndef BSL_H_
+#define BSL_H_
 
-#include <stdio.h>
-#include <sys/types.h>
+#include "device.h"
 
-/* Callback for binary image data */
-typedef int (*imgfunc_t)(void *user_data,
-			 u_int16_t addr, const u_int8_t *data, int len);
-
-/* Callback for symbol data */
-typedef int (*symfunc_t)(const char *name, int value);
-
-/* Intel HEX file support */
-int ihex_check(FILE *in);
-int ihex_extract(FILE *in, imgfunc_t cb, void *user_data);
-
-/* ELF32 file support */
-int elf32_check(FILE *in);
-int elf32_extract(FILE *in, imgfunc_t cb, void *user_data);
-int elf32_syms(FILE *in, symfunc_t cb);
-
-/* *.map file support */
-int symmap_check(FILE *in);
-int symmap_syms(FILE *in, symfunc_t cb);
+/* MSP430 FET Bootloader implementation. */
+device_t bsl_open(const char *devpath);
 
 #endif

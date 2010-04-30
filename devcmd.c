@@ -32,15 +32,16 @@
 
 static int cmd_regs(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	u_int16_t regs[DEVICE_NUM_REGS];
 	u_int8_t code[16];
 
-	if (device_get()->getregs(regs) < 0)
+	if (dev->getregs(dev, regs) < 0)
 		return -1;
 	cproc_regs(cp, regs);
 
 	/* Try to disassemble the instruction at PC */
-	if (device_get()->readmem(regs[0], code, sizeof(code)) < 0)
+	if (dev->readmem(dev, regs[0], code, sizeof(code)) < 0)
 		return 0;
 
 	cproc_disassemble(cp, regs[0], (u_int8_t *)code, sizeof(code));
@@ -49,6 +50,7 @@ static int cmd_regs(cproc_t cp, char **arg)
 
 static int cmd_md(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
 	int offset = 0;
@@ -83,7 +85,7 @@ static int cmd_md(cproc_t cp, char **arg)
 		u_int8_t buf[128];
 		int blen = length > sizeof(buf) ? sizeof(buf) : length;
 
-		if (device_get()->readmem(offset, buf, blen) < 0)
+		if (dev->readmem(dev, offset, buf, blen) < 0)
 			return -1;
 		cproc_hexdump(cp, offset, buf, blen);
 
@@ -96,6 +98,7 @@ static int cmd_md(cproc_t cp, char **arg)
 
 static int cmd_mw(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	char *off_text = get_arg(arg);
 	char *byte_text;
 	int offset = 0;
@@ -129,7 +132,7 @@ static int cmd_mw(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (device_get()->writemem(offset, buf, length) < 0)
+	if (dev->writemem(dev, offset, buf, length) < 0)
 		return -1;
 
 	return 0;
@@ -137,20 +140,25 @@ static int cmd_mw(cproc_t cp, char **arg)
 
 static int cmd_reset(cproc_t cp, char **arg)
 {
-	return device_get()->control(DEVICE_CTL_RESET);
+	device_t dev = cproc_device(cp);
+
+	return dev->ctl(dev, DEVICE_CTL_RESET);
 }
 
 static int cmd_erase(cproc_t cp, char **arg)
 {
-	if (device_get()->control(DEVICE_CTL_HALT) < 0)
+	device_t dev = cproc_device(cp);
+
+	if (dev->ctl(dev, DEVICE_CTL_HALT) < 0)
 		return -1;
 
 	printf("Erasing...\n");
-	return device_get()->control(DEVICE_CTL_ERASE);
+	return dev->ctl(dev, DEVICE_CTL_ERASE);
 }
 
 static int cmd_step(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	char *count_text = get_arg(arg);
 	int count = 1;
 
@@ -158,7 +166,7 @@ static int cmd_step(cproc_t cp, char **arg)
 		count = atoi(count_text);
 
 	while (count > 0) {
-		if (device_get()->control(DEVICE_CTL_STEP) < 0)
+		if (dev->ctl(dev, DEVICE_CTL_STEP) < 0)
 			return -1;
 		count--;
 	}
@@ -168,6 +176,7 @@ static int cmd_step(cproc_t cp, char **arg)
 
 static int cmd_run(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	char *bp_text = get_arg(arg);
 	int bp_addr;
 	device_status_t status;
@@ -179,11 +188,12 @@ static int cmd_run(cproc_t cp, char **arg)
 			return -1;
 		}
 
-		device_get()->breakpoint(bp_addr);
+		dev->breakpoint(dev, 1, bp_addr);
+	} else {
+		dev->breakpoint(dev, 0, 0);
 	}
 
-	if (device_get()->control(bp_text ?
-		DEVICE_CTL_RUN_BP : DEVICE_CTL_RUN) < 0)
+	if (dev->ctl(dev, DEVICE_CTL_RUN) < 0)
 		return -1;
 
 	if (bp_text)
@@ -192,11 +202,17 @@ static int cmd_run(cproc_t cp, char **arg)
 		printf("Running.");
 	printf(" Press Ctrl+C to interrupt...\n");
 
-	status = device_get()->wait(1);
+	do {
+		status = dev->poll(dev);
+	} while (status == DEVICE_STATUS_RUNNING);
+
 	if (status == DEVICE_STATUS_INTR)
 		printf("\n");
 
-	if (device_get()->control(DEVICE_CTL_HALT) < 0)
+	if (status == DEVICE_STATUS_ERROR)
+		return -1;
+
+	if (dev->ctl(dev, DEVICE_CTL_HALT) < 0)
 		return -1;
 
 	return cmd_regs(cp, NULL);
@@ -204,6 +220,7 @@ static int cmd_run(cproc_t cp, char **arg)
 
 static int cmd_set(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	char *reg_text = get_arg(arg);
 	char *val_text = get_arg(arg);
 	int reg;
@@ -229,10 +246,10 @@ static int cmd_set(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (device_get()->getregs(regs) < 0)
+	if (dev->getregs(dev, regs) < 0)
 		return -1;
 	regs[reg] = value;
-	if (device_get()->setregs(regs) < 0)
+	if (dev->setregs(dev, regs) < 0)
 		return -1;
 
 	cproc_regs(cp, regs);
@@ -241,6 +258,7 @@ static int cmd_set(cproc_t cp, char **arg)
 
 static int cmd_dis(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
 	int offset = 0;
@@ -273,7 +291,7 @@ static int cmd_dis(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (device_get()->readmem(offset, buf, length) < 0)
+	if (dev->readmem(dev, offset, buf, length) < 0)
 		return -1;
 
 	cproc_disassemble(cp, offset, (u_int8_t *)buf, length);
@@ -357,6 +375,7 @@ static int hexout_feed(u_int16_t addr, const u_int8_t *buf, int len)
 
 static int cmd_hexout(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
 	char *filename = *arg;
@@ -383,7 +402,7 @@ static int cmd_hexout(cproc_t cp, char **arg)
 			count = sizeof(buf);
 
 		printf("Reading %d bytes from 0x%04x...\n", count, off);
-		if (device_get()->readmem(off, buf, count) < 0) {
+		if (dev->readmem(dev, off, buf, count) < 0) {
 			perror("hexout: can't read memory");
 			goto fail;
 		}
@@ -410,69 +429,79 @@ fail:
 	return -1;
 }
 
-static u_int8_t prog_buf[128];
-static u_int16_t prog_addr;
-static int prog_len;
-static int prog_have_erased;
+struct prog_data {
+	device_t        dev;
 
-static void prog_init(void)
+	u_int8_t        buf[128];
+	u_int16_t       addr;
+	int             len;
+	int             have_erased;
+};
+
+static void prog_init(struct prog_data *prog, device_t dev)
 {
-	prog_len = 0;
-	prog_have_erased = 0;
+	prog->dev = dev;
+	prog->len = 0;
+	prog->have_erased = 0;
 }
 
-static int prog_flush(void)
+static int prog_flush(struct prog_data *prog)
 {
-	while (prog_len) {
-		int wlen = prog_len;
+	while (prog->len) {
+		int wlen = prog->len;
 
 		/* Writing across this address seems to cause a hang */
-		if (prog_addr < 0x999a && wlen + prog_addr > 0x999a)
-			wlen = 0x999a - prog_addr;
+		if (prog->addr < 0x999a && wlen + prog->addr > 0x999a)
+			wlen = 0x999a - prog->addr;
 
-		if (!prog_have_erased) {
+		if (!prog->have_erased) {
 			printf("Erasing...\n");
-			if (device_get()->control(DEVICE_CTL_ERASE) < 0)
+			if (prog->dev->ctl(prog->dev, DEVICE_CTL_ERASE) < 0)
 				return -1;
-			prog_have_erased = 1;
+			prog->have_erased = 1;
 		}
 
-		printf("Writing %3d bytes to %04x...\n", wlen, prog_addr);
-		if (device_get()->writemem(prog_addr, prog_buf, wlen) < 0)
+		printf("Writing %3d bytes to %04x...\n", wlen, prog->addr);
+		if (prog->dev->writemem(prog->dev, prog->addr,
+					prog->buf, wlen) < 0)
 		        return -1;
 
-		memmove(prog_buf, prog_buf + wlen, prog_len - wlen);
-		prog_len -= wlen;
-		prog_addr += wlen;
+		memmove(prog->buf, prog->buf + wlen, prog->len - wlen);
+		prog->len -= wlen;
+		prog->addr += wlen;
 	}
 
         return 0;
 }
 
-static int prog_feed(u_int16_t addr, const u_int8_t *data, int len)
+static int prog_feed(void *user_data,
+		     u_int16_t addr, const u_int8_t *data, int len)
 {
+	struct prog_data *prog = (struct prog_data *)user_data;
+
 	/* Flush if this section is discontiguous */
-	if (prog_len && prog_addr + prog_len != addr && prog_flush() < 0)
+	if (prog->len && prog->addr + prog->len != addr &&
+	    prog_flush(prog) < 0)
 		return -1;
 
-	if (!prog_len)
-		prog_addr = addr;
+	if (!prog->len)
+		prog->addr = addr;
 
 	/* Add the buffer in piece by piece, flushing when it gets
 	 * full.
 	 */
 	while (len) {
-		int count = sizeof(prog_buf) - prog_len;
+		int count = sizeof(prog->buf) - prog->len;
 
 		if (count > len)
 			count = len;
 
 		if (!count) {
-			if (prog_flush() < 0)
+			if (prog_flush(prog) < 0)
 				return -1;
 		} else {
-			memcpy(prog_buf + prog_len, data, count);
-			prog_len += count;
+			memcpy(prog->buf + prog->len, data, count);
+			prog->len += count;
 			data += count;
 			len -= count;
 		}
@@ -483,8 +512,10 @@ static int prog_feed(u_int16_t addr, const u_int8_t *data, int len)
 
 static int cmd_prog(cproc_t cp, char **arg)
 {
+	device_t dev = cproc_device(cp);
 	FILE *in;
 	int result = 0;
+	struct prog_data prog;
 
 	if (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
 		return 0;
@@ -495,29 +526,29 @@ static int cmd_prog(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (device_get()->control(DEVICE_CTL_HALT) < 0) {
+	if (dev->ctl(dev, DEVICE_CTL_HALT) < 0) {
 		fclose(in);
 		return -1;
 	}
 
-	prog_init();
+	prog_init(&prog, dev);
 
 	if (elf32_check(in)) {
-		result = elf32_extract(in, prog_feed);
+		result = elf32_extract(in, prog_feed, &prog);
 		stab_clear();
 		elf32_syms(in, stab_set);
 	} else if (ihex_check(in)) {
-		result = ihex_extract(in, prog_feed);
+		result = ihex_extract(in, prog_feed, &prog);
 	} else {
 		fprintf(stderr, "prog: %s: unknown file type\n", *arg);
 	}
 
 	fclose(in);
 
-	if (prog_flush() < 0)
+	if (prog_flush(&prog) < 0)
 		return -1;
 
-	if (device_get()->control(DEVICE_CTL_RESET) < 0) {
+	if (dev->ctl(dev, DEVICE_CTL_RESET) < 0) {
 		fprintf(stderr, "prog: failed to reset after programming\n");
 		return -1;
 	}

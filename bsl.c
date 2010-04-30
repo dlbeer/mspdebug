@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
@@ -25,20 +26,26 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "device.h"
+#include "bsl.h"
 #include "util.h"
 
-static int serial_fd;
+struct bsl_device {
+	struct device   base;
+
+	int             serial_fd;
+	u_int8_t        reply_buf[256];
+	int             reply_len;
+};
 
 #define DATA_HDR	0x80
 #define DATA_ACK	0x90
 #define DATA_NAK	0xA0
 
-static int bsl_ack(void)
+static int bsl_ack(struct bsl_device *dev)
 {
 	u_int8_t reply;
 
-	if (read_with_timeout(serial_fd, &reply, 1) < 0) {
+	if (read_with_timeout(dev->serial_fd, &reply, 1) < 0) {
 		fprintf(stderr, "bsl: failed to receive reply\n");
 		return -1;
 	}
@@ -56,25 +63,26 @@ static int bsl_ack(void)
 	return 0;
 }
 
-static int bsl_sync(void)
+static int bsl_sync(struct bsl_device *dev)
 {
 	static const u_int8_t c = DATA_HDR;
 	int tries = 2;
 
-	if (tcflush(serial_fd, TCIFLUSH) < 0) {
+	if (tcflush(dev->serial_fd, TCIFLUSH) < 0) {
 		perror("bsl: tcflush");
 		return -1;
 	}
 
 	while (tries--)
-		if (!(write_all(serial_fd, &c, 1) || bsl_ack()))
+		if (!(write_all(dev->serial_fd, &c, 1) || bsl_ack(dev)))
 			return 0;
 
 	fprintf(stderr, "bsl: sync failed\n");
 	return -1;
 }
 
-static int send_command(int code, u_int16_t addr,
+static int send_command(struct bsl_device *dev,
+			int code, u_int16_t addr,
 			const u_int8_t *data, int len)
 {
 	u_int8_t pktbuf[256];
@@ -108,23 +116,19 @@ static int send_command(int code, u_int16_t addr,
 	pktbuf[pktlen + 4] = cklow;
 	pktbuf[pktlen + 5] = ckhigh;
 
-	return write_all(serial_fd, pktbuf, pktlen + 6);
+	return write_all(dev->serial_fd, pktbuf, pktlen + 6);
 }
 
-static u_int8_t reply_buf[256];
-static int reply_len;
-
-static int verify_checksum(void)
+static int verify_checksum(struct bsl_device *dev)
 {
 	u_int8_t cklow = 0xff;
 	u_int8_t ckhigh = 0xff;
 	int i;
 
-
-	for (i = 0; i < reply_len; i += 2)
-		cklow ^= reply_buf[i];
-	for (i = 1; i < reply_len; i += 2)
-		ckhigh ^= reply_buf[i];
+	for (i = 0; i < dev->reply_len; i += 2)
+		cklow ^= dev->reply_buf[i];
+	for (i = 1; i < dev->reply_len; i += 2)
+		ckhigh ^= dev->reply_buf[i];
 
 	if (cklow || ckhigh) {
 		fprintf(stderr, "bsl: checksum invalid (%02x %02x)\n",
@@ -135,47 +139,50 @@ static int verify_checksum(void)
 	return 0;
 }
 
-static int fetch_reply(void)
+static int fetch_reply(struct bsl_device *dev)
 {
-	reply_len = 0;
+	dev->reply_len = 0;
 
 	for (;;) {
-		int r = read_with_timeout(serial_fd, reply_buf + reply_len,
-				sizeof(reply_buf) - reply_len);
+		int r = read_with_timeout(dev->serial_fd,
+					  dev->reply_buf + dev->reply_len,
+					  sizeof(dev->reply_buf) -
+					  dev->reply_len);
 
 		if (r < 0)
 			return -1;
 
-		reply_len += r;
+		dev->reply_len += r;
 
-		if (reply_buf[0] == DATA_ACK) {
+		if (dev->reply_buf[0] == DATA_ACK) {
 			return 0;
-		} else if (reply_buf[0] == DATA_HDR) {
-			if (reply_len >= 6 &&
-			    reply_len == reply_buf[2] + 6)
-				return verify_checksum();
-		} else if (reply_buf[0] == DATA_NAK) {
+		} else if (dev->reply_buf[0] == DATA_HDR) {
+			if (dev->reply_len >= 6 &&
+			    dev->reply_len == dev->reply_buf[2] + 6)
+				return verify_checksum(dev);
+		} else if (dev->reply_buf[0] == DATA_NAK) {
 			fprintf(stderr, "bsl: received NAK\n");
 			return -1;
 		} else {
 			fprintf(stderr, "bsl: unknown reply type: %02x\n",
-				reply_buf[0]);
+				dev->reply_buf[0]);
 			return -1;
 		}
 
-		if (reply_len >= sizeof(reply_buf)) {
+		if (dev->reply_len >= sizeof(dev->reply_buf)) {
 			fprintf(stderr, "bsl: reply buffer overflow\n");
 			return -1;
 		}
 	}
 }
 
-static int bsl_xfer(int command_code, u_int16_t addr, const u_int8_t *txdata,
+static int bsl_xfer(struct bsl_device *dev,
+		    int command_code, u_int16_t addr, const u_int8_t *txdata,
 		    int len)
 {
-	if (bsl_sync() < 0 ||
-	    send_command(command_code, addr, txdata, len) < 0 ||
-	    fetch_reply() < 0) {
+	if (bsl_sync(dev) < 0 ||
+	    send_command(dev, command_code, addr, txdata, len) < 0 ||
+	    fetch_reply(dev) < 0) {
 		fprintf(stderr, "bsl: failed on command 0x%02x "
 			"(addr = 0x%04x, len = 0x%04x)\n",
 			command_code, addr, len);
@@ -190,64 +197,71 @@ static int bsl_xfer(int command_code, u_int16_t addr, const u_int8_t *txdata,
 #define CMD_RX_DATA		0x3a
 #define CMD_RESET		0x3b
 
-static void bsl_close(void)
+static void bsl_destroy(device_t dev_base)
 {
-	bsl_xfer(CMD_RESET, 0, NULL, 0);
-	close(serial_fd);
+	struct bsl_device *dev = (struct bsl_device *)dev_base;
+
+	bsl_xfer(dev, CMD_RESET, 0, NULL, 0);
+	close(dev->serial_fd);
+	free(dev);
 }
 
-static int bsl_control(device_ctl_t type)
+static int bsl_ctl(device_t dev_base, device_ctl_t type)
 {
 	fprintf(stderr, "bsl: CPU control is not implemented\n");
 	return -1;
 }
 
-static device_status_t bsl_wait(int blocking)
+static device_status_t bsl_poll(device_t dev_base)
 {
 	return DEVICE_STATUS_HALTED;
 }
 
-static int bsl_breakpoint(u_int16_t addr)
+static int bsl_breakpoint(device_t dev_base, int enabled, u_int16_t addr)
 {
 	fprintf(stderr, "bsl: breakpoints are not implemented\n");
 	return -1;
 }
 
-static int bsl_getregs(u_int16_t *regs)
+static int bsl_getregs(device_t dev_base, u_int16_t *regs)
 {
 	fprintf(stderr, "bsl: register fetch is not implemented\n");
 	return -1;
 }
 
-static int bsl_setregs(const u_int16_t *regs)
+static int bsl_setregs(device_t dev_base, const u_int16_t *regs)
 {
 	fprintf(stderr, "bsl: register store is not implemented\n");
 	return -1;
 }
 
-static int bsl_writemem(u_int16_t addr, const u_int8_t *mem, int len)
+static int bsl_writemem(device_t dev_base,
+			u_int16_t addr, const u_int8_t *mem, int len)
 {
 	fprintf(stderr, "bsl: memory write is not implemented\n");
 	return -1;
 }
 
-static int bsl_readmem(u_int16_t addr, u_int8_t *mem, int len)
+static int bsl_readmem(device_t dev_base,
+		       u_int16_t addr, u_int8_t *mem, int len)
 {
+	struct bsl_device *dev = (struct bsl_device *)dev_base;
+
 	while (len) {
 		int count = len;
 
 		if (count > 128)
 			count = 128;
 
-		if (bsl_xfer(CMD_TX_DATA, addr, NULL, count) < 0) {
+		if (bsl_xfer(dev, CMD_TX_DATA, addr, NULL, count) < 0) {
 			fprintf(stderr, "bsl: failed to read memory\n");
 			return -1;
 		}
 
-		if (count > reply_buf[2])
-			count = reply_buf[2];
+		if (count > dev->reply_buf[2])
+			count = dev->reply_buf[2];
 
-		memcpy(mem, reply_buf + 4, count);
+		memcpy(mem, dev->reply_buf + 4, count);
 		mem += count;
 		len -= count;
 	}
@@ -255,27 +269,15 @@ static int bsl_readmem(u_int16_t addr, u_int8_t *mem, int len)
 	return 0;
 }
 
-const static struct device bsl_device = {
-	.close		= bsl_close,
-	.control	= bsl_control,
-	.wait		= bsl_wait,
-	.breakpoint	= bsl_breakpoint,
-	.getregs	= bsl_getregs,
-	.setregs	= bsl_setregs,
-	.writemem	= bsl_writemem,
-	.readmem	= bsl_readmem
-};
-
-#include <sys/ioctl.h>
-
-static int enter_via_fet(void)
+static int enter_via_fet(struct bsl_device *dev)
 {
 	u_int8_t buf[16];
 	u_int8_t *data = buf;
 	int len = 8;
 
 	/* Enter bootloader command */
-	if (write_all(serial_fd, (u_int8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6)) {
+	if (write_all(dev->serial_fd,
+		      (u_int8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6)) {
 		fprintf(stderr, "bsl: couldn't write bootloader transition "
 			"command\n");
 		return -1;
@@ -283,7 +285,7 @@ static int enter_via_fet(void)
 
 	/* Wait for reply */
 	while (len) {
-		int r = read_with_timeout(serial_fd, data, len);
+		int r = read_with_timeout(dev->serial_fd, data, len);
 
 		if (r < 0) {
 			fprintf(stderr, "bsl: couldn't read bootloader "
@@ -305,40 +307,62 @@ static int enter_via_fet(void)
 	return 0;
 }
 
-const struct device *bsl_open(const char *device)
+device_t bsl_open(const char *device)
 {
+	struct bsl_device *dev = malloc(sizeof(*dev));
 	char idtext[64];
 	u_int16_t id;
 
-	serial_fd = open_serial(device, B460800);
-	if (serial_fd < 0) {
-		fprintf(stderr, "bsl: can't open %s: %s\n",
-			device, strerror(errno));
+	if (!dev) {
+		perror("bsl: can't allocate memory");
 		return NULL;
 	}
 
-	if (enter_via_fet() < 0)
+	dev->base.destroy = bsl_destroy;
+	dev->base.readmem = bsl_readmem;
+	dev->base.writemem = bsl_writemem;
+	dev->base.getregs = bsl_getregs;
+	dev->base.setregs = bsl_setregs;
+	dev->base.breakpoint = bsl_breakpoint;
+	dev->base.ctl = bsl_ctl;
+	dev->base.poll = bsl_poll;
+
+	dev->serial_fd = open_serial(device, B460800);
+	if (dev->serial_fd < 0) {
+		fprintf(stderr, "bsl: can't open %s: %s\n",
+			device, strerror(errno));
+		free(dev);
+		return NULL;
+	}
+
+	if (enter_via_fet(dev) < 0)
 		return NULL;
 
 	usleep(500000);
 
 	/* Show chip info */
-	if (bsl_xfer(CMD_TX_DATA, 0xff0, NULL, 0x10) < 0) {
+	if (bsl_xfer(dev, CMD_TX_DATA, 0xff0, NULL, 0x10) < 0) {
 		fprintf(stderr, "bsl: failed to read chip info\n");
-		return NULL;
+		goto fail;
 	}
 
-	if (reply_len < 0x16) {
+	if (dev->reply_len < 0x16) {
 		fprintf(stderr, "bsl: missing chip info\n");
-		return NULL;
+		goto fail;
 	}
 
-	id = (reply_buf[4] << 8) | reply_buf[5];
-	if (find_device_id(id, idtext, sizeof(idtext)) < 0)
+	id = (dev->reply_buf[4] << 8) | dev->reply_buf[5];
+	if (device_id_text(id, idtext, sizeof(idtext)) < 0)
 		printf("Unknown device ID: 0x%04x\n", id);
 	else
 		printf("Device: %s\n", idtext);
 
-	printf("BSL version is %x.%02x\n", reply_buf[14], reply_buf[15]);
-	return &bsl_device;
+	printf("BSL version is %x.%02x\n", dev->reply_buf[14],
+	       dev->reply_buf[15]);
+	return (device_t)dev;
+
+ fail:
+	close(dev->serial_fd);
+	free(dev);
+	return NULL;
 }

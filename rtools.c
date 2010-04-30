@@ -320,7 +320,7 @@ static int do_isearch(cproc_t cp,
 		      int addr, int len, const struct isearch_query *q)
 {
 	u_int8_t *mbuf;
-	const struct device *dev = device_get();
+	device_t dev = cproc_device(cp);
 	int i;
 
 	if (len <= 0 || len > 0x10000 ||
@@ -337,7 +337,7 @@ static int do_isearch(cproc_t cp,
 		return -1;
 	}
 
-	if (dev->readmem(addr, mbuf, len) < 0) {
+	if (dev->readmem(dev, addr, mbuf, len) < 0) {
 		fprintf(stderr, "isearch: couldn't read device memory\n");
 		free(mbuf);
 		return -1;
