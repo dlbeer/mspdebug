@@ -16,23 +16,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef TRANSPORT_H_
-#define TRANSPORT_H_
+#ifndef RF2500_H_
+#define RF2500_H_
 
-#include <sys/types.h>
+#include "transport.h"
 
-/* This structure is used to provide an interface to a lower-level
- * transport. The transport mechanism is viewed as a stream by the FET
- * controller, which handles packet encapsulation, checksums and other
- * high-level functions.
+/* Search the USB bus for the first eZ430-RF2500, and initialize it. If
+ * successful, 0 is returned and the fet_* functions are ready for use.
+ * If an error occurs, -1 is returned.
  */
-struct transport;
-typedef struct transport *transport_t;
-
-struct transport {
-	void (*destroy)(transport_t tr);
-	int (*send)(transport_t tr, const u_int8_t *data, int len);
-	int (*recv)(transport_t tr, u_int8_t *data, int max_len);
-};
+transport_t rf2500_open(void);
 
 #endif

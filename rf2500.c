@@ -20,8 +20,19 @@
 #include <string.h>
 #include <usb.h>
 
-#include "transport.h"
+#include "rf2500.h"
 #include "util.h"
+
+struct rf2500_transport {
+	struct transport        base;
+
+	int                     int_number;
+	struct usb_dev_handle   *handle;
+
+	u_int8_t                buf[64];
+	int                     len;
+	int                     offset;
+};
 
 /*********************************************************************
  * USB transport
@@ -41,35 +52,34 @@
 #define USB_FET_IN_EP			0x81
 #define USB_FET_OUT_EP			0x01
 
-static int usbtr_int_number;
-static struct usb_dev_handle *usbtr_handle;
-
-static int usbtr_open_interface(struct usb_device *dev, int ino)
+static int open_interface(struct rf2500_transport *tr,
+			  struct usb_device *dev, int ino)
 {
 	printf("Trying to open interface %d on %s\n", ino, dev->filename);
 
-	usbtr_int_number = ino;
+	tr->int_number = ino;
 
-	usbtr_handle = usb_open(dev);
-	if (!usbtr_handle) {
+	tr->handle = usb_open(dev);
+	if (!tr->handle) {
 		perror("rf2500: can't open device");
 		return -1;
 	}
 
-	if (usb_detach_kernel_driver_np(usbtr_handle, usbtr_int_number) < 0)
+	if (usb_detach_kernel_driver_np(tr->handle, tr->int_number) < 0)
 		perror("rf2500: warning: can't "
 			"detach kernel driver");
 
-	if (usb_claim_interface(usbtr_handle, usbtr_int_number) < 0) {
+	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
 		perror("rf2500: can't claim interface");
-		usb_close(usbtr_handle);
+		usb_close(tr->handle);
 		return -1;
 	}
 
 	return 0;
 }
 
-static int usbtr_open_device(struct usb_device *dev)
+static int open_device(struct rf2500_transport *tr,
+		       struct usb_device *dev)
 {
 	struct usb_config_descriptor *c = &dev->config[0];
 	int i;
@@ -79,15 +89,17 @@ static int usbtr_open_device(struct usb_device *dev)
 		struct usb_interface_descriptor *desc = &intf->altsetting[0];
 
 		if (desc->bInterfaceClass == USB_FET_INTERFACE_CLASS &&
-		    !usbtr_open_interface(dev, desc->bInterfaceNumber))
+		    !open_interface(tr, dev, desc->bInterfaceNumber))
 			return 0;
 	}
 
 	return -1;
 }
 
-static int usbtr_send(const u_int8_t *data, int len)
+static int usbtr_send(transport_t tr_base, const u_int8_t *data, int len)
 {
+	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
+
 	while (len) {
 		u_int8_t pbuf[256];
 		int plen = len > 255 ? 255 : len;
@@ -109,7 +121,7 @@ static int usbtr_send(const u_int8_t *data, int len)
 #ifdef DEBUG_USBTR
 		debug_hexdump("USB transfer out", pbuf, txlen);
 #endif
-		if (usb_bulk_write(usbtr_handle, USB_FET_OUT_EP,
+		if (usb_bulk_write(tr->handle, USB_FET_OUT_EP,
 			(const char *)pbuf, txlen, 10000) < 0) {
 			perror("rf2500: can't send data");
 			return -1;
@@ -122,67 +134,60 @@ static int usbtr_send(const u_int8_t *data, int len)
 	return 0;
 }
 
-static u_int8_t usbtr_buf[64];
-static int usbtr_len;
-static int usbtr_offset;
-
-static int usbtr_flush(void)
+static int usbtr_recv(transport_t tr_base, u_int8_t *databuf, int max_len)
 {
-	char buf[64];
-
-	while (usb_bulk_read(usbtr_handle, USB_FET_IN_EP,
-			buf, sizeof(buf), 100) >= 0);
-
-	return 0;
-}
-
-static int usbtr_recv(u_int8_t *databuf, int max_len)
-{
+	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
 	int rlen;
 
-	if (usbtr_offset >= usbtr_len) {
-		if (usb_bulk_read(usbtr_handle, USB_FET_IN_EP,
-				(char *)usbtr_buf, sizeof(usbtr_buf),
+	if (tr->offset >= tr->len) {
+		if (usb_bulk_read(tr->handle, USB_FET_IN_EP,
+				(char *)tr->buf, sizeof(tr->buf),
 				10000) < 0) {
 			perror("rf2500: can't receive data");
 			return -1;
 		}
 
 #ifdef DEBUG_USBTR
-		debug_hexdump("USB transfer in", usbtr_buf, 64);
+		debug_hexdump("USB transfer in", tr->buf, 64);
 #endif
 
-		usbtr_len = usbtr_buf[1] + 2;
-		if (usbtr_len > sizeof(usbtr_buf))
-			usbtr_len = sizeof(usbtr_buf);
-		usbtr_offset = 2;
+		tr->len = tr->buf[1] + 2;
+		if (tr->len > sizeof(tr->buf))
+			tr->len = sizeof(tr->buf);
+		tr->offset = 2;
 	}
 
-	rlen = usbtr_len - usbtr_offset;
+	rlen = tr->len - tr->offset;
 	if (rlen > max_len)
 		rlen = max_len;
-	memcpy(databuf, usbtr_buf + usbtr_offset, rlen);
-	usbtr_offset += rlen;
+	memcpy(databuf, tr->buf + tr->offset, rlen);
+	tr->offset += rlen;
 
 	return rlen;
 }
 
-static void usbtr_close(void)
+static void usbtr_destroy(transport_t tr_base)
 {
-	usb_release_interface(usbtr_handle, usbtr_int_number);
-	usb_close(usbtr_handle);
+	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
+
+	usb_release_interface(tr->handle, tr->int_number);
+	usb_close(tr->handle);
+	free(tr);
 }
 
-static const struct fet_transport usbtr_transport = {
-	.flush = usbtr_flush,
-	.send = usbtr_send,
-	.recv = usbtr_recv,
-	.close = usbtr_close
-};
-
-const struct fet_transport *rf2500_open(void)
+transport_t rf2500_open(void)
 {
+	struct rf2500_transport *tr = malloc(sizeof(*tr));
 	struct usb_bus *bus;
+
+	if (!tr) {
+		perror("rf2500: can't allocate memory");
+		return NULL;
+	}
+
+	tr->base.destroy = usbtr_destroy;
+	tr->base.send = usbtr_send;
+	tr->base.recv = usbtr_recv;
 
 	usb_init();
 	usb_find_busses();
@@ -194,13 +199,20 @@ const struct fet_transport *rf2500_open(void)
 		for (dev = bus->devices; dev; dev = dev->next) {
 			if (dev->descriptor.idVendor == USB_FET_VENDOR &&
 			    dev->descriptor.idProduct == USB_FET_PRODUCT &&
-			    !usbtr_open_device(dev)) {
-				usbtr_flush();
-				return &usbtr_transport;
+			    !open_device(tr, dev)) {
+				char buf[64];
+
+				/* Flush out lingering data */
+				while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
+						     buf, sizeof(buf),
+						     100) >= 0);
+
+				return (transport_t)tr;
 			}
 		}
 	}
 
 	fprintf(stderr, "rf2500: no devices could be found\n");
+	free(tr);
 	return NULL;
 }

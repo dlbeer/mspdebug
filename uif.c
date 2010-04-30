@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
@@ -24,20 +25,24 @@
 #include <unistd.h>
 #include <termios.h>
 
-#include "transport.h"
+#include "uif.h"
 #include "util.h"
 
-static int serial_fd = -1;
+struct uif_transport {
+	struct transport        base;
 
-static int serial_send(const u_int8_t *data, int len)
+	int                     serial_fd;
+};
+
+static int serial_send(transport_t tr_base, const u_int8_t *data, int len)
 {
-	assert (serial_fd >= 0);
+	struct uif_transport *tr = (struct uif_transport *)tr_base;
 
 #ifdef DEBUG_SERIAL
 	debug_hexdump("Serial transfer out:", data, len);
 #endif
 
-	if (write_all(serial_fd, data, len) < 0) {
+	if (write_all(tr->serial_fd, data, len) < 0) {
 		perror("uif: write error");
 		return -1;
 	}
@@ -45,13 +50,12 @@ static int serial_send(const u_int8_t *data, int len)
 	return 0;
 }
 
-static int serial_recv(u_int8_t *data, int max_len)
+static int serial_recv(transport_t tr_base, u_int8_t *data, int max_len)
 {
+	struct uif_transport *tr = (struct uif_transport *)tr_base;
 	int r;
 
-	assert (serial_fd >= 0);
-
-	r = read_with_timeout(serial_fd, data, max_len);
+	r = read_with_timeout(tr->serial_fd, data, max_len);
 	if (r < 0) {
 		perror("uif: read error");
 		return -1;
@@ -63,40 +67,36 @@ static int serial_recv(u_int8_t *data, int max_len)
 	return r;
 }
 
-static void serial_close(void)
+static void serial_destroy(transport_t tr_base)
 {
-	assert (serial_fd >= 0);
+	struct uif_transport *tr = (struct uif_transport *)tr_base;
 
-	close(serial_fd);
+	close(tr->serial_fd);
+	free(tr);
 }
 
-static int serial_flush(void)
+transport_t uif_open(const char *device)
 {
-	if (tcflush(serial_fd, TCIFLUSH) < 0) {
-		perror("uif: tcflush");
-		return -1;
-	}
+	struct uif_transport *tr = malloc(sizeof(*tr));
 
-	return 0;
-}
-
-static const struct fet_transport serial_transport = {
-	.flush = serial_flush,
-	.send = serial_send,
-	.recv = serial_recv,
-	.close = serial_close
-};
-
-const struct fet_transport *uif_open(const char *device)
-{
-	printf("Trying to open UIF on %s...\n", device);
-
-	serial_fd = open_serial(device, B460800);
-	if (serial_fd < 0) {
-		fprintf(stderr, "uif: can't open serial device: %s: %s\n",
-			device, strerror(errno));
+	if (!tr) {
+		perror("uif: couldn't allocate memory");
 		return NULL;
 	}
 
-	return &serial_transport;
+	tr->base.send = serial_send;
+	tr->base.recv = serial_recv;
+	tr->base.destroy = serial_destroy;
+
+	printf("Trying to open UIF on %s...\n", device);
+
+	tr->serial_fd = open_serial(device, B460800);
+	if (tr->serial_fd < 0) {
+		fprintf(stderr, "uif: can't open serial device: %s: %s\n",
+			device, strerror(errno));
+		free(tr);
+		return NULL;
+	}
+
+	return (transport_t)tr;
 }

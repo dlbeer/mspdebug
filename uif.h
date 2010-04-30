@@ -16,23 +16,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef TRANSPORT_H_
-#define TRANSPORT_H_
+#ifndef UIF_H_
+#define UIF_H_
 
-#include <sys/types.h>
+#include "transport.h"
 
-/* This structure is used to provide an interface to a lower-level
- * transport. The transport mechanism is viewed as a stream by the FET
- * controller, which handles packet encapsulation, checksums and other
- * high-level functions.
+/* This function is for opening an eZ430-F2013 or FET430UIF device via
+ * a kernel-supported serial interface. The argument given should be the
+ * filename of the relevant tty device.
  */
-struct transport;
-typedef struct transport *transport_t;
-
-struct transport {
-	void (*destroy)(transport_t tr);
-	int (*send)(transport_t tr, const u_int8_t *data, int len);
-	int (*recv)(transport_t tr, u_int8_t *data, int max_len);
-};
+transport_t uif_open(const char *device);
 
 #endif

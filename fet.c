@@ -35,7 +35,7 @@
 struct fet_device {
 	struct device                   base;
 
-	const struct fet_transport      *fet_transport;
+	transport_t                     transport;
 	int                             is_rf2500;
 	int                             version;
 	int                             have_breakpoint;
@@ -195,7 +195,7 @@ static int send_rf2500_data(struct fet_device *dev,
 		pbuf[2] = offset >> 8;
 		pbuf[3] = plen;
 		memcpy(pbuf + 4, data, plen);
-		if (dev->fet_transport->send(pbuf, plen + 4) < 0)
+		if (dev->transport->send(dev->transport, pbuf, plen + 4) < 0)
 			return -1;
 
 		data += plen;
@@ -388,9 +388,10 @@ static int recv_packet(struct fet_device *dev)
 		if (dev->fet_len >= plen + 2)
 			return parse_packet(dev, plen);
 
-		len = dev->fet_transport->recv(dev->fet_buf + dev->fet_len,
-					       sizeof(dev->fet_buf) -
-					       dev->fet_len);
+		len = dev->transport->recv(dev->transport,
+					   dev->fet_buf + dev->fet_len,
+					   sizeof(dev->fet_buf) -
+					   dev->fet_len);
 		if (len < 0)
 			return -1;
 		dev->fet_len += len;
@@ -474,7 +475,7 @@ static int send_command(struct fet_device *dev, int command_code,
 
 	assert (i < sizeof(buf));
 
-	return dev->fet_transport->send(buf, i);
+	return dev->transport->send(dev->transport, buf, i);
 }
 
 static int xfer(struct fet_device *dev,
@@ -669,7 +670,7 @@ static void fet_destroy(device_t dev_base)
 	if (xfer(dev, C_CLOSE, NULL, 0, 1, 0) < 0)
 		fprintf(stderr, "fet: close command failed\n");
 
-	dev->fet_transport->close();
+	dev->transport->destroy(dev->transport);
 	free(dev);
 }
 
@@ -917,8 +918,7 @@ static int do_magic(struct fet_device *dev)
 	return 0;
 }
 
-device_t fet_open(const struct fet_transport *tr,
-		  int proto_flags, int vcc_mv)
+device_t fet_open(transport_t transport, int proto_flags, int vcc_mv)
 {
 	struct fet_device *dev = malloc(sizeof(*dev));
 
@@ -936,7 +936,7 @@ device_t fet_open(const struct fet_transport *tr,
 	dev->base.ctl = fet_ctl;
 	dev->base.poll = fet_poll;
 
-	dev->fet_transport = tr;
+	dev->transport = transport;
 	dev->is_rf2500 = proto_flags & FET_PROTO_RF2500;
 	dev->have_breakpoint = 0;
 

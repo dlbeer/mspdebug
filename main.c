@@ -37,6 +37,9 @@
 #include "bsl.h"
 #include "fet.h"
 
+#include "uif.h"
+#include "rf2500.h"
+
 static void io_prefix(const char *prefix, u_int16_t pc,
 		      u_int16_t addr, int is_byte)
 {
@@ -230,7 +233,7 @@ static int parse_cmdline_args(int argc, char **argv,
 device_t setup_device(const struct cmdline_args *args)
 {
 	device_t msp430_dev = NULL;
-	const struct fet_transport *trans = NULL;
+	transport_t trans = NULL;
 
 	/* Open a device */
 	if (args->mode == MODE_SIM) {
@@ -260,7 +263,7 @@ device_t setup_device(const struct cmdline_args *args)
 
 	if (!msp430_dev) {
 		if (trans)
-			trans->close();
+			trans->destroy(trans);
 		return NULL;
 	}
 
@@ -315,7 +318,6 @@ int main(int argc, char **argv)
 
 	cp = setup_cproc(&args);
 	if (!cp) {
-		perror("couldn't set up command parser");
 		stab_exit();
 		return -1;
 	}
