@@ -85,10 +85,10 @@ static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 	return result;
 }
 
-static FILE *savemap_out;
-
-static int savemap_cb(const char *name, u_int16_t value)
+static int savemap_cb(void *user_data, const char *name, u_int16_t value)
 {
+	FILE *savemap_out = (FILE *)user_data;
+
 	if (fprintf(savemap_out, "%04x t %s\n", value, name) < 0) {
 		perror("sym: can't write to file");
 		return -1;
@@ -99,6 +99,7 @@ static int savemap_cb(const char *name, u_int16_t value)
 
 static int cmd_sym_savemap(cproc_t cp, char **arg)
 {
+	FILE *savemap_out;
 	char *fname = get_arg(arg);
 
 	if (!fname) {
@@ -113,7 +114,7 @@ static int cmd_sym_savemap(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (stab_enum(savemap_cb) < 0) {
+	if (stab_enum(savemap_cb, savemap_out) < 0) {
 		fclose(savemap_out);
 		return -1;
 	}
@@ -127,17 +128,17 @@ static int cmd_sym_savemap(cproc_t cp, char **arg)
 	return 0;
 }
 
-static int print_sym(const char *name, u_int16_t value)
+static int print_sym(void *user_data, const char *name, u_int16_t value)
 {
 	printf("0x%04x: %s\n", value, name);
 	return 0;
 }
 
-static regex_t find_preg;
-
-static int find_sym(const char *name, u_int16_t value)
+static int find_sym(void *user_data, const char *name, u_int16_t value)
 {
-	if (!regexec(&find_preg, name, 0, NULL, 0))
+	regex_t *find_preg = (regex_t *)user_data;
+
+	if (!regexec(find_preg, name, 0, NULL, 0))
 		printf("0x%04x: %s\n", value, name);
 
 	return 0;
@@ -145,10 +146,11 @@ static int find_sym(const char *name, u_int16_t value)
 
 static int cmd_sym_find(cproc_t cp, char **arg)
 {
+	regex_t find_preg;
 	char *expr = get_arg(arg);
 
 	if (!expr) {
-		stab_enum(print_sym);
+		stab_enum(print_sym, NULL);
 		return 0;
 	}
 
@@ -157,7 +159,7 @@ static int cmd_sym_find(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	stab_enum(find_sym);
+	stab_enum(find_sym, &find_preg);
 	regfree(&find_preg);
 	return 0;
 }
@@ -167,16 +169,19 @@ struct rename_record {
 	int     start, end;
 };
 
-struct vector renames_vec;
+struct rename_data {
+	struct vector   list;
+	regex_t         preg;
+};
 
-static int renames_do(const char *replace)
+static int renames_do(struct rename_data *rename, const char *replace)
 {
 	int i;
 	int count = 0;
 
-	for (i = 0; i < renames_vec.size; i++) {
+	for (i = 0; i < rename->list.size; i++) {
 		struct rename_record *r =
-			VECTOR_PTR(renames_vec, i, struct rename_record);
+			VECTOR_PTR(rename->list, i, struct rename_record);
 		char new_name[128];
 		int len = r->start;
 		int value;
@@ -211,11 +216,12 @@ static int renames_do(const char *replace)
 	return 0;
 }
 
-static int find_renames(const char *name, u_int16_t value)
+static int find_renames(void *user_data, const char *name, u_int16_t value)
 {
+	struct rename_data *rename = (struct rename_data *)user_data;
 	regmatch_t pmatch;
 
-	if (!regexec(&find_preg, name, 1, &pmatch, 0) &&
+	if (!regexec(&rename->preg, name, 1, &pmatch, 0) &&
 	    pmatch.rm_so >= 0 && pmatch.rm_eo > pmatch.rm_so) {
 		struct rename_record r;
 
@@ -224,7 +230,7 @@ static int find_renames(const char *name, u_int16_t value)
 		r.start = pmatch.rm_so;
 		r.end = pmatch.rm_eo;
 
-		return vector_push(&renames_vec, &r, 1);
+		return vector_push(&rename->list, &r, 1);
 	}
 
 	return 0;
@@ -235,29 +241,30 @@ static int cmd_sym_rename(cproc_t cp, char **arg)
 	const char *expr = get_arg(arg);
 	const char *replace = get_arg(arg);
 	int ret;
+	struct rename_data rename;
 
 	if (!(expr && replace)) {
 		fprintf(stderr, "sym: expected pattern and replacement\n");
 		return -1;
 	}
 
-	if (regcomp(&find_preg, expr, REG_EXTENDED)) {
+	if (regcomp(&rename.preg, expr, REG_EXTENDED)) {
 		fprintf(stderr, "sym: failed to compile: %s\n", expr);
 		return -1;
 	}
 
-	vector_init(&renames_vec, sizeof(struct rename_record));
+	vector_init(&rename.list, sizeof(struct rename_record));
 
-	if (stab_enum(find_renames) < 0) {
+	if (stab_enum(find_renames, &rename) < 0) {
 		fprintf(stderr, "sym: rename failed\n");
-		regfree(&find_preg);
-		vector_destroy(&renames_vec);
+		regfree(&rename.preg);
+		vector_destroy(&rename.list);
 		return -1;
 	}
 
-	regfree(&find_preg);
-	ret = renames_do(replace);
-	vector_destroy(&renames_vec);
+	regfree(&rename.preg);
+	ret = renames_do(&rename, replace);
+	vector_destroy(&rename.list);
 
 	if (ret > 0)
 		cproc_modify(cp, CPROC_MODIFY_SYMS);

@@ -188,7 +188,7 @@ int stab_del(const char *name)
 	return 0;
 }
 
-int stab_enum(stab_callback_t cb)
+int stab_enum(stab_callback_t cb, void *user_data)
 {
 	int ret;
 	struct addr_key akey;
@@ -196,7 +196,7 @@ int stab_enum(stab_callback_t cb)
 	ret = btree_select(addr_table, NULL, BTREE_FIRST,
 			   &akey, NULL);
 	while (!ret) {
-		if (cb(akey.name, akey.addr) < 0)
+		if (cb(user_data, akey.name, akey.addr) < 0)
 			return -1;
 		ret = btree_select(addr_table, NULL, BTREE_NEXT,
 				   &akey, NULL);
