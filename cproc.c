@@ -552,6 +552,10 @@ static int process_command(cproc_t cp, char *arg, int interactive)
 
 void cproc_reader_loop(cproc_t cp)
 {
+	int old = cp->in_reader_loop;
+
+	cp->in_reader_loop = 1;
+
 	printf("\n");
 	cmd_help(cp, NULL);
 	printf("\n");
@@ -570,6 +574,7 @@ void cproc_reader_loop(cproc_t cp)
 	} while (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS));
 
 	printf("\n");
+	cp->in_reader_loop = old;
 }
 
 int cproc_process_command(cproc_t cp, char *cmd)
