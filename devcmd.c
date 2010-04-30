@@ -298,46 +298,52 @@ static int cmd_dis(cproc_t cp, char **arg)
 	return 0;
 }
 
-static FILE *hexout_file;
-static u_int16_t hexout_addr;
-static u_int8_t hexout_buf[16];
-static int hexout_len;
+struct hexout_data {
+	FILE            *file;
+	u_int16_t       addr;
+	u_int8_t        buf[16];
+	int             len;
+};
 
-static int hexout_start(const char *filename)
+static int hexout_start(struct hexout_data *hexout, const char *filename)
 {
-	hexout_file = fopen(filename, "w");
-	if (!hexout_file) {
+	hexout->file = fopen(filename, "w");
+	if (!hexout->file) {
 		perror("hexout: couldn't open output file");
 		return -1;
 	}
 
+	hexout->addr = 0;
+	hexout->len = 0;
+
 	return 0;
 }
 
-static int hexout_flush(void)
+static int hexout_flush(struct hexout_data *hexout)
 {
 	int i;
 	int cksum = 0;
 
-	if (!hexout_len)
+	if (!hexout->len)
 		return 0;
 
-	if (fprintf(hexout_file, ":%02X%04X00", hexout_len, hexout_addr) < 0)
+	if (fprintf(hexout->file, ":%02X%04X00",
+		    hexout->len, hexout->addr) < 0)
 		goto fail;
-	cksum += hexout_len;
-	cksum += hexout_addr & 0xff;
-	cksum += hexout_addr >> 8;
+	cksum += hexout->len;
+	cksum += hexout->addr & 0xff;
+	cksum += hexout->addr >> 8;
 
-	for (i = 0; i < hexout_len; i++) {
-		if (fprintf(hexout_file, "%02X", hexout_buf[i]) < 0)
+	for (i = 0; i < hexout->len; i++) {
+		if (fprintf(hexout->file, "%02X", hexout->buf[i]) < 0)
 			goto fail;
-		cksum += hexout_buf[i];
+		cksum += hexout->buf[i];
 	}
 
-	if (fprintf(hexout_file, "%02X\n", ~(cksum - 1) & 0xff) < 0)
+	if (fprintf(hexout->file, "%02X\n", ~(cksum - 1) & 0xff) < 0)
 		goto fail;
 
-	hexout_len = 0;
+	hexout->len = 0;
 	return 0;
 
 fail:
@@ -345,25 +351,26 @@ fail:
 	return -1;
 }
 
-static int hexout_feed(u_int16_t addr, const u_int8_t *buf, int len)
+static int hexout_feed(struct hexout_data *hexout,
+		       u_int16_t addr, const u_int8_t *buf, int len)
 {
 	while (len) {
 		int count;
 
-		if ((hexout_addr + hexout_len != addr ||
-		     hexout_len >= sizeof(hexout_buf)) &&
-		    hexout_flush() < 0)
+		if ((hexout->addr + hexout->len != addr ||
+		     hexout->len >= sizeof(hexout->buf)) &&
+		    hexout_flush(hexout) < 0)
 			return -1;
 
-		if (!hexout_len)
-			hexout_addr = addr;
+		if (!hexout->len)
+			hexout->addr = addr;
 
-		count = sizeof(hexout_buf) - hexout_len;
+		count = sizeof(hexout->buf) - hexout->len;
 		if (count > len)
 			count = len;
 
-		memcpy(hexout_buf + hexout_len, buf, count);
-		hexout_len += count;
+		memcpy(hexout->buf + hexout->len, buf, count);
+		hexout->len += count;
 
 		addr += count;
 		buf += count;
@@ -381,6 +388,7 @@ static int cmd_hexout(cproc_t cp, char **arg)
 	char *filename = *arg;
 	int off;
 	int length;
+	struct hexout_data hexout;
 
 	if (!(off_text && len_text && *filename)) {
 		fprintf(stderr, "hexout: need offset, length and filename\n");
@@ -391,7 +399,7 @@ static int cmd_hexout(cproc_t cp, char **arg)
 	    stab_exp(len_text, &length) < 0)
 		return -1;
 
-	if (hexout_start(filename) < 0)
+	if (hexout_start(&hexout, filename) < 0)
 		return -1;
 
 	while (length) {
@@ -407,16 +415,16 @@ static int cmd_hexout(cproc_t cp, char **arg)
 			goto fail;
 		}
 
-		if (hexout_feed(off, buf, count) < 0)
+		if (hexout_feed(&hexout, off, buf, count) < 0)
 			goto fail;
 
 		length -= count;
 		off += count;
 	}
 
-	if (hexout_flush() < 0)
+	if (hexout_flush(&hexout) < 0)
 		goto fail;
-	if (fclose(hexout_file) < 0) {
+	if (fclose(hexout.file) < 0) {
 		perror("hexout: error on close");
 		return -1;
 	}
@@ -424,7 +432,7 @@ static int cmd_hexout(cproc_t cp, char **arg)
 	return 0;
 
 fail:
-	fclose(hexout_file);
+	fclose(hexout.file);
 	unlink(filename);
 	return -1;
 }
