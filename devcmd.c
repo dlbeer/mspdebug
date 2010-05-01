@@ -25,6 +25,7 @@
 #include "device.h"
 #include "binfile.h"
 #include "stab.h"
+#include "expr.h"
 #include "cproc.h"
 #include "cproc_util.h"
 #include "util.h"
@@ -61,13 +62,13 @@ static int cmd_md(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (stab_exp(off_text, &offset) < 0) {
+	if (expr_eval(off_text, &offset) < 0) {
 		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (stab_exp(len_text, &length) < 0) {
+		if (expr_eval(len_text, &length) < 0) {
 			fprintf(stderr, "md: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -110,7 +111,7 @@ static int cmd_mw(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (stab_exp(off_text, &offset) < 0) {
+	if (expr_eval(off_text, &offset) < 0) {
 		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
@@ -182,7 +183,7 @@ static int cmd_run(cproc_t cp, char **arg)
 	device_status_t status;
 
 	if (bp_text) {
-		if (stab_exp(bp_text, &bp_addr) < 0) {
+		if (expr_eval(bp_text, &bp_addr) < 0) {
 			fprintf(stderr, "run: can't parse breakpoint: %s\n",
 				bp_text);
 			return -1;
@@ -236,7 +237,7 @@ static int cmd_set(cproc_t cp, char **arg)
 		reg_text++;
 	reg = atoi(reg_text);
 
-	if (stab_exp(val_text, &value) < 0) {
+	if (expr_eval(val_text, &value) < 0) {
 		fprintf(stderr, "set: can't parse value: %s\n", val_text);
 		return -1;
 	}
@@ -270,13 +271,13 @@ static int cmd_dis(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (stab_exp(off_text, &offset) < 0) {
+	if (expr_eval(off_text, &offset) < 0) {
 		fprintf(stderr, "dis: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (stab_exp(len_text, &length) < 0) {
+		if (expr_eval(len_text, &length) < 0) {
 			fprintf(stderr, "dis: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -395,8 +396,8 @@ static int cmd_hexout(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (stab_exp(off_text, &off) < 0 ||
-	    stab_exp(len_text, &length) < 0)
+	if (expr_eval(off_text, &off) < 0 ||
+	    expr_eval(len_text, &length) < 0)
 		return -1;
 
 	if (hexout_start(&hexout, filename) < 0)

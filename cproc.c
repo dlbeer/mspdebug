@@ -28,6 +28,7 @@
 #include <readline/history.h>
 #endif
 
+#include "expr.h"
 #include "cproc.h"
 #include "vector.h"
 #include "stab.h"
@@ -207,7 +208,7 @@ static int parse_option(struct cproc_option *o, const char *word)
 		break;
 
 	case CPROC_OPTION_NUMERIC:
-		return stab_exp(word, &o->data.numeric);
+		return expr_eval(word, &o->data.numeric);
 
 	case CPROC_OPTION_STRING:
 		strncpy(o->data.text, word, sizeof(o->data.text));

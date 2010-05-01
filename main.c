@@ -32,6 +32,7 @@
 #include "rtools.h"
 #include "sym.h"
 #include "devcmd.h"
+#include "expr.h"
 
 #include "sim.h"
 #include "bsl.h"
@@ -87,7 +88,7 @@ static int fetch_io(void *user_data, u_int16_t pc,
 		if (!len)
 			return 0;
 
-		if (!stab_exp(text, &data)) {
+		if (!expr_eval(text, &data)) {
 			if (data_ret)
 				*data_ret = data;
 			return 0;

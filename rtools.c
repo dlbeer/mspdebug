@@ -27,6 +27,7 @@
 #include "dis.h"
 #include "rtools.h"
 #include "stab.h"
+#include "expr.h"
 #include "cproc_util.h"
 
 #define ISEARCH_OPCODE          0x0001
@@ -133,7 +134,7 @@ static int isearch_addr(const char *term, char **arg,
 		return -1;
 	}
 
-	if (stab_exp(addr_text, &addr) < 0)
+	if (expr_eval(addr_text, &addr) < 0)
 		return -1;
 
 	q->flags |= which;
@@ -390,8 +391,8 @@ static int cmd_isearch(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (stab_exp(addr_text, &addr) < 0 ||
-	    stab_exp(len_text, &len) < 0)
+	if (expr_eval(addr_text, &addr) < 0 ||
+	    expr_eval(len_text, &len) < 0)
 		return -1;
 
 	q.flags = 0;

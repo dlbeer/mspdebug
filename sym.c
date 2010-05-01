@@ -24,6 +24,7 @@
 #include <regex.h>
 #include <errno.h>
 #include "stab.h"
+#include "expr.h"
 #include "binfile.h"
 #include "util.h"
 #include "vector.h"
@@ -35,7 +36,7 @@ static int cmd_eval(cproc_t cp, char **arg)
 	u_int16_t offset;
 	char name[64];
 
-	if (stab_exp(*arg, &addr) < 0) {
+	if (expr_eval(*arg, &addr) < 0) {
 		fprintf(stderr, "=: can't parse: %s\n", *arg);
 		return -1;
 	}
@@ -321,7 +322,7 @@ static int cmd_sym(cproc_t cp, char **arg)
 			return -1;
 		}
 
-		if (stab_exp(val_text, &value) < 0) {
+		if (expr_eval(val_text, &value) < 0) {
 			fprintf(stderr, "sym: can't parse value: %s\n",
 				val_text);
 			return -1;
