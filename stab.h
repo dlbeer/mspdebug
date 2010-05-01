@@ -21,40 +21,43 @@
 
 #include <sys/types.h>
 
-/* Initialise/destroy the symbol table manager. If successful, init returns
- * 0, or -1 on error.
+struct stab;
+typedef struct stab *stab_t;
+
+/* Create/destroy a symbol table. The constructor returns NULL if it
+ * was unable to allocate memory for the table.
  */
-int stab_init(void);
-void stab_exit(void);
+stab_t stab_new(void);
+void stab_destroy(stab_t st);
 
 /* Reset the symbol table (delete all symbols) */
-void stab_clear(void);
+void stab_clear(stab_t st);
 
 /* Set a symbol in the table. Returns 0 on success, or -1 on error. */
-int stab_set(const char *name, int value);
+int stab_set(stab_t st, const char *name, int value);
 
 /* Take an address and find the nearest symbol and offset (always
  * non-negative).
  *
  * Returns 0 if found, 1 otherwise.
  */
-int stab_nearest(u_int16_t addr, char *ret_name, int max_len,
+int stab_nearest(stab_t st, u_int16_t addr, char *ret_name, int max_len,
 		 u_int16_t *ret_offset);
 
 /* Retrieve the value of a symbol. Returns 0 on success or -1 if the symbol
  * doesn't exist.
  */
-int stab_get(const char *name, int *value);
+int stab_get(stab_t st, const char *name, int *value);
 
 /* Delete a symbol table entry. Returns 0 on success or -1 if the symbol
  * doesn't exist.
  */
-int stab_del(const char *name);
+int stab_del(stab_t st, const char *name);
 
 /* Enumerate all symbols in the table */
 typedef int (*stab_callback_t)(void *user_data,
 			       const char *name, u_int16_t value);
 
-int stab_enum(stab_callback_t cb, void *user_data);
+int stab_enum(stab_t st, stab_callback_t cb, void *user_data);
 
 #endif

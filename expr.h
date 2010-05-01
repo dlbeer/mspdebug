@@ -20,10 +20,11 @@
 #define EXPR_H_
 
 #include <sys/types.h>
+#include "stab.h"
 
 /* Parse an address expression, storing the result in the integer
  * pointed to. Returns 0 if parsed successfully, -1 if not.
  */
-int expr_eval(const char *text, int *value);
+int expr_eval(stab_t stab, const char *text, int *value);
 
 #endif

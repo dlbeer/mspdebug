@@ -40,7 +40,8 @@ struct addr_exp_state {
 	int     op_stack_size;
 };
 
-static int addr_exp_data(struct addr_exp_state *s, const char *text)
+static int addr_exp_data(stab_t stab,
+			 struct addr_exp_state *s, const char *text)
 {
 	int value;
 
@@ -54,7 +55,7 @@ static int addr_exp_data(struct addr_exp_state *s, const char *text)
 		value = strtoul(text + 2, NULL, 16);
 	else if (isdigit(*text))
 		value = atoi(text);
-	else if (stab_get(text, &value) < 0) {
+	else if (stab_get(stab, text, &value) < 0) {
 		fprintf(stderr, "can't parse token: %s\n", text);
 		return -1;
 	}
@@ -225,7 +226,7 @@ static int addr_exp_finish(struct addr_exp_state *s, int *ret)
 	return 0;
 }
 
-int expr_eval(const char *text, int *addr)
+int expr_eval(stab_t stab, const char *text, int *addr)
 {
 	const char *text_save = text;
 	int last_cc = 1;
@@ -263,7 +264,7 @@ int expr_eval(const char *text, int *addr)
 			token_buf[token_len] = 0;
 			token_len = 0;
 
-			if (addr_exp_data(&s, token_buf) < 0)
+			if (addr_exp_data(stab, &s, token_buf) < 0)
 				goto fail;
 		}
 

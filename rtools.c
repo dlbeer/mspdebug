@@ -45,7 +45,7 @@ struct isearch_query {
 	struct msp430_instruction       insn;
 };
 
-static int isearch_opcode(const char *term, char **arg,
+static int isearch_opcode(cproc_t cp, const char *term, char **arg,
 			  struct isearch_query *q)
 {
 	const char *opname = get_arg(arg);
@@ -70,7 +70,7 @@ static int isearch_opcode(const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_bw(const char *term, char **arg,
+static int isearch_bw(cproc_t cp, const char *term, char **arg,
 		      struct isearch_query *q)
 {
 	if (q->flags & ISEARCH_BW) {
@@ -83,7 +83,7 @@ static int isearch_bw(const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_type(const char *term, char **arg,
+static int isearch_type(cproc_t cp, const char *term, char **arg,
 			struct isearch_query *q)
 {
 	if (q->flags & ISEARCH_TYPE) {
@@ -115,7 +115,7 @@ static int isearch_type(const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_addr(const char *term, char **arg,
+static int isearch_addr(cproc_t cp, const char *term, char **arg,
 			struct isearch_query *q)
 {
 	int which = toupper(*term) == 'S' ?
@@ -134,7 +134,7 @@ static int isearch_addr(const char *term, char **arg,
 		return -1;
 	}
 
-	if (expr_eval(addr_text, &addr) < 0)
+	if (expr_eval(cproc_stab(cp), addr_text, &addr) < 0)
 		return -1;
 
 	q->flags |= which;
@@ -146,7 +146,7 @@ static int isearch_addr(const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_reg(const char *term, char **arg,
+static int isearch_reg(cproc_t cp, const char *term, char **arg,
 		       struct isearch_query *q)
 {
 	int which = toupper(*term) == 'S' ?
@@ -178,7 +178,7 @@ static int isearch_reg(const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_mode(const char *term, char **arg,
+static int isearch_mode(cproc_t cp, const char *term, char **arg,
 			struct isearch_query *q)
 {
 	int which = toupper(*term) == 'S' ?
@@ -360,7 +360,8 @@ static int cmd_isearch(cproc_t cp, char **arg)
 {
 	const static struct {
 		const char      *name;
-		int             (*func)(const char *term, char **arg,
+		int             (*func)(cproc_t cp,
+					const char *term, char **arg,
 					struct isearch_query *q);
 	} term_handlers[] = {
 		{"opcode",      isearch_opcode},
@@ -377,6 +378,7 @@ static int cmd_isearch(cproc_t cp, char **arg)
 		{"dstmode",     isearch_mode}
 	};
 
+	stab_t stab = cproc_stab(cp);
 	struct isearch_query q;
 	const char *addr_text;
 	const char *len_text;
@@ -391,8 +393,8 @@ static int cmd_isearch(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(addr_text, &addr) < 0 ||
-	    expr_eval(len_text, &len) < 0)
+	if (expr_eval(stab, addr_text, &addr) < 0 ||
+	    expr_eval(stab, len_text, &len) < 0)
 		return -1;
 
 	q.flags = 0;
@@ -405,7 +407,8 @@ static int cmd_isearch(cproc_t cp, char **arg)
 
 		for (i = 0; i < ARRAY_LEN(term_handlers); i++)
 			if (!strcasecmp(term_handlers[i].name, term)) {
-				if (term_handlers[i].func(term, arg, &q) < 0)
+				if (term_handlers[i].func(cp, term, arg,
+							  &q) < 0)
 					return -1;
 				break;
 			}

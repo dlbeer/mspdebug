@@ -51,6 +51,7 @@ static int cmd_regs(cproc_t cp, char **arg)
 
 static int cmd_md(cproc_t cp, char **arg)
 {
+	stab_t stab = cproc_stab(cp);
 	device_t dev = cproc_device(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
@@ -62,13 +63,13 @@ static int cmd_md(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(off_text, &offset) < 0) {
+	if (expr_eval(stab, off_text, &offset) < 0) {
 		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (expr_eval(len_text, &length) < 0) {
+		if (expr_eval(stab, len_text, &length) < 0) {
 			fprintf(stderr, "md: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -100,6 +101,7 @@ static int cmd_md(cproc_t cp, char **arg)
 static int cmd_mw(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
+	stab_t stab = cproc_stab(cp);
 	char *off_text = get_arg(arg);
 	char *byte_text;
 	int offset = 0;
@@ -111,7 +113,7 @@ static int cmd_mw(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(off_text, &offset) < 0) {
+	if (expr_eval(stab, off_text, &offset) < 0) {
 		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
@@ -178,12 +180,13 @@ static int cmd_step(cproc_t cp, char **arg)
 static int cmd_run(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
+	stab_t stab = cproc_stab(cp);
 	char *bp_text = get_arg(arg);
 	int bp_addr;
 	device_status_t status;
 
 	if (bp_text) {
-		if (expr_eval(bp_text, &bp_addr) < 0) {
+		if (expr_eval(stab, bp_text, &bp_addr) < 0) {
 			fprintf(stderr, "run: can't parse breakpoint: %s\n",
 				bp_text);
 			return -1;
@@ -222,6 +225,7 @@ static int cmd_run(cproc_t cp, char **arg)
 static int cmd_set(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
+	stab_t stab = cproc_stab(cp);
 	char *reg_text = get_arg(arg);
 	char *val_text = get_arg(arg);
 	int reg;
@@ -237,7 +241,7 @@ static int cmd_set(cproc_t cp, char **arg)
 		reg_text++;
 	reg = atoi(reg_text);
 
-	if (expr_eval(val_text, &value) < 0) {
+	if (expr_eval(stab, val_text, &value) < 0) {
 		fprintf(stderr, "set: can't parse value: %s\n", val_text);
 		return -1;
 	}
@@ -260,6 +264,7 @@ static int cmd_set(cproc_t cp, char **arg)
 static int cmd_dis(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
+	stab_t stab = cproc_stab(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
 	int offset = 0;
@@ -271,13 +276,13 @@ static int cmd_dis(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(off_text, &offset) < 0) {
+	if (expr_eval(stab, off_text, &offset) < 0) {
 		fprintf(stderr, "dis: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (expr_eval(len_text, &length) < 0) {
+		if (expr_eval(stab, len_text, &length) < 0) {
 			fprintf(stderr, "dis: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -384,6 +389,7 @@ static int hexout_feed(struct hexout_data *hexout,
 static int cmd_hexout(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
+	stab_t stab = cproc_stab(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
 	char *filename = *arg;
@@ -396,8 +402,8 @@ static int cmd_hexout(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(off_text, &off) < 0 ||
-	    expr_eval(len_text, &length) < 0)
+	if (expr_eval(stab, off_text, &off) < 0 ||
+	    expr_eval(stab, len_text, &length) < 0)
 		return -1;
 
 	if (hexout_start(&hexout, filename) < 0)
@@ -522,6 +528,7 @@ static int prog_feed(void *user_data,
 static int cmd_prog(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
+	stab_t stab = cproc_stab(cp);
 	FILE *in;
 	int result = 0;
 	struct prog_data prog;
@@ -544,8 +551,8 @@ static int cmd_prog(cproc_t cp, char **arg)
 
 	if (elf32_check(in)) {
 		result = elf32_extract(in, prog_feed, &prog);
-		stab_clear();
-		elf32_syms(in, stab_set);
+		stab_clear(stab);
+		elf32_syms(in, stab);
 	} else if (ihex_check(in)) {
 		result = ihex_extract(in, prog_feed, &prog);
 	} else {

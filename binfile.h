@@ -22,12 +22,11 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+#include "stab.h"
+
 /* Callback for binary image data */
 typedef int (*imgfunc_t)(void *user_data,
 			 u_int16_t addr, const u_int8_t *data, int len);
-
-/* Callback for symbol data */
-typedef int (*symfunc_t)(const char *name, int value);
 
 /* Intel HEX file support */
 int ihex_check(FILE *in);
@@ -36,10 +35,10 @@ int ihex_extract(FILE *in, imgfunc_t cb, void *user_data);
 /* ELF32 file support */
 int elf32_check(FILE *in);
 int elf32_extract(FILE *in, imgfunc_t cb, void *user_data);
-int elf32_syms(FILE *in, symfunc_t cb);
+int elf32_syms(FILE *in, stab_t stab);
 
 /* *.map file support */
 int symmap_check(FILE *in);
-int symmap_syms(FILE *in, symfunc_t cb);
+int symmap_syms(FILE *in, stab_t stab);
 
 #endif

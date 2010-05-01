@@ -263,7 +263,7 @@ static int syms_load_strings(struct elf32_info *info, FILE *in, Elf32_Shdr *s)
 #define N_SYMS	128
 
 static int syms_load_syms(struct elf32_info *info, FILE *in,
-			  Elf32_Shdr *s, symfunc_t cb)
+			  Elf32_Shdr *s, stab_t stab)
 {
 	Elf32_Sym syms[N_SYMS];
 	int len = s->sh_size / sizeof(syms[0]);
@@ -297,7 +297,8 @@ static int syms_load_syms(struct elf32_info *info, FILE *in,
 				return -1;
 			}
 
-			if (cb(info->string_tab + y->st_name, y->st_value) < 0)
+			if (stab_set(stab, info->string_tab + y->st_name,
+				     y->st_value) < 0)
 				return -1;
 		}
 
@@ -307,7 +308,7 @@ static int syms_load_syms(struct elf32_info *info, FILE *in,
 	return 0;
 }
 
-int elf32_syms(FILE *in, symfunc_t cb)
+int elf32_syms(FILE *in, stab_t stab)
 {
 	struct elf32_info info;
 	Elf32_Shdr *s;
@@ -328,7 +329,7 @@ int elf32_syms(FILE *in, symfunc_t cb)
 	}
 
 	if (syms_load_strings(&info, in, &info.file_shdrs[s->sh_link]) < 0 ||
-	    syms_load_syms(&info, in, s, cb) < 0)
+	    syms_load_syms(&info, in, s, stab) < 0)
 		ret = -1;
 
 	if (info.string_tab)

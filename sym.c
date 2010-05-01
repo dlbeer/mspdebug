@@ -32,17 +32,18 @@
 
 static int cmd_eval(cproc_t cp, char **arg)
 {
+	stab_t stab = cproc_stab(cp);
 	int addr;
 	u_int16_t offset;
 	char name[64];
 
-	if (expr_eval(*arg, &addr) < 0) {
+	if (expr_eval(stab, *arg, &addr) < 0) {
 		fprintf(stderr, "=: can't parse: %s\n", *arg);
 		return -1;
 	}
 
 	printf("0x%04x", addr);
-	if (!stab_nearest(addr, name, sizeof(name), &offset)) {
+	if (!stab_nearest(stab, addr, name, sizeof(name), &offset)) {
 		printf(" = %s", name);
 		if (offset)
 			printf("+0x%x", offset);
@@ -54,6 +55,7 @@ static int cmd_eval(cproc_t cp, char **arg)
 
 static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 {
+	stab_t stab = cproc_stab(cp);
 	FILE *in;
 	int result = 0;
 
@@ -67,12 +69,12 @@ static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 	}
 
 	if (clear)
-		stab_clear();
+		stab_clear(stab);
 
 	if (elf32_check(in))
-		result = elf32_syms(in, stab_set);
+		result = elf32_syms(in, stab);
 	else if (symmap_check(in))
-		result = symmap_syms(in, stab_set);
+		result = symmap_syms(in, stab);
 	else
 		fprintf(stderr, "sym: %s: unknown file type\n", *arg);
 
@@ -100,6 +102,7 @@ static int savemap_cb(void *user_data, const char *name, u_int16_t value)
 
 static int cmd_sym_savemap(cproc_t cp, char **arg)
 {
+	stab_t stab = cproc_stab(cp);
 	FILE *savemap_out;
 	char *fname = get_arg(arg);
 
@@ -115,7 +118,7 @@ static int cmd_sym_savemap(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (stab_enum(savemap_cb, savemap_out) < 0) {
+	if (stab_enum(stab, savemap_cb, savemap_out) < 0) {
 		fclose(savemap_out);
 		return -1;
 	}
@@ -147,11 +150,12 @@ static int find_sym(void *user_data, const char *name, u_int16_t value)
 
 static int cmd_sym_find(cproc_t cp, char **arg)
 {
+	stab_t stab = cproc_stab(cp);
 	regex_t find_preg;
 	char *expr = get_arg(arg);
 
 	if (!expr) {
-		stab_enum(print_sym, NULL);
+		stab_enum(stab, print_sym, NULL);
 		return 0;
 	}
 
@@ -160,7 +164,7 @@ static int cmd_sym_find(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	stab_enum(find_sym, &find_preg);
+	stab_enum(stab, find_sym, &find_preg);
 	regfree(&find_preg);
 	return 0;
 }
@@ -175,7 +179,8 @@ struct rename_data {
 	regex_t         preg;
 };
 
-static int renames_do(struct rename_data *rename, const char *replace)
+static int renames_do(stab_t stab,
+		      struct rename_data *rename, const char *replace)
 {
 	int i;
 	int count = 0;
@@ -197,13 +202,13 @@ static int renames_do(struct rename_data *rename, const char *replace)
 
 		printf("%s -> %s\n", r->old_name, new_name);
 
-		if (stab_get(r->old_name, &value) < 0) {
+		if (stab_get(stab, r->old_name, &value) < 0) {
 			fprintf(stderr, "sym: warning: "
 				"symbol missing: %s\n",
 				r->old_name);
 		} else {
-			stab_del(r->old_name);
-			if (stab_set(new_name, value) < 0) {
+			stab_del(stab, r->old_name);
+			if (stab_set(stab, new_name, value) < 0) {
 				fprintf(stderr, "sym: warning: "
 					"failed to set new name: %s\n",
 					new_name);
@@ -243,6 +248,7 @@ static int cmd_sym_rename(cproc_t cp, char **arg)
 	const char *replace = get_arg(arg);
 	int ret;
 	struct rename_data rename;
+	stab_t stab = cproc_stab(cp);
 
 	if (!(expr && replace)) {
 		fprintf(stderr, "sym: expected pattern and replacement\n");
@@ -256,7 +262,7 @@ static int cmd_sym_rename(cproc_t cp, char **arg)
 
 	vector_init(&rename.list, sizeof(struct rename_record));
 
-	if (stab_enum(find_renames, &rename) < 0) {
+	if (stab_enum(stab, find_renames, &rename) < 0) {
 		fprintf(stderr, "sym: rename failed\n");
 		regfree(&rename.preg);
 		vector_destroy(&rename.list);
@@ -264,7 +270,7 @@ static int cmd_sym_rename(cproc_t cp, char **arg)
 	}
 
 	regfree(&rename.preg);
-	ret = renames_do(&rename, replace);
+	ret = renames_do(stab, &rename, replace);
 	vector_destroy(&rename.list);
 
 	if (ret > 0)
@@ -275,6 +281,7 @@ static int cmd_sym_rename(cproc_t cp, char **arg)
 
 static int cmd_sym_del(cproc_t cp, char **arg)
 {
+	stab_t stab = cproc_stab(cp);
 	char *name = get_arg(arg);
 
 	if (!name) {
@@ -283,7 +290,7 @@ static int cmd_sym_del(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (stab_del(name) < 0) {
+	if (stab_del(stab, name) < 0) {
 		fprintf(stderr, "sym: can't delete nonexistent symbol: %s\n",
 			name);
 		return -1;
@@ -295,6 +302,7 @@ static int cmd_sym_del(cproc_t cp, char **arg)
 
 static int cmd_sym(cproc_t cp, char **arg)
 {
+	stab_t stab = cproc_stab(cp);
 	char *subcmd = get_arg(arg);
 
 	if (!subcmd) {
@@ -306,7 +314,7 @@ static int cmd_sym(cproc_t cp, char **arg)
 	if (!strcasecmp(subcmd, "clear")) {
 		if (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
 			return 0;
-		stab_clear();
+		stab_clear(stab);
 		cproc_unmodify(cp, CPROC_MODIFY_SYMS);
 		return 0;
 	}
@@ -322,13 +330,13 @@ static int cmd_sym(cproc_t cp, char **arg)
 			return -1;
 		}
 
-		if (expr_eval(val_text, &value) < 0) {
+		if (expr_eval(stab, val_text, &value) < 0) {
 			fprintf(stderr, "sym: can't parse value: %s\n",
 				val_text);
 			return -1;
 		}
 
-		if (stab_set(name, value) < 0)
+		if (stab_set(stab, name, value) < 0)
 			return -1;
 
 		cproc_modify(cp, CPROC_MODIFY_SYMS);

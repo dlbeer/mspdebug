@@ -41,12 +41,13 @@
 #include "uif.h"
 #include "rf2500.h"
 
-static void io_prefix(const char *prefix, u_int16_t pc,
+static void io_prefix(stab_t stab,
+		      const char *prefix, u_int16_t pc,
 		      u_int16_t addr, int is_byte)
 {
 	char name[64];
 
-	if (!stab_nearest(pc, name, sizeof(name), &pc)) {
+	if (!stab_nearest(stab, pc, name, sizeof(name), &pc)) {
 		printf("%s", name);
 		if (pc)
 			printf("+0x%x", pc);
@@ -55,7 +56,7 @@ static void io_prefix(const char *prefix, u_int16_t pc,
 	}
 
 	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
-	if (!stab_nearest(addr, name, sizeof(name), &addr)) {
+	if (!stab_nearest(stab, addr, name, sizeof(name), &addr)) {
 		printf(" (%s", name);
 		if (addr)
 			printf("+0x%x", addr);
@@ -66,7 +67,9 @@ static void io_prefix(const char *prefix, u_int16_t pc,
 static int fetch_io(void *user_data, u_int16_t pc,
 		    u_int16_t addr, int is_byte, u_int16_t *data_ret)
 {
-	io_prefix("READ", pc, addr, is_byte);
+	stab_t stab = (stab_t)user_data;
+
+	io_prefix(stab, "READ", pc, addr, is_byte);
 
 	for (;;) {
 		char text[128];
@@ -88,7 +91,7 @@ static int fetch_io(void *user_data, u_int16_t pc,
 		if (!len)
 			return 0;
 
-		if (!expr_eval(text, &data)) {
+		if (!expr_eval(stab, text, &data)) {
 			if (data_ret)
 				*data_ret = data;
 			return 0;
@@ -101,7 +104,9 @@ static int fetch_io(void *user_data, u_int16_t pc,
 static void store_io(void *user_data, u_int16_t pc,
 		     u_int16_t addr, int is_byte, u_int16_t data)
 {
-	io_prefix("WRITE", pc, addr, is_byte);
+	stab_t stab = (stab_t)user_data;
+
+	io_prefix(stab, "WRITE", pc, addr, is_byte);
 
 	if (is_byte)
 		printf(" => 0x%02x\n", data & 0xff);
@@ -231,14 +236,15 @@ static int parse_cmdline_args(int argc, char **argv,
 	return 0;
 }
 
-device_t setup_device(const struct cmdline_args *args)
+device_t setup_device(const struct cmdline_args *args,
+		      stab_t stab)
 {
 	device_t msp430_dev = NULL;
 	transport_t trans = NULL;
 
 	/* Open a device */
 	if (args->mode == MODE_SIM) {
-		msp430_dev = sim_open(fetch_io, store_io, NULL);
+		msp430_dev = sim_open(fetch_io, store_io, stab);
 	} else if (args->mode == MODE_UIF_BSL) {
 		msp430_dev = bsl_open(args->bsl_device);
 	} else if (args->mode == MODE_RF2500 || args->mode == MODE_UIF) {
@@ -273,15 +279,24 @@ device_t setup_device(const struct cmdline_args *args)
 
 cproc_t setup_cproc(const struct cmdline_args *args)
 {
-	device_t msp430_dev = setup_device(args);
+	device_t msp430_dev;
+	stab_t stab;
 	cproc_t cp;
 
-	if (!msp430_dev)
+	stab = stab_new();
+	if (!stab)
 		return NULL;
 
-	cp = cproc_new(msp430_dev);
+	msp430_dev = setup_device(args, stab);
+	if (!msp430_dev) {
+		stab_destroy(stab);
+		return NULL;
+	}
+
+	cp = cproc_new(msp430_dev, stab);
 	if (!cp) {
 		msp430_dev->destroy(msp430_dev);
+		stab_destroy(stab);
 		return NULL;
 	}
 
@@ -314,14 +329,9 @@ int main(int argc, char **argv)
 
 	ctrlc_init();
 
-	if (stab_init() < 0)
-		return -1;
-
 	cp = setup_cproc(&args);
-	if (!cp) {
-		stab_exit();
+	if (!cp)
 		return -1;
-	}
 
 	if (!args.no_rc)
 		process_rc_file(cp);
@@ -339,7 +349,6 @@ int main(int argc, char **argv)
 	}
 
 	cproc_destroy(cp);
-	stab_exit();
 
 	return ret;
 }

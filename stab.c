@@ -28,11 +28,17 @@
 #include "stab.h"
 #include "util.h"
 
+/************************************************************************
+ * B+Tree definitions
+ */
+
 struct sym_key {
 	char name[64];
 };
 
-static const struct sym_key sym_key_zero;
+static const struct sym_key sym_key_zero = {
+	.name = {0}
+};
 
 static int sym_key_compare(const void *left, const void *right)
 {
@@ -56,7 +62,10 @@ struct addr_key {
 	char            name[64];
 };
 
-static const struct addr_key addr_key_zero;
+static const struct addr_key addr_key_zero = {
+	.addr = 0,
+	.name = {0}
+};
 
 static int addr_key_compare(const void *left, const void *right)
 {
@@ -100,16 +109,22 @@ static const struct btree_def addr_table_def = {
 	.data_size = 0
 };
 
-static btree_t sym_table;
-static btree_t addr_table;
+/************************************************************************
+ * Symbol table methods
+ */
 
-void stab_clear(void)
+struct stab {
+	btree_t         sym;
+	btree_t         addr;
+};
+
+void stab_clear(stab_t st)
 {
-	btree_clear(sym_table);
-	btree_clear(addr_table);
+	btree_clear(st->sym);
+	btree_clear(st->addr);
 }
 
-int stab_set(const char *name, int value)
+int stab_set(stab_t st, const char *name, int value)
 {
 	struct sym_key skey;
 	struct addr_key akey;
@@ -121,15 +136,15 @@ int stab_set(const char *name, int value)
 	/* Look for an old address first, and delete the reverse mapping
 	 * if it's there.
 	 */
-	if (!btree_get(sym_table, &skey, &old_addr)) {
+	if (!btree_get(st->sym, &skey, &old_addr)) {
 		addr_key_init(&akey, old_addr, skey.name);
-		btree_delete(addr_table, &akey);
+		btree_delete(st->addr, &akey);
 	}
 
 	/* Put the new mapping into both tables */
 	addr_key_init(&akey, addr, name);
-	if (btree_put(addr_table, &akey, NULL) < 0 ||
-	    btree_put(sym_table, &skey, &addr) < 0) {
+	if (btree_put(st->addr, &akey, NULL) < 0 ||
+	    btree_put(st->sym, &skey, &addr) < 0) {
 		fprintf(stderr, "stab: can't set %s = 0x%04x\n", name, addr);
 		return -1;
 	}
@@ -137,7 +152,7 @@ int stab_set(const char *name, int value)
 	return 0;
 }
 
-int stab_nearest(u_int16_t addr, char *ret_name, int max_len,
+int stab_nearest(stab_t st, u_int16_t addr, char *ret_name, int max_len,
 		 u_int16_t *ret_offset)
 {
 	struct addr_key akey;
@@ -148,7 +163,7 @@ int stab_nearest(u_int16_t addr, char *ret_name, int max_len,
 		akey.name[i] = 0xff;
 	akey.name[sizeof(akey.name) - 1] = 0xff;
 
-	if (!btree_select(addr_table, &akey, BTREE_LE, &akey, NULL)) {
+	if (!btree_select(st->addr, &akey, BTREE_LE, &akey, NULL)) {
 		strncpy(ret_name, akey.name, max_len);
 		ret_name[max_len - 1] = 0;
 		*ret_offset = addr - akey.addr;
@@ -158,73 +173,83 @@ int stab_nearest(u_int16_t addr, char *ret_name, int max_len,
 	return -1;
 }
 
-int stab_get(const char *name, int *value)
+int stab_get(stab_t st, const char *name, int *value)
 {
 	struct sym_key skey;
 	u_int16_t addr;
 
 	sym_key_init(&skey, name);
-	if (btree_get(sym_table, &skey, &addr))
+	if (btree_get(st->sym, &skey, &addr))
 		return -1;
 
 	*value = addr;
 	return 0;
 }
 
-int stab_del(const char *name)
+int stab_del(stab_t st, const char *name)
 {
 	struct sym_key skey;
 	u_int16_t value;
 	struct addr_key akey;
 
 	sym_key_init(&skey, name);
-	if (btree_get(sym_table, &skey, &value))
+	if (btree_get(st->sym, &skey, &value))
 		return -1;
 
 	addr_key_init(&akey, value, name);
-	btree_delete(sym_table, &skey);
-	btree_delete(addr_table, &akey);
+	btree_delete(st->sym, &skey);
+	btree_delete(st->addr, &akey);
 
 	return 0;
 }
 
-int stab_enum(stab_callback_t cb, void *user_data)
+int stab_enum(stab_t st, stab_callback_t cb, void *user_data)
 {
 	int ret;
 	struct addr_key akey;
 
-	ret = btree_select(addr_table, NULL, BTREE_FIRST,
+	ret = btree_select(st->addr, NULL, BTREE_FIRST,
 			   &akey, NULL);
 	while (!ret) {
 		if (cb(user_data, akey.name, akey.addr) < 0)
 			return -1;
-		ret = btree_select(addr_table, NULL, BTREE_NEXT,
+		ret = btree_select(st->addr, NULL, BTREE_NEXT,
 				   &akey, NULL);
 	}
 
 	return 0;
 }
 
-int stab_init(void)
+stab_t stab_new(void)
 {
-	sym_table = btree_alloc(&sym_table_def);
-	if (!sym_table) {
+	stab_t st = malloc(sizeof(*st));
+
+	if (!st) {
+		perror("stab: failed to allocate memory\n");
+		return NULL;
+	}
+
+	st->sym = btree_alloc(&sym_table_def);
+	if (!st->sym) {
 		fprintf(stderr, "stab: failed to allocate symbol table\n");
-		return -1;
+		free(st);
+		return NULL;
 	}
 
-	addr_table = btree_alloc(&addr_table_def);
-	if (!addr_table) {
+	st->addr = btree_alloc(&addr_table_def);
+	if (!st->addr) {
 		fprintf(stderr, "stab: failed to allocate address table\n");
-		btree_free(sym_table);
-		return -1;
+		btree_free(st->sym);
+		free(st);
+		return NULL;
 	}
 
-        return 0;
+        return st;
 }
 
-void stab_exit(void)
+void stab_destroy(stab_t st)
 {
-	btree_free(sym_table);
-	btree_free(addr_table);
+	btree_free(st->sym);
+	btree_free(st->addr);
+	free(st);
 }
