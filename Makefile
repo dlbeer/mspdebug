@@ -34,8 +34,8 @@ clean:
 	/bin/rm -f mspdebug
 
 install: mspdebug mspdebug.man
-	$(INSTALL) -m 0755 -s mspdebug $(PREFIX)/bin/mspdebug
-	$(INSTALL) -m 0644 mspdebug.man $(PREFIX)/share/man/man1/mspdebug.1
+	$(INSTALL) -D -m 0755 -s mspdebug $(PREFIX)/bin/mspdebug
+	$(INSTALL) -D -m 0644 mspdebug.man $(PREFIX)/share/man/man1/mspdebug.1
 
 .SUFFIXES: .c .o
 
