@@ -238,11 +238,11 @@ void cproc_disassemble(cproc_t cp,
 	}
 }
 
-void cproc_hexdump(cproc_t cp, u_int16_t addr, const u_int8_t *data, int len)
+void cproc_hexdump(cproc_t cp, u_int16_t addr, const u_int8_t *data, int data_len)
 {
 	int offset = 0;
 
-	while (offset < len) {
+	while (offset < data_len) {
 		char buf[128];
 		int len = 0;
 		int i, j;
@@ -252,7 +252,7 @@ void cproc_hexdump(cproc_t cp, u_int16_t addr, const u_int8_t *data, int len)
 				"    \x1b[36m%04x:\x1b[0m", offset + addr);
 
 		/* Hex portion */
-		for (i = 0; i < 16 && offset + i < len; i++)
+		for (i = 0; i < 16 && offset + i < data_len; i++)
 			len += snprintf(buf + len, sizeof(buf) - len,
 					" %02x", data[offset + i]);
 		for (j = i; j < 16; j++) {
