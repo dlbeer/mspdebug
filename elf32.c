@@ -19,10 +19,16 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#ifdef __APPLE__
+#include <libelf.h>
+#else
 #include <elf.h>
+#endif
 #include "binfile.h"
 
+#ifndef EM_MSP430
 #define EM_MSP430	0x69
+#endif
 
 static const u_int8_t elf32_id[] = {
 	ELFMAG0, ELFMAG1, ELFMAG2, ELFMAG3, ELFCLASS32

@@ -65,9 +65,11 @@ static int open_interface(struct rf2500_transport *tr,
 		return -1;
 	}
 
+#ifndef __APPLE__
 	if (usb_detach_kernel_driver_np(tr->handle, tr->int_number) < 0)
 		perror("rf2500: warning: can't "
 			"detach kernel driver");
+#endif
 
 	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
 		perror("rf2500: can't claim interface");
