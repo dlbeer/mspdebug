@@ -63,18 +63,6 @@ static void gdb_printf(struct gdb_data *data, const char *fmt, ...)
 	data->outlen += len;
 }
 
-static int gdb_flush(struct gdb_data *data)
-{
-	if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
-		data->error = errno;
-		perror("gdb: send");
-		return -1;
-	}
-
-	data->outlen = 0;
-	return 0;
-}
-
 static int gdb_read(struct gdb_data *data, int blocking)
 {
 	fd_set r;
@@ -136,6 +124,18 @@ static int gdb_getc(struct gdb_data *data)
 	return c;
 }
 
+static int gdb_flush(struct gdb_data *data)
+{
+	if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
+		data->error = errno;
+		perror("gdb: flush");
+		return -1;
+	}
+
+	data->outlen = 0;
+	return 0;
+}
+
 static int gdb_flush_ack(struct gdb_data *data)
 {
 	int c;
@@ -145,14 +145,18 @@ static int gdb_flush_ack(struct gdb_data *data)
 #ifdef DEBUG_GDB
 		printf("-> %s\n", data->outbuf);
 #endif
-		if (gdb_flush(data) < 0)
+		if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
+			data->error = errno;
+			perror("gdb: flush_ack");
 			return -1;
+		}
 
 		c = gdb_getc(data);
 		if (c < 0)
 			return -1;
 	} while (c != '+');
 
+	data->outlen = 0;
 	return 0;
 }
 
@@ -392,18 +396,14 @@ static int run(struct gdb_data *data, char *buf)
 	printf("Running\n");
 
 	if (run_set_pc(data, buf) < 0 ||
-	    data->device->ctl(data->device, DEVICE_CTL_RUN) < 0) {
-		gdb_send(data, "E00");
-		return run_final_status(data);
-	}
+	    data->device->ctl(data->device, DEVICE_CTL_RUN) < 0)
+		return gdb_send(data, "E00");
 
 	for (;;) {
 		device_status_t status = data->device->poll(data->device);
 
-		if (status == DEVICE_STATUS_ERROR) {
-			gdb_send(data, "E00");
-			return run_final_status(data);
-		}
+		if (status == DEVICE_STATUS_ERROR)
+			return gdb_send(data, "E00");
 
 		if (status == DEVICE_STATUS_HALTED) {
 			printf("Target halted\n");
@@ -428,7 +428,7 @@ static int run(struct gdb_data *data, char *buf)
 
  out:
 	if (data->device->ctl(data->device, DEVICE_CTL_HALT) < 0)
-		gdb_send(data, "E00");
+		return gdb_send(data, "E00");
 
 	return run_final_status(data);
 }
