@@ -227,9 +227,15 @@ static int monitor_command(struct gdb_data *data, char *buf)
 	int len = 0;
 
 	while (len + 1 < sizeof(cmd) && *buf && buf[1]) {
+		if (len + 1 >= sizeof(cmd))
+			break;
+
 		cmd[len++] = (hexval(buf[0]) << 4) | hexval(buf[1]);
 		buf += 2;
 	}
+	cmd[len] = 0;
+
+	printf("Monitor command received: %s\n", cmd);
 
 	if (!strcasecmp(cmd, "reset")) {
 		printf("Resetting device\n");
