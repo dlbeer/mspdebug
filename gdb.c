@@ -47,6 +47,12 @@ struct gdb_data {
 	int             outlen;
 
 	device_t        device;
+
+	/* The underlying device driver supports only one breakpoint at
+	 * a time. We keep track of whether or not it's in use and report
+	 * an error to gdb if more than one is set.
+	 */
+	int             have_breakpoint;
 };
 
 static void gdb_printf(struct gdb_data *data, const char *fmt, ...)
@@ -433,11 +439,70 @@ static int run(struct gdb_data *data, char *buf)
 	return run_final_status(data);
 }
 
+static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
+{
+	char *parts[2];
+	int type;
+	int addr;
+	int i;
+
+	/* Break up the arguments */
+	for (i = 0; i < 2; i++)
+		parts[i] = strsep(&buf, ",");
+
+	/* Make sure there's a type argument */
+	if (!parts[0]) {
+		fprintf(stderr, "gdb: breakpoint requested with no type\n");
+		return gdb_send(data, "E00");
+	}
+
+	/* We only support breakpoints */
+	type = atoi(parts[0]);
+	if (type < 0 || type > 1) {
+		fprintf(stderr, "gdb: unsupported breakpoint type: %s\n",
+			parts[0]);
+		return gdb_send(data, "");
+	}
+
+	/* There needs to be an address specified */
+	if (!parts[1]) {
+		fprintf(stderr, "gdb: breakpoint address missing\n");
+		return gdb_send(data, "E00");
+	}
+
+	/* Parse the breakpoint address */
+	addr = strtoul(parts[1], NULL, 16);
+
+	/* Only one breakpoint at a time is allowed */
+	if (enable && data->have_breakpoint) {
+		fprintf(stderr, "gdb: only one breakpoint allowed "
+			"at a time\n");
+		return gdb_send(data, "E00");
+	}
+
+	/* Set the breakpoint */
+	if (data->device->breakpoint(data->device, enable, addr) < 0)
+		return gdb_send(data, "E00");
+
+	data->have_breakpoint = enable;
+
+	if (enable)
+		printf("Breakpoint set at 0x%04x\n", addr);
+	else
+		printf("Breakpoint cleared\n");
+
+	return gdb_send(data, "OK");
+}
+
 static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 {
 	switch (buf[0]) {
 	case '?': /* Return target halt reason */
 		return gdb_send(data, "T00");
+
+	case 'z':
+	case 'Z':
+		return set_breakpoint(data, buf[0] == 'Z', buf + 1);
 
 	case 'g': /* Read registers */
 		return read_registers(data);
@@ -586,7 +651,13 @@ static int gdb_server(device_t device, int port)
 	data.outlen = 0;
 	data.device = device;
 
+	/* Put the hardware breakpoint setting into a known state. */
+	data.have_breakpoint = 0;
+	device->breakpoint(device, 0, 0);
+
 	gdb_reader_loop(&data);
+
+	device->breakpoint(device, 0, 0);
 
 	return data.error ? -1 : 0;
 }
