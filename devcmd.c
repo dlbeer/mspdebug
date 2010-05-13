@@ -36,16 +36,19 @@ static int cmd_regs(cproc_t cp, char **arg)
 	device_t dev = cproc_device(cp);
 	uint16_t regs[DEVICE_NUM_REGS];
 	uint8_t code[16];
+	int len = sizeof(code);
 
 	if (dev->getregs(dev, regs) < 0)
 		return -1;
 	cproc_regs(cp, regs);
 
 	/* Try to disassemble the instruction at PC */
-	if (dev->readmem(dev, regs[0], code, sizeof(code)) < 0)
+	if (len > 0x10000 - regs[0])
+		len = 0x10000 - regs[0];
+	if (dev->readmem(dev, regs[0], code, len) < 0)
 		return 0;
 
-	cproc_disassemble(cp, regs[0], (uint8_t *)code, sizeof(code));
+	cproc_disassemble(cp, regs[0], (uint8_t *)code, len);
 	return 0;
 }
 
