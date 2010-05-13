@@ -27,6 +27,8 @@ READLINE_CFLAGS = -DUSE_READLINE
 READLINE_LIBS = -lreadline
 endif
 
+MSPDEBUG_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
+
 all: mspdebug
 
 clean:
@@ -45,4 +47,4 @@ mspdebug: main.o fet.o rf2500.o dis.o uif.o ihex.o elf32.o stab.o util.o \
 	$(CC) $(LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(READLINE_CFLAGS) -O1 -Wall -ggdb -o $@ -c $*.c
+	$(CC) $(CFLAGS) $(READLINE_CFLAGS) $(MSPDEBUG_CFLAGS) -o $@ -c $*.c

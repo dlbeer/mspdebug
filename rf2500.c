@@ -65,7 +65,7 @@ static int open_interface(struct rf2500_transport *tr,
 		return -1;
 	}
 
-#ifndef __APPLE__
+#if !(defined(__APPLE__) || defined(WIN32))
 	if (usb_detach_kernel_driver_np(tr->handle, tr->int_number) < 0)
 		perror("rf2500: warning: can't "
 			"detach kernel driver");
@@ -124,7 +124,7 @@ static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 		debug_hexdump("USB transfer out", pbuf, txlen);
 #endif
 		if (usb_bulk_write(tr->handle, USB_FET_OUT_EP,
-			(const char *)pbuf, txlen, 10000) < 0) {
+			(char *)pbuf, txlen, 10000) < 0) {
 			perror("rf2500: can't send data");
 			return -1;
 		}

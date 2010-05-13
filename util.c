@@ -40,12 +40,7 @@ static void sigint_handler(int signum)
 
 void ctrlc_init(void)
 {
-	const static struct sigaction siga = {
-		.sa_handler = sigint_handler,
-		.sa_flags = 0
-	};
-
-	sigaction(SIGINT, &siga, NULL);
+	signal(SIGINT, sigint_handler);
 }
 
 void ctrlc_reset(void)
@@ -111,7 +106,8 @@ int open_serial(const char *device, int rate)
 
 	tcgetattr(fd, &attr);
 	cfmakeraw(&attr);
-	cfsetspeed(&attr, rate);
+	cfsetispeed(&attr, rate);
+	cfsetospeed(&attr, rate);
 
 	if (tcsetattr(fd, TCSAFLUSH, &attr) < 0)
 		return -1;
