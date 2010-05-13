@@ -42,8 +42,8 @@
 #include "rf2500.h"
 
 static void io_prefix(stab_t stab,
-		      const char *prefix, u_int16_t pc,
-		      u_int16_t addr, int is_byte)
+		      const char *prefix, uint16_t pc,
+		      uint16_t addr, int is_byte)
 {
 	char name[64];
 
@@ -64,8 +64,8 @@ static void io_prefix(stab_t stab,
 	}
 }
 
-static int fetch_io(void *user_data, u_int16_t pc,
-		    u_int16_t addr, int is_byte, u_int16_t *data_ret)
+static int fetch_io(void *user_data, uint16_t pc,
+		    uint16_t addr, int is_byte, uint16_t *data_ret)
 {
 	stab_t stab = (stab_t)user_data;
 
@@ -101,8 +101,8 @@ static int fetch_io(void *user_data, u_int16_t pc,
 	return 0;
 }
 
-static void store_io(void *user_data, u_int16_t pc,
-		     u_int16_t addr, int is_byte, u_int16_t data)
+static void store_io(void *user_data, uint16_t pc,
+		     uint16_t addr, int is_byte, uint16_t data)
 {
 	stab_t stab = (stab_t)user_data;
 

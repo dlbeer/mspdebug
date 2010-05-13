@@ -25,10 +25,10 @@
 #include "util.h"
 
 static int format_addr(stab_t stab, char *buf, int max_len,
-		       msp430_amode_t amode, u_int16_t addr)
+		       msp430_amode_t amode, uint16_t addr)
 {
 	char name[64];
-	u_int16_t offset;
+	uint16_t offset;
 	int numeric = 0;
 	const char *prefix = "";
 
@@ -109,7 +109,7 @@ static int format_reg(char *buf, int max_len,
  * Returns the number of characters printed.
  */
 static int format_operand(stab_t stab, char *buf, int max_len,
-			  msp430_amode_t amode, u_int16_t addr,
+			  msp430_amode_t amode, uint16_t addr,
 			  msp430_reg_t reg)
 {
 	int len = 0;
@@ -183,7 +183,7 @@ static int dis_format(stab_t stab, char *buf, int max_len,
 }
 
 void cproc_disassemble(cproc_t cp,
-		       u_int16_t offset, const u_int8_t *data, int length)
+		       uint16_t offset, const uint8_t *data, int length)
 {
 	stab_t stab = cproc_stab(cp);
 	int first_line = 1;
@@ -193,7 +193,7 @@ void cproc_disassemble(cproc_t cp,
 		int retval;
 		int count;
 		int i;
-		u_int16_t oboff;
+		uint16_t oboff;
 		char obname[64];
 		char buf[256];
 		int len = 0;
@@ -238,7 +238,7 @@ void cproc_disassemble(cproc_t cp,
 	}
 }
 
-void cproc_hexdump(cproc_t cp, u_int16_t addr, const u_int8_t *data, int data_len)
+void cproc_hexdump(cproc_t cp, uint16_t addr, const uint8_t *data, int data_len)
 {
 	int offset = 0;
 
@@ -279,7 +279,7 @@ void cproc_hexdump(cproc_t cp, u_int16_t addr, const u_int8_t *data, int data_le
 	}
 }
 
-void cproc_regs(cproc_t cp, const u_int16_t *regs)
+void cproc_regs(cproc_t cp, const uint16_t *regs)
 {
 	int i;
 

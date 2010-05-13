@@ -21,7 +21,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <sys/types.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <termios.h>
 
@@ -34,7 +34,7 @@ struct uif_transport {
 	int                     serial_fd;
 };
 
-static int serial_send(transport_t tr_base, const u_int8_t *data, int len)
+static int serial_send(transport_t tr_base, const uint8_t *data, int len)
 {
 	struct uif_transport *tr = (struct uif_transport *)tr_base;
 
@@ -50,7 +50,7 @@ static int serial_send(transport_t tr_base, const u_int8_t *data, int len)
 	return 0;
 }
 
-static int serial_recv(transport_t tr_base, u_int8_t *data, int max_len)
+static int serial_recv(transport_t tr_base, uint8_t *data, int max_len)
 {
 	struct uif_transport *tr = (struct uif_transport *)tr_base;
 	int r;

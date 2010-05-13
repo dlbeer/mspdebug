@@ -20,13 +20,13 @@
 #define BINFILE_H_
 
 #include <stdio.h>
-#include <sys/types.h>
+#include <stdint.h>
 
 #include "stab.h"
 
 /* Callback for binary image data */
 typedef int (*imgfunc_t)(void *user_data,
-			 u_int16_t addr, const u_int8_t *data, int len);
+			 uint16_t addr, const uint8_t *data, int len);
 
 /* Intel HEX file support */
 int ihex_check(FILE *in);

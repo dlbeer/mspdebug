@@ -35,13 +35,13 @@ struct sim_device {
 	sim_store_func_t        store_func;
 	void                    *user_data;
 
-	u_int8_t                memory[MEM_SIZE];
-	u_int16_t               regs[DEVICE_NUM_REGS];
+	uint8_t                memory[MEM_SIZE];
+	uint16_t               regs[DEVICE_NUM_REGS];
 
 	int                     running;
-	u_int16_t               current_insn;
+	uint16_t               current_insn;
 	int                     have_breakpoint;
-	u_int16_t               breakpoint_addr;
+	uint16_t               breakpoint_addr;
 };
 
 #define MEM_GETB(dev, offset) ((dev)->memory[offset])
@@ -57,10 +57,10 @@ struct sim_device {
 
 static int fetch_operand(struct sim_device *dev,
 			 int amode, int reg, int is_byte,
-			 u_int16_t *addr_ret, u_int32_t *data_ret)
+			 uint16_t *addr_ret, uint32_t *data_ret)
 {
-	u_int16_t addr = 0;
-	u_int32_t mask = is_byte ? 0xff : 0xffff;
+	uint16_t addr = 0;
+	uint32_t mask = is_byte ? 0xff : 0xffff;
 
 	switch (amode) {
 	case MSP430_AMODE_REGISTER:
@@ -125,7 +125,7 @@ static int fetch_operand(struct sim_device *dev,
 		*data_ret = MEM_GETW(dev, addr) & mask;
 
 		if (addr < MEM_IO_END && dev->fetch_func) {
-			u_int16_t data16 = *data_ret;
+			uint16_t data16 = *data_ret;
 			int ret;
 
 			ret = dev->fetch_func(dev->user_data,
@@ -141,7 +141,7 @@ static int fetch_operand(struct sim_device *dev,
 
 static void store_operand(struct sim_device *dev,
 			  int amode, int reg, int is_byte,
-			  u_int16_t addr, u_int16_t data)
+			  uint16_t addr, uint16_t data)
 {
 	if (is_byte)
 		MEM_SETB(dev, addr, data);
@@ -157,20 +157,20 @@ static void store_operand(struct sim_device *dev,
 
 #define ARITH_BITS (MSP430_SR_V | MSP430_SR_N | MSP430_SR_Z | MSP430_SR_C)
 
-static int step_double(struct sim_device *dev, u_int16_t ins)
+static int step_double(struct sim_device *dev, uint16_t ins)
 {
-	u_int16_t opcode = ins & 0xf000;
+	uint16_t opcode = ins & 0xf000;
 	int sreg = (ins >> 8) & 0xf;
 	int amode_dst = (ins >> 7) & 1;
 	int is_byte = ins & 0x0040;
 	int amode_src = (ins >> 4) & 0x3;
 	int dreg = ins & 0x000f;
-	u_int32_t src_data;
-	u_int16_t dst_addr = 0;
-	u_int32_t dst_data;
-	u_int32_t res_data;
-	u_int32_t msb = is_byte ? 0x80 : 0x8000;
-	u_int32_t mask = is_byte ? 0xff : 0xffff;
+	uint32_t src_data;
+	uint16_t dst_addr = 0;
+	uint32_t dst_data;
+	uint32_t res_data;
+	uint32_t msb = is_byte ? 0x80 : 0x8000;
+	uint32_t mask = is_byte ? 0xff : 0xffff;
 
 	if (fetch_operand(dev, amode_src, sreg, is_byte, NULL, &src_data) < 0)
 		return -1;
@@ -271,17 +271,17 @@ static int step_double(struct sim_device *dev, u_int16_t ins)
 	return 0;
 }
 
-static int step_single(struct sim_device *dev, u_int16_t ins)
+static int step_single(struct sim_device *dev, uint16_t ins)
 {
-	u_int16_t opcode = ins & 0xff80;
+	uint16_t opcode = ins & 0xff80;
 	int is_byte = ins & 0x0040;
 	int amode = (ins >> 4) & 0x3;
 	int reg = ins & 0x000f;
-	u_int16_t msb = is_byte ? 0x80 : 0x8000;
-	u_int32_t mask = is_byte ? 0xff : 0xffff;
-	u_int16_t src_addr = 0;
-	u_int32_t src_data;
-	u_int32_t res_data;
+	uint16_t msb = is_byte ? 0x80 : 0x8000;
+	uint32_t mask = is_byte ? 0xff : 0xffff;
+	uint16_t src_addr = 0;
+	uint32_t src_data;
+	uint32_t res_data;
 
 	if (fetch_operand(dev, amode, reg, is_byte, &src_addr, &src_data) < 0)
 		return -1;
@@ -357,11 +357,11 @@ static int step_single(struct sim_device *dev, u_int16_t ins)
 	return 0;
 }
 
-static int step_jump(struct sim_device *dev, u_int16_t ins)
+static int step_jump(struct sim_device *dev, uint16_t ins)
 {
-	u_int16_t opcode = ins & 0xfc00;
-	u_int16_t pc_offset = (ins & 0x03ff) << 1;
-	u_int16_t sr = dev->regs[MSP430_REG_SR];
+	uint16_t opcode = ins & 0xfc00;
+	uint16_t pc_offset = (ins & 0x03ff) << 1;
+	uint16_t sr = dev->regs[MSP430_REG_SR];
 
 	if (pc_offset & 0x0400)
 		pc_offset |= 0xff800;
@@ -410,7 +410,7 @@ static int step_jump(struct sim_device *dev, u_int16_t ins)
 
 static int step_cpu(struct sim_device *dev)
 {
-	u_int16_t ins;
+	uint16_t ins;
 	int ret;
 
 	/* Fetch the instruction */
@@ -442,8 +442,8 @@ static void sim_destroy(device_t dev_base)
 	free(dev_base);
 }
 
-static int sim_readmem(device_t dev_base, u_int16_t addr,
-		       u_int8_t *mem, int len)
+static int sim_readmem(device_t dev_base, uint16_t addr,
+		       uint8_t *mem, int len)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
 
@@ -454,8 +454,8 @@ static int sim_readmem(device_t dev_base, u_int16_t addr,
 	return 0;
 }
 
-static int sim_writemem(device_t dev_base, u_int16_t addr,
-			const u_int8_t *mem, int len)
+static int sim_writemem(device_t dev_base, uint16_t addr,
+			const uint8_t *mem, int len)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
 
@@ -466,7 +466,7 @@ static int sim_writemem(device_t dev_base, u_int16_t addr,
 	return 0;
 }
 
-static int sim_getregs(device_t dev_base, u_int16_t *regs)
+static int sim_getregs(device_t dev_base, uint16_t *regs)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
 
@@ -474,7 +474,7 @@ static int sim_getregs(device_t dev_base, u_int16_t *regs)
 	return 0;
 }
 
-static int sim_setregs(device_t dev_base, const u_int16_t *regs)
+static int sim_setregs(device_t dev_base, const uint16_t *regs)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
 
@@ -482,7 +482,7 @@ static int sim_setregs(device_t dev_base, const u_int16_t *regs)
 	return 0;
 }
 
-static int sim_breakpoint(device_t dev_base, int enabled, u_int16_t addr)
+static int sim_breakpoint(device_t dev_base, int enabled, uint16_t addr)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
 

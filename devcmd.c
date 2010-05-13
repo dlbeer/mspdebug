@@ -34,8 +34,8 @@
 static int cmd_regs(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	u_int16_t regs[DEVICE_NUM_REGS];
-	u_int8_t code[16];
+	uint16_t regs[DEVICE_NUM_REGS];
+	uint8_t code[16];
 
 	if (dev->getregs(dev, regs) < 0)
 		return -1;
@@ -45,7 +45,7 @@ static int cmd_regs(cproc_t cp, char **arg)
 	if (dev->readmem(dev, regs[0], code, sizeof(code)) < 0)
 		return 0;
 
-	cproc_disassemble(cp, regs[0], (u_int8_t *)code, sizeof(code));
+	cproc_disassemble(cp, regs[0], (uint8_t *)code, sizeof(code));
 	return 0;
 }
 
@@ -84,7 +84,7 @@ static int cmd_md(cproc_t cp, char **arg)
 	}
 
 	while (length) {
-		u_int8_t buf[128];
+		uint8_t buf[128];
 		int blen = length > sizeof(buf) ? sizeof(buf) : length;
 
 		if (dev->readmem(dev, offset, buf, blen) < 0)
@@ -106,7 +106,7 @@ static int cmd_mw(cproc_t cp, char **arg)
 	char *byte_text;
 	int offset = 0;
 	int length = 0;
-	u_int8_t buf[1024];
+	uint8_t buf[1024];
 
 	if (!off_text) {
 		fprintf(stderr, "md: offset must be specified\n");
@@ -230,7 +230,7 @@ static int cmd_set(cproc_t cp, char **arg)
 	char *val_text = get_arg(arg);
 	int reg;
 	int value = 0;
-	u_int16_t regs[DEVICE_NUM_REGS];
+	uint16_t regs[DEVICE_NUM_REGS];
 
 	if (!(reg_text && val_text)) {
 		fprintf(stderr, "set: must specify a register and a value\n");
@@ -269,7 +269,7 @@ static int cmd_dis(cproc_t cp, char **arg)
 	char *len_text = get_arg(arg);
 	int offset = 0;
 	int length = 0x40;
-	u_int8_t buf[4096];
+	uint8_t buf[4096];
 
 	if (!off_text) {
 		fprintf(stderr, "dis: offset must be specified\n");
@@ -300,14 +300,14 @@ static int cmd_dis(cproc_t cp, char **arg)
 	if (dev->readmem(dev, offset, buf, length) < 0)
 		return -1;
 
-	cproc_disassemble(cp, offset, (u_int8_t *)buf, length);
+	cproc_disassemble(cp, offset, (uint8_t *)buf, length);
 	return 0;
 }
 
 struct hexout_data {
 	FILE            *file;
-	u_int16_t       addr;
-	u_int8_t        buf[16];
+	uint16_t       addr;
+	uint8_t        buf[16];
 	int             len;
 };
 
@@ -358,7 +358,7 @@ fail:
 }
 
 static int hexout_feed(struct hexout_data *hexout,
-		       u_int16_t addr, const u_int8_t *buf, int len)
+		       uint16_t addr, const uint8_t *buf, int len)
 {
 	while (len) {
 		int count;
@@ -410,7 +410,7 @@ static int cmd_hexout(cproc_t cp, char **arg)
 		return -1;
 
 	while (length) {
-		u_int8_t buf[128];
+		uint8_t buf[128];
 		int count = length;
 
 		if (count > sizeof(buf))
@@ -447,8 +447,8 @@ fail:
 struct prog_data {
 	device_t        dev;
 
-	u_int8_t        buf[128];
-	u_int16_t       addr;
+	uint8_t        buf[128];
+	uint16_t       addr;
 	int             len;
 	int             have_erased;
 };
@@ -490,7 +490,7 @@ static int prog_flush(struct prog_data *prog)
 }
 
 static int prog_feed(void *user_data,
-		     u_int16_t addr, const u_int8_t *data, int len)
+		     uint16_t addr, const uint8_t *data, int len)
 {
 	struct prog_data *prog = (struct prog_data *)user_data;
 

@@ -19,14 +19,14 @@
 #ifndef UTIL_H_
 #define UTIL_H_
 
-#include <sys/types.h>
+#include <stdint.h>
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 /* Various utility functions for IO */
 int open_serial(const char *device, int rate);
-int read_with_timeout(int fd, u_int8_t *data, int len);
-int write_all(int fd, const u_int8_t *data, int len);
+int read_with_timeout(int fd, uint8_t *data, int len);
+int write_all(int fd, const uint8_t *data, int len);
 
 /* Check and catch ^C from the user */
 void ctrlc_init(void);
@@ -40,7 +40,7 @@ char *get_arg(char **text);
 
 /* Display hex output for debug purposes */
 void debug_hexdump(const char *label,
-		   const u_int8_t *data, int len);
+		   const uint8_t *data, int len);
 
 /* Get text length, not including ANSI codes */
 int textlen(const char *text);

@@ -18,7 +18,7 @@
 
 #ifndef DIS_H_
 
-#include <sys/types.h>
+#include <stdint.h>
 
 /* Addressing modes.
  *
@@ -177,7 +177,7 @@ typedef enum {
  * For jump instructions, the target address is stored in dst_operand.
  */
 struct msp430_instruction {
-	u_int16_t               offset;
+	uint16_t               offset;
 	int                     len;
 
 	msp430_op_t             op;
@@ -185,11 +185,11 @@ struct msp430_instruction {
 	int                     is_byte_op;
 
 	msp430_amode_t          src_mode;
-	u_int16_t               src_addr;
+	uint16_t               src_addr;
 	msp430_reg_t            src_reg;
 
 	msp430_amode_t          dst_mode;
-	u_int16_t               dst_addr;
+	uint16_t               dst_addr;
 	msp430_reg_t            dst_reg;
 };
 
@@ -202,8 +202,8 @@ struct msp430_instruction {
  * successful, the decoded instruction is written into the structure
  * pointed to by insn.
  */
-int dis_decode(const u_int8_t *code,
-	       u_int16_t offset, u_int16_t len,
+int dis_decode(const uint8_t *code,
+	       uint16_t offset, uint16_t len,
 	       struct msp430_instruction *insn);
 
 /* Look up names for registers and opcodes */

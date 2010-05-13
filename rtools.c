@@ -320,7 +320,7 @@ static int isearch_match(const struct msp430_instruction *insn,
 static int do_isearch(cproc_t cp,
 		      int addr, int len, const struct isearch_query *q)
 {
-	u_int8_t *mbuf;
+	uint8_t *mbuf;
 	device_t dev = cproc_device(cp);
 	int i;
 

@@ -28,7 +28,7 @@
  */
 
 static struct {
-	u_int16_t	id;
+	uint16_t	id;
 	const char	*id_text;
 } id_table[] = {
 	{0x1132, "F1122"},
@@ -64,7 +64,7 @@ static struct {
 	{0xF46F, "F471xx"}
 };
 
-int device_id_text(u_int16_t id, char *out, int max_len)
+int device_id_text(uint16_t id, char *out, int max_len)
 {
 	int i = 0;
 	int len;

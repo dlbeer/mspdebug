@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/types.h>
+#include <stdint.h>
 #include <regex.h>
 #include <errno.h>
 #include "stab.h"
@@ -34,7 +34,7 @@ static int cmd_eval(cproc_t cp, char **arg)
 {
 	stab_t stab = cproc_stab(cp);
 	int addr;
-	u_int16_t offset;
+	uint16_t offset;
 	char name[64];
 
 	if (expr_eval(stab, *arg, &addr) < 0) {
@@ -88,7 +88,7 @@ static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 	return result;
 }
 
-static int savemap_cb(void *user_data, const char *name, u_int16_t value)
+static int savemap_cb(void *user_data, const char *name, uint16_t value)
 {
 	FILE *savemap_out = (FILE *)user_data;
 
@@ -132,13 +132,13 @@ static int cmd_sym_savemap(cproc_t cp, char **arg)
 	return 0;
 }
 
-static int print_sym(void *user_data, const char *name, u_int16_t value)
+static int print_sym(void *user_data, const char *name, uint16_t value)
 {
 	printf("0x%04x: %s\n", value, name);
 	return 0;
 }
 
-static int find_sym(void *user_data, const char *name, u_int16_t value)
+static int find_sym(void *user_data, const char *name, uint16_t value)
 {
 	regex_t *find_preg = (regex_t *)user_data;
 
@@ -222,7 +222,7 @@ static int renames_do(stab_t stab,
 	return 0;
 }
 
-static int find_renames(void *user_data, const char *name, u_int16_t value)
+static int find_renames(void *user_data, const char *name, uint16_t value)
 {
 	struct rename_data *rename = (struct rename_data *)user_data;
 	regmatch_t pmatch;

@@ -19,18 +19,18 @@
 #ifndef CPROC_UTIL_H_
 #define CPROC_UTIL_H_
 
-#include <sys/types.h>
+#include <stdint.h>
 #include "cproc.h"
 
 /* Print colorized disassembly on command processor standard output */
-void cproc_disassemble(cproc_t cp, u_int16_t addr,
-		       const u_int8_t *buf, int len);
+void cproc_disassemble(cproc_t cp, uint16_t addr,
+		       const uint8_t *buf, int len);
 
 /* Print colorized hexdump on standard output */
-void cproc_hexdump(cproc_t cp, u_int16_t addr,
-		   const u_int8_t *buf, int len);
+void cproc_hexdump(cproc_t cp, uint16_t addr,
+		   const uint8_t *buf, int len);
 
 /* Colorized register dump */
-void cproc_regs(cproc_t cp, const u_int16_t *regs);
+void cproc_regs(cproc_t cp, const uint16_t *regs);
 
 #endif

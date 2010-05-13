@@ -19,7 +19,7 @@
 #ifndef TRANSPORT_H_
 #define TRANSPORT_H_
 
-#include <sys/types.h>
+#include <stdint.h>
 
 /* This structure is used to provide an interface to a lower-level
  * transport. The transport mechanism is viewed as a stream by the FET
@@ -31,8 +31,8 @@ typedef struct transport *transport_t;
 
 struct transport {
 	void (*destroy)(transport_t tr);
-	int (*send)(transport_t tr, const u_int8_t *data, int len);
-	int (*recv)(transport_t tr, u_int8_t *data, int max_len);
+	int (*send)(transport_t tr, const uint8_t *data, int len);
+	int (*recv)(transport_t tr, uint8_t *data, int max_len);
 };
 
 #endif

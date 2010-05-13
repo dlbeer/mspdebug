@@ -19,7 +19,7 @@
 #ifndef EXPR_H_
 #define EXPR_H_
 
-#include <sys/types.h>
+#include <stdint.h>
 #include "stab.h"
 
 /* Parse an address expression, storing the result in the integer

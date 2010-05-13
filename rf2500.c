@@ -29,7 +29,7 @@ struct rf2500_transport {
 	int                     int_number;
 	struct usb_dev_handle   *handle;
 
-	u_int8_t                buf[64];
+	uint8_t                buf[64];
 	int                     len;
 	int                     offset;
 };
@@ -98,12 +98,12 @@ static int open_device(struct rf2500_transport *tr,
 	return -1;
 }
 
-static int usbtr_send(transport_t tr_base, const u_int8_t *data, int len)
+static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 {
 	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
 
 	while (len) {
-		u_int8_t pbuf[256];
+		uint8_t pbuf[256];
 		int plen = len > 255 ? 255 : len;
 		int txlen = plen + 1;
 
@@ -136,7 +136,7 @@ static int usbtr_send(transport_t tr_base, const u_int8_t *data, int len)
 	return 0;
 }
 
-static int usbtr_recv(transport_t tr_base, u_int8_t *databuf, int max_len)
+static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 {
 	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
 	int rlen;

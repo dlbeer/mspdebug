@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include <sys/types.h>
+#include <stdint.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -217,7 +217,7 @@ static int gdb_send(struct gdb_data *data, const char *msg)
 
 static int read_registers(struct gdb_data *data)
 {
-	u_int16_t regs[DEVICE_NUM_REGS];
+	uint16_t regs[DEVICE_NUM_REGS];
 	int i;
 
 	printf("Reading registers\n");
@@ -262,7 +262,7 @@ static int monitor_command(struct gdb_data *data, char *buf)
 
 static int write_registers(struct gdb_data *data, char *buf)
 {
-	u_int16_t regs[DEVICE_NUM_REGS];
+	uint16_t regs[DEVICE_NUM_REGS];
 	int i;
 
 	if (strlen(buf) < DEVICE_NUM_REGS * 4)
@@ -287,7 +287,7 @@ static int read_memory(struct gdb_data *data, char *text)
 {
 	char *length_text = strchr(text, ',');
 	int length, addr;
-	u_int8_t buf[128];
+	uint8_t buf[128];
 	int i;
 
 	if (!length_text) {
@@ -321,7 +321,7 @@ static int write_memory(struct gdb_data *data, char *text)
 	char *data_text = strchr(text, ':');
 	char *length_text = strchr(text, ',');
 	int length, addr;
-	u_int8_t buf[128];
+	uint8_t buf[128];
 	int buflen = 0;
 
 	if (!(data_text && length_text)) {
@@ -356,7 +356,7 @@ static int write_memory(struct gdb_data *data, char *text)
 
 static int run_set_pc(struct gdb_data *data, char *buf)
 {
-	u_int16_t regs[DEVICE_NUM_REGS];
+	uint16_t regs[DEVICE_NUM_REGS];
 
 	if (!*buf)
 		return 0;
@@ -370,7 +370,7 @@ static int run_set_pc(struct gdb_data *data, char *buf)
 
 static int run_final_status(struct gdb_data *data)
 {
-	u_int16_t regs[DEVICE_NUM_REGS];
+	uint16_t regs[DEVICE_NUM_REGS];
 	int i;
 
 	if (data->device->getregs(data->device, regs) < 0)

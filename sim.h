@@ -26,12 +26,12 @@
  * addresses just map to RAM.
  */
 typedef int (*sim_fetch_func_t)(void *user_data,
-				u_int16_t pc, u_int16_t addr,
-				int is_byte, u_int16_t *data);
+				uint16_t pc, uint16_t addr,
+				int is_byte, uint16_t *data);
 
 typedef void (*sim_store_func_t)(void *user_data,
-				 u_int16_t pc, u_int16_t addr,
-				 int is_byte, u_int16_t data);
+				 uint16_t pc, uint16_t addr,
+				 int is_byte, uint16_t data);
 
 /* Dummy/simulation implementation. */
 device_t sim_open(sim_fetch_func_t fetch, sim_store_func_t store,

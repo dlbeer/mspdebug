@@ -34,10 +34,10 @@
  * Returns the number of bytes consumed in decoding, or -1 if the a
  * valid single-operand instruction could not be found.
  */
-static int decode_single(const u_int8_t *code, u_int16_t offset,
-			 u_int16_t size, struct msp430_instruction *insn)
+static int decode_single(const uint8_t *code, uint16_t offset,
+			 uint16_t size, struct msp430_instruction *insn)
 {
-	u_int16_t op = (code[1] << 8) | code[0];
+	uint16_t op = (code[1] << 8) | code[0];
 	int need_arg = 0;
 
 	insn->op = op & 0xff80;
@@ -86,10 +86,10 @@ static int decode_single(const u_int8_t *code, u_int16_t offset,
  * Returns the number of bytes consumed or -1 if a valid instruction
  * could not be found.
  */
-static int decode_double(const u_int8_t *code, u_int16_t offset,
-			 u_int16_t size, struct msp430_instruction *insn)
+static int decode_double(const uint8_t *code, uint16_t offset,
+			 uint16_t size, struct msp430_instruction *insn)
 {
-	u_int16_t op = (code[1] << 8) | code[0];
+	uint16_t op = (code[1] << 8) | code[0];
 	int need_src = 0;
 	int need_dst = 0;
 	int ret = 2;
@@ -175,10 +175,10 @@ static int decode_double(const u_int8_t *code, u_int16_t offset,
  * All jump instructions are one word in length, so this function
  * always returns 2 (to indicate the consumption of 2 bytes).
  */
-static int decode_jump(const u_int8_t *code, u_int16_t offset, u_int16_t len,
+static int decode_jump(const uint8_t *code, uint16_t offset, uint16_t len,
 		       struct msp430_instruction *insn)
 {
-	u_int16_t op = (code[1] << 8) | code[0];
+	uint16_t op = (code[1] << 8) | code[0];
 	int tgtrel = op & 0x3ff;
 
 	if (tgtrel & 0x200)
@@ -193,7 +193,7 @@ static int decode_jump(const u_int8_t *code, u_int16_t offset, u_int16_t len,
 }
 
 static void remap_cgen(msp430_amode_t *mode,
-		       u_int16_t *addr,
+		       uint16_t *addr,
 		       msp430_reg_t *reg)
 {
 	if (*reg == MSP430_REG_SR) {
@@ -396,10 +396,10 @@ static void find_emulated_ops(struct msp430_instruction *insn)
  * successful, the decoded instruction is written into the structure
  * pointed to by insn.
  */
-int dis_decode(const u_int8_t *code, u_int16_t offset, u_int16_t len,
+int dis_decode(const uint8_t *code, uint16_t offset, uint16_t len,
 	       struct msp430_instruction *insn)
 {
-	u_int16_t op;
+	uint16_t op;
 	int ret;
 
 	memset(insn, 0, sizeof(*insn));

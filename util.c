@@ -58,7 +58,7 @@ int ctrlc_check(void)
 	return ctrlc_flag;
 }
 
-int read_with_timeout(int fd, u_int8_t *data, int max_len)
+int read_with_timeout(int fd, uint8_t *data, int max_len)
 {
 	int r;
 
@@ -86,7 +86,7 @@ int read_with_timeout(int fd, u_int8_t *data, int max_len)
 	return r;
 }
 
-int write_all(int fd, const u_int8_t *data, int len)
+int write_all(int fd, const uint8_t *data, int len)
 {
 	while (len) {
 		int result = write(fd, data, len);
@@ -225,7 +225,7 @@ char *get_arg(char **text)
 	return start;
 }
 
-void debug_hexdump(const char *label, const u_int8_t *data, int len)
+void debug_hexdump(const char *label, const uint8_t *data, int len)
 {
 	int offset = 0;
 

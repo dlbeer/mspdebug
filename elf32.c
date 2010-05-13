@@ -30,7 +30,7 @@
 #define EM_MSP430	0x69
 #endif
 
-static const u_int8_t elf32_id[] = {
+static const uint8_t elf32_id[] = {
 	ELFMAG0, ELFMAG1, ELFMAG2, ELFMAG3, ELFCLASS32
 };
 
@@ -121,7 +121,7 @@ static int read_shdr(struct elf32_info *info, FILE *in)
 	return 0;
 }
 
-static u_int32_t file_to_phys(struct elf32_info *info, u_int32_t v)
+static uint32_t file_to_phys(struct elf32_info *info, uint32_t v)
 {
 	int i;
 
@@ -139,8 +139,8 @@ static int feed_section(struct elf32_info *info,
 			FILE *in, int offset, int size, imgfunc_t cb,
 			void *user_data)
 {
-	u_int8_t buf[1024];
-	u_int16_t addr = file_to_phys(info, offset);
+	uint8_t buf[1024];
+	uint16_t addr = file_to_phys(info, offset);
 
 	if (fseek(in, offset, SEEK_SET) < 0) {
 		perror("elf32: can't seek to section");

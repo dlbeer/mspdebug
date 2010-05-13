@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/types.h>
+#include <stdint.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <termios.h>
@@ -33,7 +33,7 @@ struct bsl_device {
 	struct device   base;
 
 	int             serial_fd;
-	u_int8_t        reply_buf[256];
+	uint8_t        reply_buf[256];
 	int             reply_len;
 };
 
@@ -43,7 +43,7 @@ struct bsl_device {
 
 static int bsl_ack(struct bsl_device *dev)
 {
-	u_int8_t reply;
+	uint8_t reply;
 
 	if (read_with_timeout(dev->serial_fd, &reply, 1) < 0) {
 		fprintf(stderr, "bsl: failed to receive reply\n");
@@ -65,7 +65,7 @@ static int bsl_ack(struct bsl_device *dev)
 
 static int bsl_sync(struct bsl_device *dev)
 {
-	static const u_int8_t c = DATA_HDR;
+	static const uint8_t c = DATA_HDR;
 	int tries = 2;
 
 	if (tcflush(dev->serial_fd, TCIFLUSH) < 0) {
@@ -82,12 +82,12 @@ static int bsl_sync(struct bsl_device *dev)
 }
 
 static int send_command(struct bsl_device *dev,
-			int code, u_int16_t addr,
-			const u_int8_t *data, int len)
+			int code, uint16_t addr,
+			const uint8_t *data, int len)
 {
-	u_int8_t pktbuf[256];
-	u_int8_t cklow = 0xff;
-	u_int8_t ckhigh = 0xff;
+	uint8_t pktbuf[256];
+	uint8_t cklow = 0xff;
+	uint8_t ckhigh = 0xff;
 	int pktlen = data ? len + 4 : 4;
 	int i;
 
@@ -121,8 +121,8 @@ static int send_command(struct bsl_device *dev,
 
 static int verify_checksum(struct bsl_device *dev)
 {
-	u_int8_t cklow = 0xff;
-	u_int8_t ckhigh = 0xff;
+	uint8_t cklow = 0xff;
+	uint8_t ckhigh = 0xff;
 	int i;
 
 	for (i = 0; i < dev->reply_len; i += 2)
@@ -177,7 +177,7 @@ static int fetch_reply(struct bsl_device *dev)
 }
 
 static int bsl_xfer(struct bsl_device *dev,
-		    int command_code, u_int16_t addr, const u_int8_t *txdata,
+		    int command_code, uint16_t addr, const uint8_t *txdata,
 		    int len)
 {
 	if (bsl_sync(dev) < 0 ||
@@ -217,33 +217,33 @@ static device_status_t bsl_poll(device_t dev_base)
 	return DEVICE_STATUS_HALTED;
 }
 
-static int bsl_breakpoint(device_t dev_base, int enabled, u_int16_t addr)
+static int bsl_breakpoint(device_t dev_base, int enabled, uint16_t addr)
 {
 	fprintf(stderr, "bsl: breakpoints are not implemented\n");
 	return -1;
 }
 
-static int bsl_getregs(device_t dev_base, u_int16_t *regs)
+static int bsl_getregs(device_t dev_base, uint16_t *regs)
 {
 	fprintf(stderr, "bsl: register fetch is not implemented\n");
 	return -1;
 }
 
-static int bsl_setregs(device_t dev_base, const u_int16_t *regs)
+static int bsl_setregs(device_t dev_base, const uint16_t *regs)
 {
 	fprintf(stderr, "bsl: register store is not implemented\n");
 	return -1;
 }
 
 static int bsl_writemem(device_t dev_base,
-			u_int16_t addr, const u_int8_t *mem, int len)
+			uint16_t addr, const uint8_t *mem, int len)
 {
 	fprintf(stderr, "bsl: memory write is not implemented\n");
 	return -1;
 }
 
 static int bsl_readmem(device_t dev_base,
-		       u_int16_t addr, u_int8_t *mem, int len)
+		       uint16_t addr, uint8_t *mem, int len)
 {
 	struct bsl_device *dev = (struct bsl_device *)dev_base;
 
@@ -271,13 +271,13 @@ static int bsl_readmem(device_t dev_base,
 
 static int enter_via_fet(struct bsl_device *dev)
 {
-	u_int8_t buf[16];
-	u_int8_t *data = buf;
+	uint8_t buf[16];
+	uint8_t *data = buf;
 	int len = 8;
 
 	/* Enter bootloader command */
 	if (write_all(dev->serial_fd,
-		      (u_int8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6)) {
+		      (uint8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6)) {
 		fprintf(stderr, "bsl: couldn't write bootloader transition "
 			"command\n");
 		return -1;
@@ -311,7 +311,7 @@ device_t bsl_open(const char *device)
 {
 	struct bsl_device *dev = malloc(sizeof(*dev));
 	char idtext[64];
-	u_int16_t id;
+	uint16_t id;
 
 	if (!dev) {
 		perror("bsl: can't allocate memory");

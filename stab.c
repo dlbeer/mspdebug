@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/types.h>
+#include <stdint.h>
 #include <regex.h>
 #include <errno.h>
 #include <assert.h>
@@ -58,7 +58,7 @@ static void sym_key_init(struct sym_key *key, const char *text)
 }
 
 struct addr_key {
-	u_int16_t       addr;
+	uint16_t       addr;
 	char            name[64];
 };
 
@@ -80,7 +80,7 @@ static int addr_key_compare(const void *left, const void *right)
 	return strcmp(kl->name, kr->name);
 }
 
-static void addr_key_init(struct addr_key *key, u_int16_t addr,
+static void addr_key_init(struct addr_key *key, uint16_t addr,
 			  const char *text)
 {
 	int len = strlen(text);
@@ -98,7 +98,7 @@ static const struct btree_def sym_table_def = {
 	.zero = &sym_key_zero,
 	.branches = 32,
 	.key_size = sizeof(struct sym_key),
-	.data_size = sizeof(u_int16_t)
+	.data_size = sizeof(uint16_t)
 };
 
 static const struct btree_def addr_table_def = {
@@ -128,8 +128,8 @@ int stab_set(stab_t st, const char *name, int value)
 {
 	struct sym_key skey;
 	struct addr_key akey;
-	u_int16_t addr = value;
-	u_int16_t old_addr;
+	uint16_t addr = value;
+	uint16_t old_addr;
 
 	sym_key_init(&skey, name);
 
@@ -152,8 +152,8 @@ int stab_set(stab_t st, const char *name, int value)
 	return 0;
 }
 
-int stab_nearest(stab_t st, u_int16_t addr, char *ret_name, int max_len,
-		 u_int16_t *ret_offset)
+int stab_nearest(stab_t st, uint16_t addr, char *ret_name, int max_len,
+		 uint16_t *ret_offset)
 {
 	struct addr_key akey;
 	int i;
@@ -176,7 +176,7 @@ int stab_nearest(stab_t st, u_int16_t addr, char *ret_name, int max_len,
 int stab_get(stab_t st, const char *name, int *value)
 {
 	struct sym_key skey;
-	u_int16_t addr;
+	uint16_t addr;
 
 	sym_key_init(&skey, name);
 	if (btree_get(st->sym, &skey, &addr))
@@ -189,7 +189,7 @@ int stab_get(stab_t st, const char *name, int *value)
 int stab_del(stab_t st, const char *name)
 {
 	struct sym_key skey;
-	u_int16_t value;
+	uint16_t value;
 	struct addr_key akey;
 
 	sym_key_init(&skey, name);

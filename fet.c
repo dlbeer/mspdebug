@@ -40,9 +40,9 @@ struct fet_device {
 	int                             version;
 	int                             have_breakpoint;
 
-	u_int16_t                       code_left[65536];
+	uint16_t                       code_left[65536];
 
-	u_int8_t                        fet_buf[65538];
+	uint8_t                        fet_buf[65538];
 	int                             fet_len;
 
 	/* Recieved packet is parsed into this struct */
@@ -51,9 +51,9 @@ struct fet_device {
 		int		state;
 
 		int		argc;
-		u_int32_t	argv[MAX_PARAMS];
+		uint32_t	argv[MAX_PARAMS];
 
-		u_int8_t	*data;
+		uint8_t	*data;
 		int		datalen;
 	} fet_reply;
 };
@@ -132,7 +132,7 @@ static void init_codes(struct fet_device *dev)
 	int i;
 
 	for (i = 0; i < 65536; i++) {
-		u_int16_t right = i << 1;
+		uint16_t right = i << 1;
 
 		if (i & 0x8000)
 			right ^= 0x0811;
@@ -145,19 +145,19 @@ static void init_codes(struct fet_device *dev)
  * needs to be stored in little-endian format at the end of the payload.
  */
 
-static u_int16_t calc_checksum(struct fet_device *dev,
-			       const u_int8_t *data, int len)
+static uint16_t calc_checksum(struct fet_device *dev,
+			       const uint8_t *data, int len)
 {
 	int i;
-	u_int16_t cksum = 0xffff;
-	u_int16_t code = 0x8408;
+	uint16_t cksum = 0xffff;
+	uint16_t code = 0x8408;
 
 	for (i = len * 8; i; i--)
 		cksum = dev->code_left[cksum];
 
 	for (i = len - 1; i >= 0; i--) {
 		int j;
-		u_int8_t c = data[i];
+		uint8_t c = data[i];
 
 		for (j = 0; j < 8; j++) {
 			if (c & 0x80)
@@ -182,12 +182,12 @@ static u_int16_t calc_checksum(struct fet_device *dev,
  * No checksums are included.
  */
 static int send_rf2500_data(struct fet_device *dev,
-			    const u_int8_t *data, int len)
+			    const uint8_t *data, int len)
 {
 	int offset = 0;
 
 	while (len) {
-		u_int8_t pbuf[63];
+		uint8_t pbuf[63];
 		int plen = len > 59 ? 59 : len;
 
 		pbuf[0] = 0x83;
@@ -206,7 +206,7 @@ static int send_rf2500_data(struct fet_device *dev,
 	return 0;
 }
 
-#define BUFFER_BYTE(b, x) ((int)((u_int8_t *)(b))[x])
+#define BUFFER_BYTE(b, x) ((int)((uint8_t *)(b))[x])
 #define BUFFER_WORD(b, x) ((BUFFER_BYTE(b, x + 1) << 8) | BUFFER_BYTE(b, x))
 #define BUFFER_LONG(b, x) ((BUFFER_WORD(b, x + 2) << 16) | BUFFER_WORD(b, x))
 
@@ -284,8 +284,8 @@ static const char *error_strings[] =
 
 static int parse_packet(struct fet_device *dev, int plen)
 {
-	u_int16_t c = calc_checksum(dev, dev->fet_buf + 2, plen - 2);
-	u_int16_t r = BUFFER_WORD(dev->fet_buf, plen);
+	uint16_t c = calc_checksum(dev, dev->fet_buf + 2, plen - 2);
+	uint16_t r = BUFFER_WORD(dev->fet_buf, plen);
 	int i = 2;
 	int type;
 	int error;
@@ -401,14 +401,14 @@ static int recv_packet(struct fet_device *dev)
 }
 
 static int send_command(struct fet_device *dev, int command_code,
-		        const u_int32_t *params, int nparams,
-			const u_int8_t *extra, int exlen)
+		        const uint32_t *params, int nparams,
+			const uint8_t *extra, int exlen)
 {
-	u_int8_t datapkt[256];
+	uint8_t datapkt[256];
 	int len = 0;
 
-	u_int8_t buf[512];
-	u_int16_t cksum;
+	uint8_t buf[512];
+	uint16_t cksum;
 	int i = 0;
 	int j;
 
@@ -424,7 +424,7 @@ static int send_command(struct fet_device *dev, int command_code,
 		datapkt[len++] = nparams >> 8;
 
 		for (j = 0; j < nparams; j++) {
-			u_int32_t p = params[j];
+			uint32_t p = params[j];
 
 			datapkt[len++] = p & 0xff;
 			p >>= 8;
@@ -479,10 +479,10 @@ static int send_command(struct fet_device *dev, int command_code,
 }
 
 static int xfer(struct fet_device *dev,
-		int command_code, const u_int8_t *data, int datalen,
+		int command_code, const uint8_t *data, int datalen,
 		int nparams, ...)
 {
-	u_int32_t params[MAX_PARAMS];
+	uint32_t params[MAX_PARAMS];
 	int i;
 	va_list ap;
 
@@ -537,7 +537,7 @@ static int do_identify(struct fet_device *dev)
 		memcpy(idtext, dev->fet_reply.data + 4, 32);
 		idtext[32] = 0;
 	} else {
-		u_int16_t id;
+		uint16_t id;
 
 		if (xfer(dev, 0x28, NULL, 0, 2, 0, 0) < 0) {
 			fprintf(stderr, "fet: command 0x28 failed\n");
@@ -674,7 +674,7 @@ static void fet_destroy(device_t dev_base)
 	free(dev);
 }
 
-int fet_readmem(device_t dev_base, u_int16_t addr, u_int8_t *buffer, int count)
+int fet_readmem(device_t dev_base, uint16_t addr, uint8_t *buffer, int count)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
@@ -702,8 +702,8 @@ int fet_readmem(device_t dev_base, u_int16_t addr, u_int8_t *buffer, int count)
 	return 0;
 }
 
-int fet_writemem(device_t dev_base, u_int16_t addr,
-		 const u_int8_t *buffer, int count)
+int fet_writemem(device_t dev_base, uint16_t addr,
+		 const uint8_t *buffer, int count)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
@@ -727,7 +727,7 @@ int fet_writemem(device_t dev_base, u_int16_t addr,
 	return 0;
 }
 
-static int fet_getregs(device_t dev_base, u_int16_t *regs)
+static int fet_getregs(device_t dev_base, uint16_t *regs)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 	int i;
@@ -747,10 +747,10 @@ static int fet_getregs(device_t dev_base, u_int16_t *regs)
 	return 0;
 }
 
-static int fet_setregs(device_t dev_base, const u_int16_t *regs)
+static int fet_setregs(device_t dev_base, const uint16_t *regs)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
-	u_int8_t buf[DEVICE_NUM_REGS * 4];;
+	uint8_t buf[DEVICE_NUM_REGS * 4];;
 	int i;
 	int ret;
 
@@ -771,7 +771,7 @@ static int fet_setregs(device_t dev_base, const u_int16_t *regs)
 	return 0;
 }
 
-static int fet_breakpoint(device_t dev_base, int enabled, u_int16_t addr)
+static int fet_breakpoint(device_t dev_base, int enabled, uint16_t addr)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
@@ -798,9 +798,9 @@ static int fet_breakpoint(device_t dev_base, int enabled, u_int16_t addr)
 struct magic_record {
 	int             min_version;
 	int             flags;
-	u_int32_t       param_29[MAGIC_PARAM_COUNT];
-	const u_int8_t  data_29[MAGIC_DATA_SIZE];
-	const u_int8_t  data_2b[MAGIC_DATA_SIZE];
+	uint32_t       param_29[MAGIC_PARAM_COUNT];
+	const uint8_t  data_29[MAGIC_DATA_SIZE];
+	const uint8_t  data_2b[MAGIC_DATA_SIZE];
 };
 
 /* The first entry in this table whose version exceeds the version
