@@ -28,6 +28,7 @@
 
 #include "bsl.h"
 #include "util.h"
+#include "fet_error.h"
 
 struct bsl_device {
 	struct device   base;
@@ -299,8 +300,8 @@ static int enter_via_fet(struct bsl_device *dev)
 
 	/* Check that it's what we expect */
 	if (memcmp(buf, "\x06\x00\x24\x00\x00\x00\x61\x01", 8)) {
-		fprintf(stderr, "bsl: bootloader start returned error %d\n",
-			buf[5]);
+		fprintf(stderr, "bsl: bootloader start returned error "
+			"%d (%s)\n", buf[5], fet_error(buf[5]));
 		return -1;
 	}
 
