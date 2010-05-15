@@ -4,3 +4,7 @@ people who have made significant contributions are listed here.
 Doug Forman <doug.dougforman@gmail.com>:
 	* Testing and analysis for TI Chronos devices.
 	* Testing and analysis for FET430UIF firmware version 20404000.
+
+Robert Kavaler <kavaler@diva.com>:
+	* Author of uif430, from which much of the code in fet.c is
+          derived (uif430 is available from www.relavak.com).
