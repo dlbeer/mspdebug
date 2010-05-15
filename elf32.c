@@ -24,7 +24,7 @@
 #else
 #include <elf.h>
 #endif
-#include "binfile.h"
+#include "elf32.h"
 
 #ifndef EM_MSP430
 #define EM_MSP430	0x69
@@ -136,7 +136,7 @@ static uint32_t file_to_phys(struct elf32_info *info, uint32_t v)
 }
 
 static int feed_section(struct elf32_info *info,
-			FILE *in, int offset, int size, imgfunc_t cb,
+			FILE *in, int offset, int size, binfile_imgcb_t cb,
 			void *user_data)
 {
 	uint8_t buf[1024];
@@ -186,7 +186,7 @@ static int read_all(struct elf32_info *info, FILE *in)
 	return 0;
 }
 
-int elf32_extract(FILE *in, imgfunc_t cb, void *user_data)
+int elf32_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 {
 	struct elf32_info info;
 	int i;

@@ -16,54 +16,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include "symmap.h"
+#ifndef ELF32_H_
+#define ELF32_H_
 
-int symmap_check(FILE *in)
-{
-	char buf[128];
-	int i;
-	int spc_count = 0;
+#include "binfile.h"
 
-	rewind(in);
-	if (!fgets(buf, sizeof(buf), in))
-		return 0;
+int elf32_check(FILE *in);
+int elf32_extract(FILE *in, binfile_imgcb_t cb, void *user_data);
+int elf32_syms(FILE *in, stab_t stab);
 
-	for (i = 0; buf[i]; i++) {
-		if (buf[i] == '\r' || buf[i] == '\n')
-			break;
-
-		if (buf[i] < 32 || buf[i] > 126)
-			return 0;
-
-		if (isspace(buf[i]))
-			spc_count++;
-	}
-
-	return spc_count >= 2;
-}
-
-int symmap_syms(FILE *in, stab_t stab)
-{
-	rewind(in);
-	char buf[128];
-
-	while (fgets(buf, sizeof(buf), in)) {
-		char *addr = strtok(buf, " \t\r\n");
-		char *name;
-
-		strtok(NULL, " \t\r\n");
-		name = strtok(NULL, " \t\r\n");
-
-		if (addr && name) {
-			int addr_val = strtoul(addr, NULL, 16);
-
-			if (stab_set(stab, name, addr_val) < 0)
-				return -1;
-		}
-	}
-
-	return 0;
-}
+#endif

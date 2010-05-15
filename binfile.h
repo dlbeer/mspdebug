@@ -21,24 +21,32 @@
 
 #include <stdio.h>
 #include <stdint.h>
-
 #include "stab.h"
 
 /* Callback for binary image data */
-typedef int (*imgfunc_t)(void *user_data,
-			 uint16_t addr, const uint8_t *data, int len);
+typedef int (*binfile_imgcb_t)(void *user_data,
+			       uint16_t addr, const uint8_t *data, int len);
 
-/* Intel HEX file support */
-int ihex_check(FILE *in);
-int ihex_extract(FILE *in, imgfunc_t cb, void *user_data);
+#define BINFILE_HAS_SYMS        0x01
+#define BINFILE_HAS_TEXT        0x02
 
-/* ELF32 file support */
-int elf32_check(FILE *in);
-int elf32_extract(FILE *in, imgfunc_t cb, void *user_data);
-int elf32_syms(FILE *in, stab_t stab);
+/* Examine the given file and figure out what it contains. If the file
+ * type is unknown, 0 is returned. If an IO error occurs, -1 is
+ * returned. Otherwise, the return value is a positive integer
+ * bitmask.
+ */
+int binfile_info(FILE *in);
 
-/* *.map file support */
-int symmap_check(FILE *in);
-int symmap_syms(FILE *in, stab_t stab);
+/* If possible, extract the text from this file, feeding it in chunks
+ * of an indeterminate size to the callback given.
+ *
+ * Returns 0 if successful, -1 if an error occurs.
+ */
+int binfile_extract(FILE *in, binfile_imgcb_t cb, void *user_data);
+
+/* Attempt to load symbols from the file and store them in the given
+ * symbol table. Returns 0 on success or -1 if an error occurs.
+ */
+int binfile_syms(FILE *in, stab_t stab);
 
 #endif

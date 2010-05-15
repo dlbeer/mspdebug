@@ -57,7 +57,6 @@ static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 {
 	stab_t stab = cproc_stab(cp);
 	FILE *in;
-	int result = 0;
 
 	if (clear && cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
 		return 0;
@@ -68,24 +67,20 @@ static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 		return -1;
 	}
 
-	if (clear)
+	if (clear) {
 		stab_clear(stab);
+		cproc_unmodify(cp, CPROC_MODIFY_SYMS);
+	} else {
+		cproc_modify(cp, CPROC_MODIFY_SYMS);
+	}
 
-	if (elf32_check(in))
-		result = elf32_syms(in, stab);
-	else if (symmap_check(in))
-		result = symmap_syms(in, stab);
-	else
-		fprintf(stderr, "sym: %s: unknown file type\n", *arg);
+	if (binfile_syms(in, stab) < 0) {
+		fclose(in);
+		return -1;
+	}
 
 	fclose(in);
-
-	if (clear)
-		cproc_unmodify(cp, CPROC_MODIFY_SYMS);
-	else
-		cproc_modify(cp, CPROC_MODIFY_SYMS);
-
-	return result;
+	return 0;
 }
 
 static int savemap_cb(void *user_data, const char *name, uint16_t value)

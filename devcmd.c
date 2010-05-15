@@ -533,7 +533,6 @@ static int cmd_prog(cproc_t cp, char **arg)
 	device_t dev = cproc_device(cp);
 	stab_t stab = cproc_stab(cp);
 	FILE *in;
-	int result = 0;
 	struct prog_data prog;
 
 	if (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
@@ -552,14 +551,14 @@ static int cmd_prog(cproc_t cp, char **arg)
 
 	prog_init(&prog, dev);
 
-	if (elf32_check(in)) {
-		result = elf32_extract(in, prog_feed, &prog);
+	if (binfile_extract(in, prog_feed, &prog) < 0) {
+		fclose(in);
+		return -1;
+	}
+
+	if (binfile_info(in) & BINFILE_HAS_SYMS) {
 		stab_clear(stab);
-		elf32_syms(in, stab);
-	} else if (ihex_check(in)) {
-		result = ihex_extract(in, prog_feed, &prog);
-	} else {
-		fprintf(stderr, "prog: %s: unknown file type\n", *arg);
+		binfile_syms(in, stab);
 	}
 
 	fclose(in);
@@ -573,7 +572,7 @@ static int cmd_prog(cproc_t cp, char **arg)
 	}
 
 	cproc_unmodify(cp, CPROC_MODIFY_SYMS);
-	return result;
+	return 0;
 }
 
 static const struct cproc_command commands[] = {

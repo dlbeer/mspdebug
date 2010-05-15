@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "binfile.h"
+#include "ihex.h"
 
 int ihex_check(FILE *in)
 {
@@ -27,7 +27,7 @@ int ihex_check(FILE *in)
 	return fgetc(in) == ':';
 }
 
-static int feed_line(FILE *in, uint8_t *data, int nbytes, imgfunc_t cb,
+static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 		     void *user_data)
 {
 	uint8_t cksum = 0;
@@ -52,7 +52,7 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, imgfunc_t cb,
 		  data + 4, nbytes - 5);
 }
 
-int ihex_extract(FILE *in, imgfunc_t cb, void *user_data)
+int ihex_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 {
 	char buf[128];
 	int lno = 0;
