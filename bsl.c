@@ -311,8 +311,6 @@ static int enter_via_fet(struct bsl_device *dev)
 device_t bsl_open(const char *device)
 {
 	struct bsl_device *dev = malloc(sizeof(*dev));
-	char idtext[64];
-	uint16_t id;
 
 	if (!dev) {
 		perror("bsl: can't allocate memory");
@@ -352,14 +350,11 @@ device_t bsl_open(const char *device)
 		goto fail;
 	}
 
-	id = (dev->reply_buf[4] << 8) | dev->reply_buf[5];
-	if (device_id_text(id, idtext, sizeof(idtext)) < 0)
-		printf("Unknown device ID: 0x%04x\n", id);
-	else
-		printf("Device: %s\n", idtext);
-
+	printf("Device ID: 0x%02x%02x\n",
+	       dev->reply_buf[4], dev->reply_buf[5]);
 	printf("BSL version is %x.%02x\n", dev->reply_buf[14],
 	       dev->reply_buf[15]);
+
 	return (device_t)dev;
 
  fail:

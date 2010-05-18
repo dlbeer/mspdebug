@@ -65,7 +65,4 @@ struct device {
 	device_status_t (*poll)(device_t dev);
 };
 
-/* Look up a device ID. Returns 0 on success or -1 if none found */
-int device_id_text(uint16_t id, char *out, int max_len);
-
 #endif

@@ -42,7 +42,7 @@ install: mspdebug mspdebug.man
 .SUFFIXES: .c .o
 
 mspdebug: main.o fet.o rf2500.o dis.o uif.o ihex.o elf32.o stab.o util.o \
-	  bsl.o sim.o symmap.o gdb.o btree.o device.o rtools.o sym.o devcmd.o \
+	  bsl.o sim.o symmap.o gdb.o btree.o rtools.o sym.o devcmd.o \
 	  cproc.o vector.o cproc_util.o expr.o fet_error.o binfile.o fet_db.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
 
