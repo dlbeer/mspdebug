@@ -353,23 +353,6 @@ Memory addresses above 0x10000 (in devices with more than 64k of
 memory) are not accessible. All other memory in these devices is
 accessible as normal.
 
-Most of the popular device IDs are recognized, but the set is not
-complete. If you see a message like the following after connecting:
-
-.B Unknown device ID: 0x\fI1234\fP
-
-Please report it, as well as the model of the device you are using.
-
-Firmware version 20107000 is known to work with MSPDebug, and you can
-update your FET to this version using the proprietary
-\fBmsp430\-gdbproxy\fR program:
-
-.B msp430-gdbproxy msp430 \fIdevice\fP --update-usb-fet
-
-This command updates the FET firmware using the same bootloader
-supported by MSPDebug's \fB\-B\fR option. However, as mentioned above,
-MSPDebug does not support erase or programming in this mode.
-
 When using the GDB remote stub in simulation and an IO read request
 occurs, any request to interrupt from GDB will not be acknowledged
 until the IO request is either completed or aborted.
