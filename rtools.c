@@ -815,10 +815,11 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 	u_int16_t offset;
 	struct cg_node *n;
 
-	while (i < graph->node_list.size &&
-	       CG_NODE(graph, i)->offset < addr)
+	while (i + 1 < graph->node_list.size &&
+	       CG_NODE(graph, i + 1)->offset <= addr)
 		i++;
-	if (i >= graph->node_list.size) {
+	if (i >= graph->node_list.size ||
+	    CG_NODE(graph, i)->offset > addr) {
 		printf("No information for address 0x%04x\n", addr);
 		return;
 	}
