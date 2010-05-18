@@ -22,6 +22,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #include "dis.h"
 #include "device.h"
@@ -37,6 +38,7 @@
 #include "sim.h"
 #include "bsl.h"
 #include "fet.h"
+#include "fet_db.h"
 
 #include "uif.h"
 #include "rf2500.h"
@@ -136,8 +138,10 @@ static void usage(const char *progname)
 "        Start in simulation mode.\n"
 "    -n\n"
 "        Do not read ~/.mspdebug on startup.\n"
-"    -?\n"
+"    --help\n"
 "        Show this help text.\n"
+"    --fet-list\n"
+"        Show a list of devices supported by the FET driver.\n"
 "\n"
 "By default, the first RF2500 device on the USB bus is opened.\n"
 "\n"
@@ -173,13 +177,30 @@ struct cmdline_args {
 	int             vcc_mv;
 };
 
+static int show_fet_device(void *user_data, const struct fet_db_record *r)
+{
+	printf("    %s\n", r->name);
+	return 0;
+}
+
 static int parse_cmdline_args(int argc, char **argv,
 			      struct cmdline_args *args)
 {
 	int opt;
+	const static struct option longopts[] = {
+		{"help",     0, 0, '?'},
+		{"fet-list", 0, 0, 'L'},
+		{NULL, 0, 0, 0}
+	};
 
-	while ((opt = getopt(argc, argv, "u:jv:B:sR?n")) >= 0)
+	while ((opt = getopt_long(argc, argv, "u:jv:B:sR?n",
+				  longopts, NULL)) >= 0)
 		switch (opt) {
+		case 'L':
+			printf("Devices supported by FET driver:\n");
+			fet_db_enum(show_fet_device, NULL);
+			exit(0);
+
 		case 'R':
 			args->mode |= MODE_RF2500;
 			break;
@@ -212,24 +233,24 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case '?':
 			usage(argv[0]);
-			return 0;
+			exit(0);
 
 		default:
 			fprintf(stderr, "Invalid argument: %c\n"
-				"Try -? for help.\n", opt);
+				"Try --help for help.\n", opt);
 			return -1;
 		}
 
 	/* Check for incompatible arguments */
 	if (args->mode & (args->mode - 1)) {
 		fprintf(stderr, "Multiple incompatible options specified.\n"
-			"Try -? for help.\n");
+			"Try --help for help.\n");
 		return -1;
 	}
 
 	if (!args->mode) {
 		fprintf(stderr, "You need to specify an operating mode.\n"
-			"Try -? for help.\n");
+			"Try --help for help.\n");
 		return -1;
 	}
 

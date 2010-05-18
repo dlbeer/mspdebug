@@ -86,8 +86,11 @@ aiding the disassembly of MSP430 binaries (as all binary and symbol
 table formats are still usable in this mode).
 .IP "\-n"
 Do not process the startup file (~/.mspdebug).
-.IP "\-?"
+.IP "\-\-help"
 Display a brief help message and exit.
+.IP "\-\-fet\-list"
+Display a list of devices supported by the FET driver (the driver used
+for \fB\-R\fB and \fB\-u\fR operating modes).
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
