@@ -106,6 +106,18 @@ question.
 
 See the section marked \fBADDRESS EXPRESSIONS\fR for more information on
 the syntax of expressions.
+.IP "\fBcgraph\fR \fIaddress\fR \fIlength\fR [\fIaddress\fR]"
+Construct the call graph of all functions contained or referenced in
+the given range of memory. If a particular function is specified, then
+details for that node of the graph are displayed. Otherwise, a summary
+of all nodes is displayed.
+
+Information from the symbol table is used for hinting at the possible
+locations of function starts. Any symbol which does not contain a "."
+is considered a possible function start.
+
+Callers and callee names are shown prefixed by a "*" where the
+transition is a tail-call type transition.
 .IP "\fBdis\fR \fIaddress\fR [\fIlength\fR]"
 Dissassemble a section of memory. Both arguments may be address
 expressions. If no length is specified, a section of the default
