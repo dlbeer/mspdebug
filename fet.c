@@ -455,7 +455,7 @@ static int xfer(struct fet_device *dev,
  * MSP430 high-level control functions
  */
 
-static int do_identify(struct fet_device *dev)
+static int do_identify(struct fet_device *dev, const char *force_id)
 {
 	if (dev->version < 20300000) {
 		char idtext[64];
@@ -488,15 +488,18 @@ static int do_identify(struct fet_device *dev)
 		printf("Device ID: 0x%02x%02x\n",
 		       dev->fet_reply.data[0], dev->fet_reply.data[1]);
 
-		r = fet_db_find_by_msg28(dev->fet_reply.data,
-					 dev->fet_reply.datalen);
-
-		printf("Device: %s\n", r->name);
+		if (force_id)
+			r = fet_db_find_by_name(force_id);
+		else
+			r = fet_db_find_by_msg28(dev->fet_reply.data,
+						 dev->fet_reply.datalen);
 
 		if (!r) {
 			fprintf(stderr, "fet: unknown device\n");
 			return -1;
 		}
+
+		printf("Device: %s\n", r->name);
 
 		if (xfer(dev, 0x2b, r->msg2b_data, FET_DB_MSG2B_LEN, 0) < 0) {
 			fprintf(stderr, "fet: message 0x2b failed\n");
@@ -743,7 +746,8 @@ static int fet_breakpoint(device_t dev_base, int enabled, uint16_t addr)
 	return 0;
 }
 
-device_t fet_open(transport_t transport, int proto_flags, int vcc_mv)
+device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
+		  const char *force_id)
 {
 	struct fet_device *dev = malloc(sizeof(*dev));
 
@@ -799,7 +803,7 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv)
 	printf("Set Vcc: %d mV\n", vcc_mv);
 
 	/* Identify the chip */
-	if (do_identify(dev) < 0) {
+	if (do_identify(dev, force_id) < 0) {
 		fprintf(stderr, "fet: identify failed\n");
 		goto fail;
 	}

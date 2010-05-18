@@ -142,6 +142,8 @@ static void usage(const char *progname)
 "        Show this help text.\n"
 "    --fet-list\n"
 "        Show a list of devices supported by the FET driver.\n"
+"    --fet-force-id string\n"
+"        Override the device ID returned by the FET.\n"
 "\n"
 "By default, the first RF2500 device on the USB bus is opened.\n"
 "\n"
@@ -171,6 +173,7 @@ static void process_rc_file(cproc_t cp)
 struct cmdline_args {
 	const char      *uif_device;
 	const char      *bsl_device;
+	const char      *fet_force_id;
 	int             mode;
 	int             want_jtag;
 	int             no_rc;
@@ -188,8 +191,9 @@ static int parse_cmdline_args(int argc, char **argv,
 {
 	int opt;
 	const static struct option longopts[] = {
-		{"help",     0, 0, '?'},
-		{"fet-list", 0, 0, 'L'},
+		{"help",                0, 0, 'H'},
+		{"fet-list",            0, 0, 'L'},
+		{"fet-force-id",        1, 0, 'F'},
 		{NULL, 0, 0, 0}
 	};
 
@@ -199,6 +203,14 @@ static int parse_cmdline_args(int argc, char **argv,
 		case 'L':
 			printf("Devices supported by FET driver:\n");
 			fet_db_enum(show_fet_device, NULL);
+			exit(0);
+
+		case 'F':
+			args->fet_force_id = optarg;
+			break;
+
+		case 'H':
+			usage(argv[0]);
 			exit(0);
 
 		case 'R':
@@ -232,8 +244,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			break;
 
 		case '?':
-			usage(argv[0]);
-			exit(0);
+			return -1;
 
 		default:
 			fprintf(stderr, "Invalid argument: %c\n"
@@ -286,7 +297,8 @@ device_t setup_device(const struct cmdline_args *args,
 		if (!args->want_jtag)
 			flags |= FET_PROTO_SPYBIWIRE;
 
-		msp430_dev = fet_open(trans, flags, args->vcc_mv);
+		msp430_dev = fet_open(trans, flags, args->vcc_mv,
+				      args->fet_force_id);
 	}
 
 	if (!msp430_dev) {

@@ -26,6 +26,7 @@
 #define FET_PROTO_SPYBIWIRE	0x01
 #define FET_PROTO_RF2500	0x02
 
-device_t fet_open(transport_t transport, int proto_flags, int vcc_mv);
+device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
+		  const char *force_id);
 
 #endif
