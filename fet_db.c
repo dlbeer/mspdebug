@@ -350,7 +350,6 @@ static const struct fet_db_record fet_db[] = {
 			0x00, 0x00
 		}
 	}
-
 };
 
 const struct fet_db_record *fet_db_find_by_msg28(uint8_t *data, int len)
@@ -384,7 +383,7 @@ const struct fet_db_record *fet_db_find_by_msg28(uint8_t *data, int len)
 		}
 	}
 
-	if (best)
+	if (best >= 0)
 		return &fet_db[best];
 
 	return NULL;

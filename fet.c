@@ -501,10 +501,8 @@ static int do_identify(struct fet_device *dev, const char *force_id)
 
 		printf("Device: %s\n", r->name);
 
-		if (xfer(dev, 0x2b, r->msg2b_data, FET_DB_MSG2B_LEN, 0) < 0) {
-			fprintf(stderr, "fet: message 0x2b failed\n");
-			return -1;
-		}
+		if (xfer(dev, 0x2b, r->msg2b_data, FET_DB_MSG2B_LEN, 0) < 0)
+			fprintf(stderr, "fet: warning: message 0x2b failed\n");
 
 		if (xfer(dev, 0x29, r->msg29_data, FET_DB_MSG29_LEN,
 			 3, r->msg29_params[0], r->msg29_params[1],
