@@ -496,6 +496,8 @@ static int do_identify(struct fet_device *dev, const char *force_id)
 
 		if (!r) {
 			fprintf(stderr, "fet: unknown device\n");
+			debug_hexdump("msg28_data:", dev->fet_reply.data,
+				      dev->fet_reply.datalen);
 			return -1;
 		}
 
