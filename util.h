@@ -23,6 +23,10 @@
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
+#define LE_BYTE(b, x) ((int)((uint8_t *)(b))[x])
+#define LE_WORD(b, x) ((LE_BYTE(b, x + 1) << 8) | LE_BYTE(b, x))
+#define LE_LONG(b, x) ((LE_WORD(b, x + 2) << 16) | LE_WORD(b, x))
+
 /* Various utility functions for IO */
 int open_serial(const char *device, int rate);
 int read_with_timeout(int fd, uint8_t *data, int len);

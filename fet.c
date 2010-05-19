@@ -42,6 +42,8 @@ struct fet_device {
 	int                             version;
 	int                             have_breakpoint;
 
+	/* FIXME: need to record code start somewhere */
+
 	uint8_t                         fet_buf[65538];
 	int                             fet_len;
 
@@ -207,10 +209,6 @@ static int send_rf2500_data(struct fet_device *dev,
 	return 0;
 }
 
-#define BUFFER_BYTE(b, x) ((int)((uint8_t *)(b))[x])
-#define BUFFER_WORD(b, x) ((BUFFER_BYTE(b, x + 1) << 8) | BUFFER_BYTE(b, x))
-#define BUFFER_LONG(b, x) ((BUFFER_WORD(b, x + 2) << 16) | BUFFER_WORD(b, x))
-
 #define PTYPE_ACK		0
 #define PTYPE_CMD		1
 #define PTYPE_PARAM		2
@@ -222,7 +220,7 @@ static int send_rf2500_data(struct fet_device *dev,
 static int parse_packet(struct fet_device *dev, int plen)
 {
 	uint16_t c = calc_checksum(dev->fet_buf + 2, plen - 2);
-	uint16_t r = BUFFER_WORD(dev->fet_buf, plen);
+	uint16_t r = LE_WORD(dev->fet_buf, plen);
 	int i = 2;
 	int type;
 	int error;
@@ -259,7 +257,7 @@ static int parse_packet(struct fet_device *dev, int plen)
 		if (i + 2 > plen)
 			goto too_short;
 
-		dev->fet_reply.argc = BUFFER_WORD(dev->fet_buf, i);
+		dev->fet_reply.argc = LE_WORD(dev->fet_buf, i);
 		i += 2;
 
 		if (dev->fet_reply.argc >= MAX_PARAMS) {
@@ -271,7 +269,7 @@ static int parse_packet(struct fet_device *dev, int plen)
 		for (j = 0; j < dev->fet_reply.argc; j++) {
 			if (i + 4 > plen)
 				goto too_short;
-			dev->fet_reply.argv[j] = BUFFER_LONG(dev->fet_buf, i);
+			dev->fet_reply.argv[j] = LE_LONG(dev->fet_buf, i);
 			i += 4;
 		}
 	} else {
@@ -283,7 +281,7 @@ static int parse_packet(struct fet_device *dev, int plen)
 		if (i + 4 > plen)
 			goto too_short;
 
-		dev->fet_reply.datalen = BUFFER_LONG(dev->fet_buf, i);
+		dev->fet_reply.datalen = LE_LONG(dev->fet_buf, i);
 		i += 4;
 
 		if (i + dev->fet_reply.datalen > plen)
@@ -305,7 +303,7 @@ too_short:
 
 static int recv_packet(struct fet_device *dev)
 {
-	int plen = BUFFER_WORD(dev->fet_buf, 0);
+	int plen = LE_WORD(dev->fet_buf, 0);
 
 	/* If there's a packet still here from last time, get rid of it */
 	if (dev->fet_len >= plen + 2) {
@@ -318,7 +316,7 @@ static int recv_packet(struct fet_device *dev)
 	for (;;) {
 		int len;
 
-		plen = BUFFER_WORD(dev->fet_buf, 0);
+		plen = LE_WORD(dev->fet_buf, 0);
 		if (dev->fet_len >= plen + 2)
 			return parse_packet(dev, plen);
 
@@ -699,7 +697,7 @@ static int fet_getregs(device_t dev_base, uint16_t *regs)
 	}
 
 	for (i = 0; i < DEVICE_NUM_REGS; i++)
-		regs[i] = BUFFER_WORD(dev->fet_reply.data, i * 4);
+		regs[i] = LE_WORD(dev->fet_reply.data, i * 4);
 
 	return 0;
 }
