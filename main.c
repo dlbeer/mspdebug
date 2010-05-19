@@ -38,6 +38,7 @@
 #include "sim.h"
 #include "bsl.h"
 #include "fet.h"
+#include "vector.h"
 #include "fet_db.h"
 
 #include "uif.h"
@@ -180,9 +181,37 @@ struct cmdline_args {
 	int             vcc_mv;
 };
 
-static int show_fet_device(void *user_data, const struct fet_db_record *r)
+static int add_fet_device(void *user_data, const struct fet_db_record *r)
 {
-	printf("    %s\n", r->name);
+	struct vector *v = (struct vector *)user_data;
+
+	return vector_push(v, &r->name, 1);
+}
+
+static int cmp_char_ptr(const void *a, const void *b)
+{
+	return strcmp(*(const char **)a, *(const char **)b);
+}
+
+static int list_devices(void)
+{
+	struct vector v;
+	int i;
+
+	vector_init(&v, sizeof(const char *));
+	if (fet_db_enum(add_fet_device, &v) < 0) {
+		perror("couldn't allocate memory");
+		vector_destroy(&v);
+		return -1;
+	}
+
+	qsort(v.ptr, v.size, v.elemsize, cmp_char_ptr);
+
+	printf("Devices supported by FET driver:\n");
+	for (i = 0; i < v.size; i++)
+		printf("    %s\n", VECTOR_AT(v, i, const char *));
+
+	vector_destroy(&v);
 	return 0;
 }
 
@@ -201,9 +230,7 @@ static int parse_cmdline_args(int argc, char **argv,
 				  longopts, NULL)) >= 0)
 		switch (opt) {
 		case 'L':
-			printf("Devices supported by FET driver:\n");
-			fet_db_enum(show_fet_device, NULL);
-			exit(0);
+			exit(list_devices());
 
 		case 'F':
 			args->fet_force_id = optarg;
