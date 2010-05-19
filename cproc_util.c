@@ -231,6 +231,7 @@ void cproc_disassemble(cproc_t cp,
 			len += dis_format(stab, buf + len, sizeof(buf) - len,
 					  &insn);
 
+		buf[len] = 0;
 		cproc_printf(cp, "%s", buf);
 		offset += count;
 		length -= count;
