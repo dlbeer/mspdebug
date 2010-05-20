@@ -40,7 +40,16 @@ static void sigint_handler(int signum)
 
 void ctrlc_init(void)
 {
-	signal(SIGINT, sigint_handler);
+#ifdef WIN32
+       signal(SIGINT, sigint_handler);
+#else
+       const static struct sigaction siga = {
+               .sa_handler = sigint_handler,
+               .sa_flags = 0
+       };
+
+       sigaction(SIGINT, &siga, NULL);
+#endif
 }
 
 void ctrlc_reset(void)
