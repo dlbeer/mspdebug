@@ -42,7 +42,8 @@ struct fet_device {
 	int                             version;
 	int                             have_breakpoint;
 
-	/* FIXME: need to record code start somewhere */
+	/* Device-specific information */
+	u_int16_t                       code_start;
 
 	uint8_t                         fet_buf[65538];
 	int                             fet_len;
@@ -453,66 +454,83 @@ static int xfer(struct fet_device *dev,
  * MSP430 high-level control functions
  */
 
-static int do_identify(struct fet_device *dev, const char *force_id)
+static int identify_old(struct fet_device *dev)
 {
-	if (dev->version < 20300000) {
-		char idtext[64];
+	char idtext[64];
 
-		if (xfer(dev, C_IDENTIFY, NULL, 0, 2, 70, 0) < 0)
-			return -1;
+	if (xfer(dev, C_IDENTIFY, NULL, 0, 2, 70, 0) < 0)
+		return -1;
 
-		if (!dev->fet_reply.data) {
-			fprintf(stderr, "fet: missing info\n");
-			return -1;
-		}
+	if (!dev->fet_reply.datalen < 0x26) {
+		fprintf(stderr, "fet: missing info\n");
+		return -1;
+	}
 
-		memcpy(idtext, dev->fet_reply.data + 4, 32);
-		idtext[32] = 0;
+	memcpy(idtext, dev->fet_reply.data + 4, 32);
+	idtext[32] = 0;
 
-		printf("Device: %s\n", idtext);
-	} else {
-		const struct fet_db_record *r;
+	dev->code_start = LE_WORD(dev->fet_reply.data, 0x24);
 
-		if (xfer(dev, 0x28, NULL, 0, 2, 0, 0) < 0) {
-			fprintf(stderr, "fet: command 0x28 failed\n");
-			return -1;
-		}
+	printf("Device: %s\n", idtext);
+	printf("Code memory starts at 0x%04x\n", dev->code_start);
 
-		if (dev->fet_reply.datalen < 2) {
-			fprintf(stderr, "fet: missing info\n");
-			return -1;
-		}
+	return 0;
+}
 
-		printf("Device ID: 0x%02x%02x\n",
-		       dev->fet_reply.data[0], dev->fet_reply.data[1]);
+static int identify_new(struct fet_device *dev, const char *force_id)
+{
+	const struct fet_db_record *r;
 
-		if (force_id)
-			r = fet_db_find_by_name(force_id);
-		else
-			r = fet_db_find_by_msg28(dev->fet_reply.data,
-						 dev->fet_reply.datalen);
+	if (xfer(dev, 0x28, NULL, 0, 2, 0, 0) < 0) {
+		fprintf(stderr, "fet: command 0x28 failed\n");
+		return -1;
+	}
 
-		if (!r) {
-			fprintf(stderr, "fet: unknown device\n");
-			debug_hexdump("msg28_data:", dev->fet_reply.data,
-				      dev->fet_reply.datalen);
-			return -1;
-		}
+	if (dev->fet_reply.datalen < 2) {
+		fprintf(stderr, "fet: missing info\n");
+		return -1;
+	}
 
-		printf("Device: %s\n", r->name);
+	printf("Device ID: 0x%02x%02x\n",
+	       dev->fet_reply.data[0], dev->fet_reply.data[1]);
 
-		if (xfer(dev, 0x2b, r->msg2b_data, FET_DB_MSG2B_LEN, 0) < 0)
-			fprintf(stderr, "fet: warning: message 0x2b failed\n");
+	if (force_id)
+		r = fet_db_find_by_name(force_id);
+	else
+		r = fet_db_find_by_msg28(dev->fet_reply.data,
+					 dev->fet_reply.datalen);
 
-		if (xfer(dev, 0x29, r->msg29_data, FET_DB_MSG29_LEN,
-			 3, r->msg29_params[0], r->msg29_params[1],
-			 r->msg29_params[2]) < 0) {
-			fprintf(stderr, "fet: message 0x29 failed\n");
-			return -1;
-		}
+	if (!r) {
+		fprintf(stderr, "fet: unknown device\n");
+		debug_hexdump("msg28_data:", dev->fet_reply.data,
+			      dev->fet_reply.datalen);
+		return -1;
+	}
+
+	dev->code_start = LE_WORD(r->msg29_data, 0);
+
+	printf("Device: %s\n", r->name);
+	printf("Code memory starts at 0x%04x\n", dev->code_start);
+
+	if (xfer(dev, 0x2b, r->msg2b_data, FET_DB_MSG2B_LEN, 0) < 0)
+		fprintf(stderr, "fet: warning: message 0x2b failed\n");
+
+	if (xfer(dev, 0x29, r->msg29_data, FET_DB_MSG29_LEN,
+		 3, r->msg29_params[0], r->msg29_params[1],
+		 r->msg29_params[2]) < 0) {
+		fprintf(stderr, "fet: message 0x29 failed\n");
+		return -1;
 	}
 
 	return 0;
+}
+
+static int do_identify(struct fet_device *dev, const char *force_id)
+{
+	if (dev->version < 20300000)
+		return identify_old(dev);
+
+	return identify_new(dev, force_id);
 }
 
 static int do_run(struct fet_device *dev, int type)
@@ -542,7 +560,8 @@ static int do_erase(struct fet_device *dev)
 		return -1;
 	}
 
-	if (xfer(dev, C_ERASE, NULL, 0, 3, FET_ERASE_MAIN, 0x8000, 2) < 0) {
+	if (xfer(dev, C_ERASE, NULL, 0, 3, FET_ERASE_MAIN,
+		 dev->code_start, 0) < 0) {
 		fprintf(stderr, "fet: erase command failed\n");
 		return -1;
 	}
