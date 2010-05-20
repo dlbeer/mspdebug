@@ -106,6 +106,14 @@ struct fet_device {
 #define C_ENTERBOOTLOADER       0x24
 
 /* Constants for parameters of various FET commands */
+#define FET_CONFIG_VERIFICATION 0
+#define FET_CONFIG_EMULATION    1
+#define FET_CONFIG_CLKCTRL      2
+#define FET_CONFIG_MCLKCTRL     3
+#define FET_CONFIG_FLASH_TESET  4
+#define FET_CONFIG_FLASH_LOCK   5
+#define FET_CONFIG_PROTOCOL     8
+
 #define FET_RUN_FREE           1
 #define FET_RUN_STEP           2
 #define FET_RUN_BREAKPOINT     3
@@ -550,12 +558,12 @@ static int do_erase(struct fet_device *dev)
 		return -1;
 	}
 
-	if (xfer(dev, C_CONFIGURE, NULL, 0, 2, 2, 0x26) < 0) {
+	if (xfer(dev, C_CONFIGURE, NULL, 0, 2, FET_CONFIG_CLKCTRL, 0x26) < 0) {
 		fprintf(stderr, "fet: config (1) failed\n");
 		return -1;
 	}
 
-	if (xfer(dev, C_CONFIGURE, NULL, 0, 2, 5, 0) < 0) {
+	if (xfer(dev, C_CONFIGURE, NULL, 0, 2, FET_CONFIG_FLASH_LOCK, 0) < 0) {
 		fprintf(stderr, "fet: config (2) failed\n");
 		return -1;
 	}
@@ -803,7 +811,8 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 
 	/* configure: Spy-Bi-Wire or JTAG */
 	if (xfer(dev, C_CONFIGURE, NULL, 0,
-		 2, 8, (proto_flags & FET_PROTO_SPYBIWIRE) ? 1 : 0) < 0) {
+		 2, FET_CONFIG_PROTOCOL,
+		 (proto_flags & FET_PROTO_SPYBIWIRE) ? 1 : 0) < 0) {
 		fprintf(stderr, "fet: configure failed\n");
 		goto fail;
 	}
