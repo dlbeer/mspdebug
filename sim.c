@@ -388,12 +388,12 @@ static int step_jump(struct sim_device *dev, uint16_t ins)
 		break;
 
 	case MSP430_OP_JGE:
-		sr = ((sr & MSP430_SR_N) ? 1 : 0) !=
+		sr = ((sr & MSP430_SR_N) ? 1 : 0) ==
 			((sr & MSP430_SR_V) ? 1 : 0);
 		break;
 
 	case MSP430_OP_JL:
-		sr = ((sr & MSP430_SR_N) ? 1 : 0) ==
+		sr = ((sr & MSP430_SR_N) ? 1 : 0) !=
 			((sr & MSP430_SR_V) ? 1 : 0);
 		break;
 
