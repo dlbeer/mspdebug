@@ -469,7 +469,7 @@ static int identify_old(struct fet_device *dev)
 	if (xfer(dev, C_IDENTIFY, NULL, 0, 2, 70, 0) < 0)
 		return -1;
 
-	if (!dev->fet_reply.datalen < 0x26) {
+	if (dev->fet_reply.datalen < 0x26) {
 		fprintf(stderr, "fet: missing info\n");
 		return -1;
 	}
