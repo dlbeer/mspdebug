@@ -207,9 +207,9 @@ int dis_decode(const uint8_t *code,
 	       struct msp430_instruction *insn);
 
 /* Look up names for registers and opcodes */
-msp430_op_t dis_opcode_from_name(const char *name);
+int dis_opcode_from_name(const char *name);
 const char *dis_opcode_name(msp430_op_t op);
-msp430_reg_t dis_reg_from_name(const char *name);
+int dis_reg_from_name(const char *name);
 const char *dis_reg_name(msp430_reg_t reg);
 
 #endif

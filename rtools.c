@@ -54,6 +54,7 @@ static int isearch_opcode(cproc_t cp, const char *term, char **arg,
 			  struct isearch_query *q)
 {
 	const char *opname = get_arg(arg);
+	int opc;
 
 	if (q->flags & ISEARCH_OPCODE) {
 		fprintf(stderr, "isearch: opcode already specified\n");
@@ -65,11 +66,12 @@ static int isearch_opcode(cproc_t cp, const char *term, char **arg,
 		return -1;
 	}
 
-	q->insn.op = dis_opcode_from_name(opname);
-	if (q->insn.op < 0) {
+	opc = dis_opcode_from_name(opname);
+	if (opc < 0) {
 		fprintf(stderr, "isearch: unknown opcode: %s\n", opname);
 		return -1;
 	}
+	q->insn.op = opc;
 
 	q->flags |= ISEARCH_OPCODE;
 	return 0;
@@ -170,9 +172,12 @@ static int isearch_reg(cproc_t cp, const char *term, char **arg,
 		return -1;
 	}
 
-	while (*reg_text && !isdigit(*reg_text))
-		reg_text++;
-	reg = atoi(reg_text);
+	reg = dis_reg_from_name(reg_text);
+	if (reg < 0) {
+		fprintf(stderr, "isearch: unknown register: %s\n",
+			reg_text);
+		return -1;
+	}
 
 	q->flags |= which;
 	if (which == ISEARCH_SRC_REG)

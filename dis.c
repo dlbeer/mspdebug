@@ -526,7 +526,7 @@ const char *dis_opcode_name(msp430_op_t op)
 	return NULL;
 }
 
-msp430_op_t dis_opcode_from_name(const char *name)
+int dis_opcode_from_name(const char *name)
 {
 	int i;
 
@@ -544,19 +544,9 @@ static const char *const msp430_reg_names[] = {
 	"R12", "R13", "R14", "R15"
 };
 
-msp430_reg_t dis_reg_from_name(const char *name)
+int dis_reg_from_name(const char *name)
 {
-	const char *num = name;
-
-	while (num && isdigit(*num))
-		num++;
-
-	if (*num) {
-		msp430_reg_t r = atoi(num);
-
-		if (r >= 0 && r <= 15)
-			return r;
-	}
+	int i;
 
 	if (!strcasecmp(name, "pc"))
 		return 0;
@@ -565,7 +555,18 @@ msp430_reg_t dis_reg_from_name(const char *name)
 	if (!strcasecmp(name, "sr"))
 		return 2;
 
-	return -1;
+	if (toupper(*name) == 'R')
+		name++;
+
+	for (i = 0; name[i]; i++)
+		if (!isdigit(name[i]))
+			return -1;
+
+	i = atoi(name);
+	if (i < 0 || i > 15)
+		return -1;
+
+	return i;
 }
 
 const char *dis_reg_name(msp430_reg_t reg)

@@ -240,17 +240,14 @@ static int cmd_set(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	while (*reg_text && !isdigit(*reg_text))
-		reg_text++;
-	reg = atoi(reg_text);
-
-	if (expr_eval(stab, val_text, &value) < 0) {
-		fprintf(stderr, "set: can't parse value: %s\n", val_text);
+	reg = dis_reg_from_name(reg_text);
+	if (reg < 0) {
+		fprintf(stderr, "set: unknown register: %s\n", reg_text);
 		return -1;
 	}
 
-	if (reg < 0 || reg >= DEVICE_NUM_REGS) {
-		fprintf(stderr, "set: register out of range: %d\n", reg);
+	if (expr_eval(stab, val_text, &value) < 0) {
+		fprintf(stderr, "set: can't parse value: %s\n", val_text);
 		return -1;
 	}
 
