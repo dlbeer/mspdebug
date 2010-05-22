@@ -281,7 +281,7 @@ static int step_single(struct sim_device *dev, uint16_t ins)
 	uint32_t mask = is_byte ? 0xff : 0xffff;
 	uint16_t src_addr = 0;
 	uint32_t src_data;
-	uint32_t res_data;
+	uint32_t res_data = 0;
 
 	if (fetch_operand(dev, amode, reg, is_byte, &src_addr, &src_data) < 0)
 		return -1;

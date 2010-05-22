@@ -553,7 +553,7 @@ static int find_possible_edges(int offset, int len, uint8_t *memory,
 static int add_nodes_from_edges(struct call_graph *graph)
 {
 	int i;
-	uint16_t last_addr;
+	uint16_t last_addr = 0;
 	int have_last_addr = 0;
 
 	qsort(graph->edge_from.ptr, graph->edge_from.size,
