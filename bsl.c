@@ -30,11 +30,15 @@
 #include "util.h"
 #include "fet_error.h"
 
+#ifdef __APPLE__
+#define B460800 460800
+#endif
+
 struct bsl_device {
 	struct device   base;
 
 	int             serial_fd;
-	uint8_t        reply_buf[256];
+	uint8_t         reply_buf[256];
 	int             reply_len;
 };
 

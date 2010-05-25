@@ -28,6 +28,10 @@
 #include "uif.h"
 #include "util.h"
 
+#ifdef __APPLE__
+#define B460800 460800
+#endif
+
 struct uif_transport {
 	struct transport        base;
 
