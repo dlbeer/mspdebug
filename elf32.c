@@ -173,10 +173,10 @@ static int read_all(struct elf32_info *info, FILE *in)
 
 	if (read_ehdr(info, in) < 0)
 		return -1;
-	if (info->file_ehdr.e_machine != EM_MSP430) {
-		fprintf(stderr, "elf32: this is not an MSP430 ELF32\n");
-		return -1;
-	}
+
+	if (info->file_ehdr.e_machine != EM_MSP430)
+		fprintf(stderr, "elf32: warning: unknown machine type: 0x%x\n",
+			info->file_ehdr.e_machine);
 
 	if (read_phdr(info, in) < 0)
 		return -1;

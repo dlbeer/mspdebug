@@ -306,8 +306,8 @@ static int cmd_dis(cproc_t cp, char **arg)
 
 struct hexout_data {
 	FILE            *file;
-	uint16_t       addr;
-	uint8_t        buf[16];
+	uint16_t        addr;
+	uint8_t         buf[16];
 	int             len;
 };
 
@@ -447,8 +447,8 @@ fail:
 struct prog_data {
 	device_t        dev;
 
-	uint8_t        buf[128];
-	uint16_t       addr;
+	uint8_t         buf[128];
+	uint16_t        addr;
 	int             len;
 	int             have_erased;
 };
