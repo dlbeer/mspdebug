@@ -780,11 +780,11 @@ static int do_configure(struct fet_device *dev, int proto_flags)
 	if (proto_flags & FET_PROTO_SPYBIWIRE) {
 		if (!xfer(dev, C_CONFIGURE, NULL, 0,
 			  2, FET_CONFIG_PROTOCOL, 1)) {
-			printf("Configured for Spy-bi-wire\n");
+			printf("Configured for Spy-Bi-Wire\n");
 			return 0;
 		}
 
-		fprintf(stderr, "fet: Spy-bi-wire configuration failed\n");
+		fprintf(stderr, "fet: Spy-Bi-Wire configuration failed\n");
 		return -1;
 	}
 
