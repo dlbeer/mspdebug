@@ -130,7 +130,7 @@ static void usage(const char *progname)
 "    -u device\n"
 "        Open the given tty device (MSP430 UIF compatible devices).\n"
 "    -j\n"
-"        Use JTAG, rather than spy-bi-wire (UIF devices only).\n"
+"        Use JTAG, rather than Spy-bi-wire (UIF devices only).\n"
 "    -v voltage\n"
 "        Set the supply voltage, in millivolts.\n"
 "    -B device\n"

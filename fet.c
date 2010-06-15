@@ -771,6 +771,38 @@ static int fet_breakpoint(device_t dev_base, int enabled, uint16_t addr)
 	return 0;
 }
 
+static int do_configure(struct fet_device *dev, int proto_flags)
+{
+	if (proto_flags & FET_PROTO_SPYBIWIRE) {
+		if (!xfer(dev, C_CONFIGURE, NULL, 0,
+			  2, FET_CONFIG_PROTOCOL, 1)) {
+			printf("Configured for Spy-bi-wire\n");
+			return 0;
+		}
+
+		fprintf(stderr, "fet: Spy-bi-wire configuration failed\n");
+		return -1;
+	}
+
+	if (!xfer(dev, C_CONFIGURE, NULL, 0,
+		  2, FET_CONFIG_PROTOCOL, 2)) {
+		printf("Configured for JTAG (2)\n");
+		return 0;
+	}
+
+	fprintf(stderr, "fet: warning: JTAG configuration failed -- "
+		"retrying\n");
+
+	if (!xfer(dev, C_CONFIGURE, NULL, 0,
+		  2, FET_CONFIG_PROTOCOL, 0)) {
+		printf("Configured for JTAG (0)\n");
+		return 0;
+	}
+
+	fprintf(stderr, "fet: JTAG configuration failed\n");
+	return -1;
+}
+
 device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		  const char *force_id)
 {
@@ -809,16 +841,8 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		goto fail;
 	}
 
-	/* configure: Spy-Bi-Wire or JTAG */
-	if (xfer(dev, C_CONFIGURE, NULL, 0,
-		 2, FET_CONFIG_PROTOCOL,
-		 (proto_flags & FET_PROTO_SPYBIWIRE) ? 1 : 0) < 0) {
-		fprintf(stderr, "fet: configure failed\n");
+	if (do_configure(dev, proto_flags) < 0)
 		goto fail;
-	}
-
-	printf("Configured for %s\n",
-		(proto_flags & FET_PROTO_SPYBIWIRE) ? "Spy-Bi-Wire" : "JTAG");
 
 	/* set VCC */
 	if (xfer(dev, C_VCC, NULL, 0, 1, vcc_mv) < 0) {
