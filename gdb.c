@@ -666,6 +666,9 @@ static int cmd_gdb(cproc_t cp, char **arg)
 {
 	char *port_text = get_arg(arg);
 	int port = 2000;
+	int want_loop = 0;
+
+	cproc_get_int(cp, "gdb_loop", &want_loop);
 
 	if (port_text)
 		port = atoi(port_text);
@@ -675,7 +678,12 @@ static int cmd_gdb(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	return gdb_server(cproc_device(cp), port);
+	do {
+		if (gdb_server(cproc_device(cp), port) < 0)
+			return -1;
+	} while (want_loop);
+
+	return 0;
 }
 
 static const struct cproc_command command_gdb = {
@@ -686,7 +694,19 @@ static const struct cproc_command command_gdb = {
 	"    Run a GDB remote stub on the given TCP/IP port.\n"
 };
 
+static const struct cproc_option option_gdb = {
+	.name = "gdb_loop",
+	.type = CPROC_OPTION_BOOL,
+	.help =
+"Automatically restart the GDB server after disconnection. If this\n"
+"option is set, then the GDB server keeps running until an error occurs,\n"
+"or the user interrupts with Ctrl+C.\n"
+};
+
 int gdb_register(cproc_t cp)
 {
+	if (cproc_register_options(cp, &option_gdb, 1) < 0)
+		return -1;
+
 	return cproc_register_commands(cp, &command_gdb, 1);
 }

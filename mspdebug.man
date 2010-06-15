@@ -349,6 +349,10 @@ The following are all valid examples of address expressions:
 MSPDebug's behaviour can be configured via the following variables:
 .IP "\fBcolor\fR (boolean)"
 If true, MSPDebug will colorize debugging output.
+.IP "\fBgdb_loop\fR (boolean)"
+Automatically restart the GDB server after disconnection. If this
+option is set, then the GDB server keeps running until an error occurs,
+or the user interrupts with Ctrl+C.
 .SH BUGS
 If you find any bugs, you should report them to the author at
 daniel@tortek.co.nz. It would help if you could include a transcript
