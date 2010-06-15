@@ -6,6 +6,8 @@ MSPDebug - debugging tool for MSP430 MCUs
 .br
 \fBmspdebug\fR [options] \-u \fIdevice\fR [\-j] [\-v \fIvoltage\fR] [\fIcommand\fR ...]
 .br
+\fBmspdebug\fR [options] \-O \fIdevice\fR [\-j] [\-v \fIvoltage\fR] [\fIcommand\fR ...]
+.br
 \fBmspdebug\fR [options] \-B \fIdevice\fR [\fIcommand\fR ...]
 .br
 \fBmspdebug\fR [options] \-s [\fIcommand\fR ...]
@@ -49,6 +51,9 @@ Connect to an eZ430-F2013 or a FET430UIF device. The device argument
 should be the filename of the appropriate tty device. The TI serial
 converter chips on these devices are supported by newer versions of the
 Linux kernel, and should appear as /dev/tty\fIXX\fR when attached.
+.IP "\-O \fIdevice\fR"
+Connect to an Olimex MSP430-JTAG-TINY device. The device argument
+should be the filename of the appropriate tty device.
 .IP "\-j"
 Use JTAG instead of Spy-Bi-Wire to communicate with the MSP430. This
 option only works on FET430UIF devices.

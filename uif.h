@@ -25,6 +25,6 @@
  * a kernel-supported serial interface. The argument given should be the
  * filename of the relevant tty device.
  */
-transport_t uif_open(const char *device);
+transport_t uif_open(const char *device, int is_olimex);
 
 #endif

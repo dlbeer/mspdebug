@@ -11,3 +11,7 @@ Robert Kavaler <kavaler@diva.com>:
 
 Hans Nieuwenhuis <vzzbx@xs4all.nl>:
 	* Support for MSP430F2132.
+
+Peter Jansen <pwjansen@yahoo.com>:
+        * Support for MSP430F169.
+        * Testing and analysis for Olimex MSP430-JTAG-TINY.

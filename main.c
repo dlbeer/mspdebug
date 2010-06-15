@@ -122,13 +122,16 @@ static void usage(const char *progname)
 	fprintf(stderr,
 "Usage: %s [options] -R [-v voltage] [command ...]\n"
 "       %s [options] -u <device> [-j] [-v voltage] [command ...]\n"
+"       %s [options] -O <device> [-j] [-v voltage] [command ...]\n"
 "       %s [options] -B <device> [command ...]\n"
 "       %s [options] -s [command ...]\n"
 "\n"
 "    -R\n"
 "        Open the first available RF2500 device on the USB bus.\n"
 "    -u device\n"
-"        Open the given tty device (MSP430 UIF compatible devices).\n"
+"        Open the given tty device (FET430UIF compatible devices).\n"
+"    -O device\n"
+"        Open the given tty device (Olimex MSP430-JTAG-TINY).\n"
 "    -j\n"
 "        Use JTAG, rather than Spy-Bi-Wire (UIF devices only).\n"
 "    -v voltage\n"
@@ -150,7 +153,7 @@ static void usage(const char *progname)
 "\n"
 "If commands are given, they will be executed. Otherwise, an interactive\n"
 "command reader is started.\n",
-		progname, progname, progname, progname);
+		progname, progname, progname, progname, progname);
 }
 
 static void process_rc_file(cproc_t cp)
@@ -170,10 +173,10 @@ static void process_rc_file(cproc_t cp)
 #define MODE_UIF                0x02
 #define MODE_UIF_BSL            0x04
 #define MODE_SIM                0x08
+#define MODE_OLIMEX             0x10
 
 struct cmdline_args {
-	const char      *uif_device;
-	const char      *bsl_device;
+	const char      *devpath;
 	const char      *fet_force_id;
 	int             mode;
 	int             want_jtag;
@@ -226,9 +229,14 @@ static int parse_cmdline_args(int argc, char **argv,
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "u:jv:B:sR?n",
+	while ((opt = getopt_long(argc, argv, "u:jv:B:O:sR?n",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
+		case 'O':
+			args->devpath = optarg;
+			args->mode |= MODE_OLIMEX;
+			break;
+
 		case 'L':
 			exit(list_devices());
 
@@ -245,7 +253,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			break;
 
 		case 'u':
-			args->uif_device = optarg;
+			args->devpath = optarg;
 			args->mode |= MODE_UIF;
 			break;
 
@@ -258,7 +266,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			break;
 
 		case 'B':
-			args->bsl_device = optarg;
+			args->devpath = optarg;
 			args->mode |= MODE_UIF_BSL;
 			break;
 
@@ -305,13 +313,16 @@ device_t setup_device(const struct cmdline_args *args,
 	if (args->mode == MODE_SIM) {
 		msp430_dev = sim_open(fetch_io, store_io, stab);
 	} else if (args->mode == MODE_UIF_BSL) {
-		msp430_dev = bsl_open(args->bsl_device);
-	} else if (args->mode == MODE_RF2500 || args->mode == MODE_UIF) {
+		msp430_dev = bsl_open(args->devpath);
+	} else {
 		int flags = 0;
 
 		/* Open the appropriate transport */
-		if (args->mode == MODE_UIF) {
-			trans = uif_open(args->uif_device);
+		if (args->mode == MODE_OLIMEX) {
+			trans = uif_open(args->devpath, 1);
+			flags |= FET_PROTO_OLIMEX;
+		} else if (args->mode == MODE_UIF) {
+			trans = uif_open(args->devpath, 0);
 		} else {
 			trans = rf2500_open();
 			flags |= FET_PROTO_RF2500;
