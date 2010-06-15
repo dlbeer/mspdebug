@@ -33,6 +33,7 @@ struct fet_db_record {
 	int             msg29_params[FET_DB_MSG29_PARAMS];
 	uint8_t         msg29_data[FET_DB_MSG29_LEN];
 	uint8_t         msg2b_data[FET_DB_MSG2B_LEN];
+	int             msg2b_len;
 };
 
 /* Find a record in the database by its response to message 0x28. The

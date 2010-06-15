@@ -105,6 +105,10 @@ struct fet_device {
 #define C_WRITEI2C              0x23
 #define C_ENTERBOOTLOADER       0x24
 
+#define C_IDENT1                0x28
+#define C_IDENT2                0x29
+#define C_IDENT3                0x2b
+
 /* Constants for parameters of various FET commands */
 #define FET_CONFIG_VERIFICATION 0
 #define FET_CONFIG_EMULATION    1
@@ -489,8 +493,8 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 {
 	const struct fet_db_record *r;
 
-	if (xfer(dev, 0x28, NULL, 0, 2, 0, 0) < 0) {
-		fprintf(stderr, "fet: command 0x28 failed\n");
+	if (xfer(dev, C_IDENT1, NULL, 0, 2, 0, 0) < 0) {
+		fprintf(stderr, "fet: command C_IDENT1 failed\n");
 		return -1;
 	}
 
@@ -520,13 +524,13 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 	printf("Device: %s\n", r->name);
 	printf("Code memory starts at 0x%04x\n", dev->code_start);
 
-	if (xfer(dev, 0x2b, r->msg2b_data, FET_DB_MSG2B_LEN, 0) < 0)
-		fprintf(stderr, "fet: warning: message 0x2b failed\n");
+	if (xfer(dev, C_IDENT3, r->msg2b_data, r->msg2b_len, 0) < 0)
+		fprintf(stderr, "fet: warning: message C_IDENT3 failed\n");
 
-	if (xfer(dev, 0x29, r->msg29_data, FET_DB_MSG29_LEN,
+	if (xfer(dev, C_IDENT2, r->msg29_data, FET_DB_MSG29_LEN,
 		 3, r->msg29_params[0], r->msg29_params[1],
 		 r->msg29_params[2]) < 0) {
-		fprintf(stderr, "fet: message 0x29 failed\n");
+		fprintf(stderr, "fet: message C_IDENT2 failed\n");
 		return -1;
 	}
 
