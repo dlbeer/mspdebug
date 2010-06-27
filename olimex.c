@@ -1,0 +1,233 @@
+/* MSPDebug - debugging tool for the eZ430
+ * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2010 Peter Jansen
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+#include <stdio.h>
+#include <string.h>
+#include <usb.h>
+
+#include "olimex.h"
+#include "util.h"
+
+struct olimex_transport {
+	struct transport        base;
+
+	int                     int_number;
+	struct usb_dev_handle   *handle;
+
+	uint8_t                 buf[64];
+	int                     len;
+	int                     offset;
+};
+
+/*********************************************************************
+ * USB transport
+ *
+ * These functions handle the details of slicing data over USB
+ * transfers. The interface presented is a continuous byte stream with
+ * no slicing codes.
+ *
+ * Writes are unbuffered -- a single write translates to at least
+ * one transfer.
+ */
+
+#define USB_FET_VENDOR			0x15ba
+#define USB_FET_PRODUCT			0x0002
+#define USB_FET_INTERFACE_CLASS		255
+
+#define USB_FET_IN_EP			0x81
+#define USB_FET_OUT_EP			0x01
+
+#define CP210x_REQTYPE_HOST_TO_DEVICE   0x41
+
+#define CP210X_IFC_ENABLE               0x00
+#define CP210X_SET_MHS                  0x07
+
+#define TIMEOUT 	                1000
+
+static int open_interface(struct olimex_transport *tr,
+			  struct usb_device *dev, int ino)
+{
+#if !(defined (__APPLE__) || defined(WIN32))
+	int drv;
+	char drName[256];
+#endif
+
+	printf(__FILE__": Trying to open interface %d on %s\n",
+	       ino, dev->filename);
+
+	tr->int_number = ino;
+
+	tr->handle = usb_open(dev);
+	if (!tr->handle) {
+		perror(__FILE__": can't open device");
+		return -1;
+	}
+
+#if !(defined(__APPLE__) || defined(WIN32))
+	drv = usb_get_driver_np(tr->handle, tr->int_number, drName,
+				sizeof(drName));
+	printf(__FILE__" : driver %d\n", drv);
+	if (drv >= 0) {
+		if (usb_detach_kernel_driver_np(tr->handle,
+						tr->int_number) < 0)
+			perror(__FILE__": warning: can't detach "
+			       "kernel driver");
+	}
+#endif
+
+	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
+		perror(__FILE__": can't claim interface");
+		usb_close(tr->handle);
+		return -1;
+	}
+
+	int ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
+				  CP210X_IFC_ENABLE, 0x1, 0, NULL, 0, 300);
+#ifdef DEBUG_OLIMEX
+	printf(__FILE__": %s : Sending control message ret %d\n",
+	       __FUNCTION__, ret);
+#endif
+	ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
+			      CP210X_SET_MHS, 0x303, 0, NULL, 0, 300);
+#ifdef DEBUG_OLIMEX
+	printf(__FILE__": %s : Sending control message ret %d\n",
+	       __FUNCTION__, ret);
+#endif
+
+	return 0;
+}
+
+static int open_device(struct olimex_transport *tr, struct usb_device *dev)
+{
+	struct usb_config_descriptor *c = &dev->config[0];
+	int i;
+
+	for (i = 0; i < c->bNumInterfaces; i++) {
+		struct usb_interface *intf = &c->interface[i];
+		struct usb_interface_descriptor *desc = &intf->altsetting[0];
+
+		if (desc->bInterfaceClass == USB_FET_INTERFACE_CLASS &&
+		    !open_interface(tr, dev, desc->bInterfaceNumber))
+			return 0;
+	}
+
+	return -1;
+}
+
+static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
+{
+	struct olimex_transport *tr = (struct olimex_transport *)tr_base;
+
+	int sent;
+
+	while (len) {
+#ifdef DEBUG_OLIMEX
+		debug_hexdump(__FILE__": USB transfer out", data, len);
+#endif
+		sent = usb_bulk_write(tr->handle, USB_FET_OUT_EP,
+				      (char *)data, len, TIMEOUT);
+		if (sent < 0) {
+			perror(__FILE__": can't send data");
+			return -1;
+		}
+
+		len -= sent;
+	}
+
+	return 0;
+}
+
+static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
+{
+	struct olimex_transport *tr = (struct olimex_transport *)tr_base;
+	int rlen;
+
+#ifdef DEBUG_OLIMEX
+	printf(__FILE__": %s : read max %d\n", __FUNCTION__, max_len);
+#endif
+
+	rlen = usb_bulk_read(tr->handle, USB_FET_IN_EP, (char *)databuf,
+			     max_len, TIMEOUT);
+
+#ifdef DEBUG_OLIMEX
+	printf(__FILE__": %s : read %d\n", __FUNCTION__, rlen);
+#endif
+
+	if (rlen < 0) {
+		perror(__FILE__": can't receive data");
+		return -1;
+	}
+
+#ifdef DEBUG_OLIMEX
+	debug_hexdump(__FILE__": USB transfer in", databuf, rlen);
+#endif
+
+	return rlen;
+}
+
+static void usbtr_destroy(transport_t tr_base)
+{
+	struct olimex_transport *tr = (struct olimex_transport *)tr_base;
+
+	usb_release_interface(tr->handle, tr->int_number);
+	usb_close(tr->handle);
+	free(tr);
+}
+
+transport_t olimex_open(void)
+{
+	struct olimex_transport *tr = malloc(sizeof(*tr));
+	struct usb_bus *bus;
+
+	if (!tr) {
+		perror(__FILE__": can't allocate memory");
+		return NULL;
+	}
+
+	tr->base.destroy = usbtr_destroy;
+	tr->base.send = usbtr_send;
+	tr->base.recv = usbtr_recv;
+
+	usb_init();
+	usb_find_busses();
+	usb_find_devices();
+
+	for (bus = usb_get_busses(); bus; bus = bus->next) {
+		struct usb_device *dev;
+
+		for (dev = bus->devices; dev; dev = dev->next) {
+			if (dev->descriptor.idVendor == USB_FET_VENDOR &&
+			    dev->descriptor.idProduct == USB_FET_PRODUCT &&
+			    !open_device(tr, dev)) {
+				char buf[64];
+
+				/* Flush out lingering data */
+				while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
+						     buf, sizeof(buf),
+						     100) >= 0);
+
+				return (transport_t)tr;
+			}
+		}
+	}
+
+	fprintf(stderr, __FILE__": no devices could be found\n");
+	free(tr);
+	return NULL;
+}

@@ -42,6 +42,7 @@
 #include "fet_db.h"
 
 #include "uif.h"
+#include "olimex.h"
 #include "rf2500.h"
 
 static void io_prefix(stab_t stab,
@@ -123,6 +124,7 @@ static void usage(const char *progname)
 "Usage: %s [options] -R [-v voltage] [command ...]\n"
 "       %s [options] -u <device> [-j] [-v voltage] [command ...]\n"
 "       %s [options] -O <device> [-j] [-v voltage] [command ...]\n"
+"       %s [options] -l [-j] [-v voltage] [command ...]\n"
 "       %s [options] -B <device> [command ...]\n"
 "       %s [options] -s [command ...]\n"
 "\n"
@@ -132,6 +134,8 @@ static void usage(const char *progname)
 "        Open the given tty device (FET430UIF compatible devices).\n"
 "    -O device\n"
 "        Open the given tty device (Olimex MSP430-JTAG-TINY).\n"
+"    -l\n"
+"        Open the first available Olimex MSP430-JTAG-TINY using libusb.\n"
 "    -j\n"
 "        Use JTAG, rather than Spy-Bi-Wire (UIF devices only).\n"
 "    -v voltage\n"
@@ -153,7 +157,7 @@ static void usage(const char *progname)
 "\n"
 "If commands are given, they will be executed. Otherwise, an interactive\n"
 "command reader is started.\n",
-		progname, progname, progname, progname, progname);
+		progname, progname, progname, progname, progname, progname);
 }
 
 static void process_rc_file(cproc_t cp)
@@ -174,6 +178,7 @@ static void process_rc_file(cproc_t cp)
 #define MODE_UIF_BSL            0x04
 #define MODE_SIM                0x08
 #define MODE_OLIMEX             0x10
+#define MODE_OLIMEX_USB         0x20
 
 struct cmdline_args {
 	const char      *devpath;
@@ -229,7 +234,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "u:jv:B:O:sR?n",
+	while ((opt = getopt_long(argc, argv, "lu:jv:B:O:sR?n",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
 		case 'O':
@@ -255,6 +260,10 @@ static int parse_cmdline_args(int argc, char **argv,
 		case 'u':
 			args->devpath = optarg;
 			args->mode |= MODE_UIF;
+			break;
+
+		case 'l':
+			args->mode |= MODE_OLIMEX_USB;
 			break;
 
 		case 'v':
@@ -323,6 +332,9 @@ device_t setup_device(const struct cmdline_args *args,
 			flags |= FET_PROTO_OLIMEX;
 		} else if (args->mode == MODE_UIF) {
 			trans = uif_open(args->devpath, 0);
+		} else if (args->mode == MODE_OLIMEX_USB) {
+			trans = olimex_open();
+			flags |= FET_PROTO_OLIMEX;
 		} else {
 			trans = rf2500_open();
 			flags |= FET_PROTO_RF2500;
@@ -392,7 +404,8 @@ int main(int argc, char **argv)
 "MSPDebug version 0.8 - debugging tool for MSP430 MCUs\n"
 "Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
-"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
+"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
+"PURPOSE.\n");
 
 	args.vcc_mv = 3000;
 	if (parse_cmdline_args(argc, argv, &args) < 0)
