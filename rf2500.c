@@ -22,6 +22,7 @@
 
 #include "rf2500.h"
 #include "util.h"
+#include "usbutil.h"
 
 struct rf2500_transport {
 	struct transport        base;
@@ -177,10 +178,11 @@ static void usbtr_destroy(transport_t tr_base)
 	free(tr);
 }
 
-transport_t rf2500_open(void)
+transport_t rf2500_open(const char *devpath)
 {
 	struct rf2500_transport *tr = malloc(sizeof(*tr));
-	struct usb_bus *bus;
+	struct usb_device *dev;
+	char buf[64];
 
 	if (!tr) {
 		perror("rf2500: can't allocate memory");
@@ -195,26 +197,25 @@ transport_t rf2500_open(void)
 	usb_find_busses();
 	usb_find_devices();
 
-	for (bus = usb_get_busses(); bus; bus = bus->next) {
-		struct usb_device *dev;
+	if (devpath)
+		dev = usbutil_find_by_loc(devpath);
+	else
+		dev = usbutil_find_by_id(USB_FET_VENDOR, USB_FET_PRODUCT);
 
-		for (dev = bus->devices; dev; dev = dev->next) {
-			if (dev->descriptor.idVendor == USB_FET_VENDOR &&
-			    dev->descriptor.idProduct == USB_FET_PRODUCT &&
-			    !open_device(tr, dev)) {
-				char buf[64];
-
-				/* Flush out lingering data */
-				while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
-						     buf, sizeof(buf),
-						     100) >= 0);
-
-				return (transport_t)tr;
-			}
-		}
+	if (!dev) {
+		free(tr);
+		return NULL;
 	}
 
-	fprintf(stderr, "rf2500: no devices could be found\n");
-	free(tr);
-	return NULL;
+	if (open_device(tr, dev) < 0) {
+		fprintf(stderr, "rf2500: failed to open RF2500 device\n");
+		return NULL;
+	}
+
+	/* Flush out lingering data */
+	while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
+			     buf, sizeof(buf),
+			     100) >= 0);
+
+	return (transport_t)tr;
 }

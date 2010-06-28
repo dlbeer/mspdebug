@@ -29,6 +29,7 @@
 #include "binfile.h"
 #include "stab.h"
 #include "util.h"
+#include "usbutil.h"
 #include "gdb.h"
 #include "rtools.h"
 #include "sym.h"
@@ -121,6 +122,7 @@ static void store_io(void *user_data, uint16_t pc,
 struct cmdline_args {
 	const char      *driver_name;
 	const char      *serial_device;
+	const char      *usb_device;
 	const char      *fet_force_id;
 	int             want_jtag;
 	int             no_rc;
@@ -160,7 +162,7 @@ static device_t driver_open_rf2500(const struct cmdline_args *args)
 		return NULL;
 	}
 
-	trans = rf2500_open();
+	trans = rf2500_open(args->usb_device);
 	if (!trans)
 		return NULL;
 
@@ -174,7 +176,7 @@ static device_t driver_open_olimex(const struct cmdline_args *args)
 	if (args->serial_device)
 		trans = uif_open(args->serial_device, 1);
 	else
-		trans = olimex_open();
+		trans = olimex_open(args->usb_device);
 
 	if (!trans)
 		return NULL;
@@ -252,6 +254,8 @@ static void usage(const char *progname)
 "\n"
 "    -d device\n"
 "        Connect via the given tty device, rather than USB.\n"
+"    -U bus:dev\n"
+"        Specify a particular USB device to connect to.\n"
 "    -j\n"
 "        Use JTAG, rather than Spy-Bi-Wire (UIF devices only).\n"
 "    -v voltage\n"
@@ -264,9 +268,11 @@ static void usage(const char *progname)
 "        Show a list of devices supported by the FET driver.\n"
 "    --fet-force-id string\n"
 "        Override the device ID returned by the FET.\n"
+"    --usb-list\n"
+"        Show a list of available USB devices.\n"
 "\n"
 "Most drivers connect by default via USB, unless told otherwise via the\n"
-"-d option.\n"
+"-d option. By default, the first USB device found is opened.\n"
 "\n"
 "If commands are given, they will be executed. Otherwise, an interactive\n"
 "command reader is started.\n\n",
@@ -335,14 +341,26 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"help",                0, 0, 'H'},
 		{"fet-list",            0, 0, 'L'},
 		{"fet-force-id",        1, 0, 'F'},
+		{"usb-list",            0, 0, 'I'},
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "d:jv:n",
+	while ((opt = getopt_long(argc, argv, "d:jv:nU:",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
+		case 'I':
+			usb_init();
+			usb_find_busses();
+			usb_find_devices();
+			usbutil_list();
+			exit(0);
+
 		case 'd':
 			args->serial_device = optarg;
+			break;
+
+		case 'U':
+			args->usb_device = optarg;
 			break;
 
 		case 'L':
@@ -372,6 +390,12 @@ static int parse_cmdline_args(int argc, char **argv,
 			fprintf(stderr, "Try --help for usage information.\n");
 			return -1;
 		}
+
+	if (args->usb_device && args->serial_device) {
+		fprintf(stderr, "You can't simultaneously specify a serial and "
+			"a USB device.\n");
+		return -1;
+	}
 
 	if (optind >= argc) {
 		fprintf(stderr, "You need to specify a driver. Try --help for "
