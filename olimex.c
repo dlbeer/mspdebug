@@ -57,6 +57,7 @@ struct olimex_transport {
 #define CP210x_REQTYPE_HOST_TO_DEVICE   0x41
 
 #define CP210X_IFC_ENABLE               0x00
+#define CP210X_SET_BAUDDIV              0x01
 #define CP210X_SET_MHS                  0x07
 
 #define TIMEOUT 	                1000
@@ -104,6 +105,16 @@ static int open_interface(struct olimex_transport *tr,
 	printf(__FILE__": %s : Sending control message ret %d\n",
 	       __FUNCTION__, ret);
 #endif
+	/* Set the baud rate to 500000 bps */
+	ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
+			      CP210X_SET_BAUDDIV, 0x7, 0, NULL, 0, 300);
+#ifdef DEBUG_OLIMEX
+	printf(__FILE__": %s : Sending control message ret %d\n",
+	       __FUNCTION__, ret);
+#endif
+	/* Set the modem control settings.
+	 * Set RTS, DTR and WRITE_DTR, WRITE_RTS
+	 */
 	ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
 			      CP210X_SET_MHS, 0x303, 0, NULL, 0, 300);
 #ifdef DEBUG_OLIMEX
