@@ -31,6 +31,8 @@
 #include "util.h"
 #include "gdb.h"
 
+#define MAX_MEM_XFER    1024
+
 /************************************************************************
  * GDB IO routines
  */
@@ -43,7 +45,7 @@ struct gdb_data {
 	int             head;
 	int             tail;
 
-	char            outbuf[1024];
+	char            outbuf[MAX_MEM_XFER * 2 + 64];
 	int             outlen;
 
 	device_t        device;
@@ -287,7 +289,7 @@ static int read_memory(struct gdb_data *data, char *text)
 {
 	char *length_text = strchr(text, ',');
 	int length, addr;
-	uint8_t buf[128];
+	uint8_t buf[MAX_MEM_XFER];
 	int i;
 
 	if (!length_text) {
@@ -321,7 +323,7 @@ static int write_memory(struct gdb_data *data, char *text)
 	char *data_text = strchr(text, ':');
 	char *length_text = strchr(text, ',');
 	int length, addr;
-	uint8_t buf[128];
+	uint8_t buf[MAX_MEM_XFER];
 	int buflen = 0;
 
 	if (!(data_text && length_text)) {
@@ -535,7 +537,7 @@ static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 static void gdb_reader_loop(struct gdb_data *data)
 {
 	for (;;) {
-		char buf[1024];
+		char buf[MAX_MEM_XFER * 2 + 64];
 		int len = 0;
 		int cksum_calc = 0;
 		int cksum_recv = 0;
