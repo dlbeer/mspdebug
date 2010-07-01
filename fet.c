@@ -870,12 +870,10 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		goto fail;
 
 	/* set VCC */
-	if (xfer(dev, C_VCC, NULL, 0, 1, vcc_mv) < 0) {
-		fprintf(stderr, "fet: set VCC failed\n");
-		goto fail;
-	}
-
-	printf("Set Vcc: %d mV\n", vcc_mv);
+	if (xfer(dev, C_VCC, NULL, 0, 1, vcc_mv) < 0)
+		fprintf(stderr, "warning: fet: set VCC failed\n");
+	else
+		printf("Set Vcc: %d mV\n", vcc_mv);
 
 	/* Identify the chip */
 	if (do_identify(dev, force_id) < 0) {
