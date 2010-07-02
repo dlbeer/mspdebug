@@ -33,6 +33,12 @@
 #include "fet_db.h"
 
 #define MAX_PARAMS		16
+#define MAX_BREAKPOINTS         16
+
+struct fet_bp {
+	int             enabled;
+	uint16_t        addr;
+};
 
 struct fet_device {
 	struct device                   base;
@@ -40,7 +46,9 @@ struct fet_device {
 	transport_t                     transport;
 	int                             proto_flags;
 	int                             version;
-	int                             have_breakpoint;
+
+	/* Breakpoint array */
+	struct fet_bp                   bps[MAX_BREAKPOINTS];
 
 	/* Device-specific information */
 	u_int16_t                       code_start;
@@ -475,6 +483,13 @@ static int xfer(struct fet_device *dev,
  * MSP430 high-level control functions
  */
 
+static void show_dev_info(const char *name, const struct fet_device *dev)
+{
+	printf("Device: %s\n", name);
+	printf("Code memory starts at 0x%04x\n", dev->code_start);
+	printf("Number of breakpoints: %d\n", dev->base.max_breakpoints);
+}
+
 static int identify_old(struct fet_device *dev)
 {
 	char idtext[64];
@@ -491,9 +506,9 @@ static int identify_old(struct fet_device *dev)
 	idtext[32] = 0;
 
 	dev->code_start = LE_WORD(dev->fet_reply.data, 0x24);
+	dev->base.max_breakpoints = LE_WORD(dev->fet_reply.data, 0x2a);
 
-	printf("Device: %s\n", idtext);
-	printf("Code memory starts at 0x%04x\n", dev->code_start);
+	show_dev_info(idtext, dev);
 
 	return 0;
 }
@@ -529,9 +544,9 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 	}
 
 	dev->code_start = LE_WORD(r->msg29_data, 0);
+	dev->base.max_breakpoints = LE_WORD(r->msg29_data, 0x14);
 
-	printf("Device: %s\n", r->name);
-	printf("Code memory starts at 0x%04x\n", dev->code_start);
+	show_dev_info(r->name, dev);
 
 	if (xfer(dev, C_IDENT3, r->msg2b_data, r->msg2b_len, 0) < 0)
 		fprintf(stderr, "fet: warning: message C_IDENT3 failed\n");
@@ -625,8 +640,7 @@ static int fet_ctl(device_t dev_base, device_ctl_t action)
 		break;
 
 	case DEVICE_CTL_RUN:
-		return do_run(dev, dev->have_breakpoint ?
-			      FET_RUN_BREAKPOINT : FET_RUN_FREE);
+		return do_run(dev, FET_RUN_BREAKPOINT);
 
 	case DEVICE_CTL_HALT:
 		if (xfer(dev, C_STATE, NULL, 0, 1, 1) < 0) {
@@ -769,20 +783,39 @@ static int fet_setregs(device_t dev_base, const uint16_t *regs)
 	return 0;
 }
 
-static int fet_breakpoint(device_t dev_base, int enabled, uint16_t addr)
+static int fet_setbrk(device_t dev_base, int n, int enabled, uint16_t addr)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	if (enabled) {
-		dev->have_breakpoint = 1;
-
-		if (xfer(dev, C_BREAKPOINT, NULL, 0, 2, 0, addr) < 0) {
-			fprintf(stderr, "fet: set breakpoint failed\n");
-			return -1;
-		}
-	} else {
-		dev->have_breakpoint = 0;
+	if (n < 0 || n > dev_base->max_breakpoints) {
+		fprintf(stderr, "fet: invalid breakpoint number: %d\n", n);
+		return -1;
 	}
+
+	if (xfer(dev, C_BREAKPOINT, NULL, 0, 2, n, enabled ? addr : 0) < 0) {
+		fprintf(stderr, "fet: set breakpoint failed\n");
+		return -1;
+	}
+
+	dev->bps[n].enabled = enabled;
+	dev->bps[n].addr = addr;
+
+	return 0;
+}
+
+static int fet_getbrk(device_t dev_base, int n, int *enabled, uint16_t *addr)
+{
+	struct fet_device *dev = (struct fet_device *)dev_base;
+
+	if (n < 0 || n > dev_base->max_breakpoints) {
+		fprintf(stderr, "fet: invalid breakpoint number: %d\n", n);
+		return -1;
+	}
+
+	if (enabled)
+		*enabled = dev->bps[n].enabled;
+	if (addr)
+		*addr = dev->bps[n].addr;
 
 	return 0;
 }
@@ -823,6 +856,7 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		  const char *force_id)
 {
 	struct fet_device *dev = malloc(sizeof(*dev));
+	int i;
 
 	if (!dev) {
 		perror("fet: failed to allocate memory");
@@ -834,13 +868,15 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 	dev->base.writemem = fet_writemem;
 	dev->base.getregs = fet_getregs;
 	dev->base.setregs = fet_setregs;
-	dev->base.breakpoint = fet_breakpoint;
+	dev->base.setbrk = fet_setbrk;
+	dev->base.getbrk = fet_getbrk;
 	dev->base.ctl = fet_ctl;
 	dev->base.poll = fet_poll;
 
+	memset(dev->bps, 0, sizeof(dev->bps));
+
 	dev->transport = transport;
 	dev->proto_flags = proto_flags;
-	dev->have_breakpoint = 0;
 
 	dev->fet_len = 0;
 
@@ -880,6 +916,12 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		fprintf(stderr, "fet: identify failed\n");
 		goto fail;
 	}
+
+	printf("Resetting all breakpoints...\n");
+	for (i = 0; i < dev->base.max_breakpoints; i++)
+		xfer(dev, C_BREAKPOINT, NULL, 0, 2, i, 0);
+	if (dev->base.max_breakpoints > MAX_BREAKPOINTS)
+		dev->base.max_breakpoints = MAX_BREAKPOINTS;
 
 	return (device_t)dev;
 

@@ -222,7 +222,13 @@ static device_status_t bsl_poll(device_t dev_base)
 	return DEVICE_STATUS_HALTED;
 }
 
-static int bsl_breakpoint(device_t dev_base, int enabled, uint16_t addr)
+static int bsl_setbrk(device_t dev_base, int n, int enabled, uint16_t addr)
+{
+	fprintf(stderr, "bsl: breakpoints are not implemented\n");
+	return -1;
+}
+
+static int bsl_getbrk(device_t dev_base, int n, int *enabled, uint16_t *addr)
 {
 	fprintf(stderr, "bsl: breakpoints are not implemented\n");
 	return -1;
@@ -321,12 +327,14 @@ device_t bsl_open(const char *device)
 		return NULL;
 	}
 
+	dev->base.max_breakpoints = 0;
 	dev->base.destroy = bsl_destroy;
 	dev->base.readmem = bsl_readmem;
 	dev->base.writemem = bsl_writemem;
 	dev->base.getregs = bsl_getregs;
 	dev->base.setregs = bsl_setregs;
-	dev->base.breakpoint = bsl_breakpoint;
+	dev->base.setbrk = bsl_setbrk;
+	dev->base.getbrk = bsl_getbrk;
 	dev->base.ctl = bsl_ctl;
 	dev->base.poll = bsl_poll;
 

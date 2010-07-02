@@ -121,6 +121,10 @@ question.
 
 See the section marked \fBADDRESS EXPRESSIONS\fR for more information on
 the syntax of expressions.
+.IP "\fBbreak\fR"
+Show a list of active breakpoints. Breakpoints can be added and removed
+with the \fBsetbreak\fR and \fBdelbreak\fR commands. Each breakpoint is
+numbered with an integer index starting at 0.
 .IP "\fBcgraph\fR \fIaddress\fR \fIlength\fR [\fIaddress\fR]"
 Construct the call graph of all functions contained or referenced in
 the given range of memory. If a particular function is specified, then
@@ -133,6 +137,9 @@ is considered a possible function start.
 
 Callers and callee names are shown prefixed by a "*" where the
 transition is a tail-call type transition.
+.IP "\fBdelbreak\fR [\fIindex\fR]"
+Delete one or all breakpoints. If an index is given, the selected breakpoint
+is deleted. Otherwise, all breakpoints are cleared.
 .IP "\fBdis\fR \fIaddress\fR [\fIlength\fR]"
 Dissassemble a section of memory. Both arguments may be address
 expressions. If no length is specified, a section of the default
@@ -274,14 +281,11 @@ processed.
 Show the current value of all CPU registers in the device under test.
 .IP "\fBreset\fR"
 Reset (and halt) the CPU of the device under test.
-.IP "\fBrun\fR [\fIbreakpoint\fR]"
-Run the CPU, optionally specifying a breakpoint. The breakpoint can be
-specified as an address expression.
-
-The interactive command prompt is blocked when the CPU is started and
-the prompt will not appear again until the CPU halts. The CPU will halt
-if it encounters the specified breakpoint, or if Ctrl\-C is pressed by
-the user.
+.IP "\fBrun\fR"
+Start running the CPU. The interactive command prompt is blocked when
+the CPU is started and the prompt will not appear again until the CPU
+halts. The CPU will halt if it encounters a breakpoint, or if Ctrl\-C
+is pressed by the user.
 
 After the CPU halts, the current register values are shown as well as
 a disassembly of the first few instructions at the address selected
@@ -291,6 +295,11 @@ Alter the value of a register. Registers are specified as numbers from
 0 through 15. Any leading non-numeric characters are ignored (so a
 register may be specified as, for example, "R12"). The value argument
 is an address expression.
+.IP "\fBsetbreak\fR \fIaddress\fR [\fIindex\fR]"
+Add a new breakpoint. The breakpoint location is an address expression. An
+optional index may be specified, indicating that this new breakpoint should
+overwrite an existing slot. If no index is specified, then the breakpoint
+will be stored in the next unused slot.
 .IP "\fBstep\fR [\fIcount\fR]"
 Step the CPU through one or more instructions. After stepping, the new
 register values are displayed, as well as a disassembly of the

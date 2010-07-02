@@ -42,6 +42,8 @@ typedef enum {
 #define DEVICE_NUM_REGS		16
 
 struct device {
+	int max_breakpoints;
+
 	/* Close the connection to the device and destroy the driver object */
 	void (*destroy)(device_t dev);
 
@@ -56,7 +58,8 @@ struct device {
 	int (*setregs)(device_t dev, const uint16_t *regs);
 
 	/* Breakpoint control */
-	int (*breakpoint)(device_t dev, int enabled, uint16_t addr);
+	int (*setbrk)(device_t dev, int n, int enabled, uint16_t addr);
+	int (*getbrk)(device_t dev, int n, int *enabled, uint16_t *addr);
 
 	/* CPU control */
 	int (*ctl)(device_t dev, device_ctl_t op);

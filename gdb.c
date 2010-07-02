@@ -49,12 +49,6 @@ struct gdb_data {
 	int             outlen;
 
 	device_t        device;
-
-	/* The underlying device driver supports only one breakpoint at
-	 * a time. We keep track of whether or not it's in use and report
-	 * an error to gdb if more than one is set.
-	 */
-	int             have_breakpoint;
 };
 
 static void gdb_printf(struct gdb_data *data, const char *fmt, ...)
@@ -441,6 +435,50 @@ static int run(struct gdb_data *data, char *buf)
 	return run_final_status(data);
 }
 
+static int add_breakpoint(device_t dev, int addr)
+{
+	int i;
+	int avail = -1;
+
+	for (i = 0; i < dev->max_breakpoints; i++) {
+		int enabled;
+		uint16_t ba;
+
+		if (!dev->getbrk(dev, i, &enabled, &ba)) {
+			if (!enabled && avail < 0)
+				avail = i;
+			if (enabled && addr == ba) {
+				fprintf(stderr, "warning: gdb: breakpoint at "
+					"0x%04x already set", addr);
+				return 0;
+			}
+		}
+	}
+
+	if (avail < 0) {
+		fprintf(stderr, "gdb: no breakpoint slots available\n");
+		return -1;
+	}
+
+	return dev->setbrk(dev, avail, 1, addr);
+}
+
+static int remove_breakpoint(device_t dev, int addr)
+{
+	int i;
+
+	for (i = 0; i < dev->max_breakpoints; i++) {
+		int enabled;
+		uint16_t ba;
+
+		if (!dev->getbrk(dev, i, &enabled, &ba) && enabled &&
+		    ba == addr && dev->setbrk(dev, i, 0, 0) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
 static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 {
 	char *parts[2];
@@ -475,23 +513,23 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 	/* Parse the breakpoint address */
 	addr = strtoul(parts[1], NULL, 16);
 
-	/* Only one breakpoint at a time is allowed */
-	if (enable && data->have_breakpoint) {
-		fprintf(stderr, "gdb: only one breakpoint allowed "
-			"at a time\n");
-		return gdb_send(data, "E00");
-	}
+	if (enable) {
+		if (add_breakpoint(data->device, addr) < 0) {
+			fprintf(stderr, "gdb: can't add breakpoint at "
+				"0x%04x\n", addr);
+			return gdb_send(data, "E00");
+		}
 
-	/* Set the breakpoint */
-	if (data->device->breakpoint(data->device, enable, addr) < 0)
-		return gdb_send(data, "E00");
-
-	data->have_breakpoint = enable;
-
-	if (enable)
 		printf("Breakpoint set at 0x%04x\n", addr);
-	else
-		printf("Breakpoint cleared\n");
+	} else {
+		if (remove_breakpoint(data->device, addr) < 0) {
+			fprintf(stderr, "gdb: can't remove breakpoint at "
+				"0x%04x\n", addr);
+			return gdb_send(data, "E00");
+		}
+
+		printf("Breakpoint cleared at 0x%04x\n", addr);
+	}
 
 	return gdb_send(data, "OK");
 }
@@ -605,6 +643,7 @@ static int gdb_server(device_t device, int port)
 	socklen_t len;
 	int arg;
 	struct gdb_data data;
+	int i;
 
 	sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {
@@ -654,12 +693,11 @@ static int gdb_server(device_t device, int port)
 	data.device = device;
 
 	/* Put the hardware breakpoint setting into a known state. */
-	data.have_breakpoint = 0;
-	device->breakpoint(device, 0, 0);
+	printf("Clearing all breakpoints...\n");
+	for (i = 0; i < device->max_breakpoints; i++)
+		device->setbrk(device, i, 0, 0);
 
 	gdb_reader_loop(&data);
-
-	device->breakpoint(device, 0, 0);
 
 	return data.error ? -1 : 0;
 }

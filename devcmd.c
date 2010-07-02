@@ -183,31 +183,12 @@ static int cmd_step(cproc_t cp, char **arg)
 static int cmd_run(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	stab_t stab = cproc_stab(cp);
-	char *bp_text = get_arg(arg);
-	int bp_addr;
 	device_status_t status;
-
-	if (bp_text) {
-		if (expr_eval(stab, bp_text, &bp_addr) < 0) {
-			fprintf(stderr, "run: can't parse breakpoint: %s\n",
-				bp_text);
-			return -1;
-		}
-
-		dev->breakpoint(dev, 1, bp_addr);
-	} else {
-		dev->breakpoint(dev, 0, 0);
-	}
 
 	if (dev->ctl(dev, DEVICE_CTL_RUN) < 0)
 		return -1;
 
-	if (bp_text)
-		printf("Running to 0x%04x.", bp_addr);
-	else
-		printf("Running.");
-	printf(" Press Ctrl+C to interrupt...\n");
+	printf("Running. Press Ctrl+C to interrupt...\n");
 
 	do {
 		status = dev->poll(dev);
@@ -572,7 +553,130 @@ static int cmd_prog(cproc_t cp, char **arg)
 	return 0;
 }
 
+static int cmd_setbreak(cproc_t cp, char **arg)
+{
+	device_t dev = cproc_device(cp);
+	stab_t stab = cproc_stab(cp);
+	char *addr_text = get_arg(arg);
+	char *index_text = get_arg(arg);
+	int index;
+	int addr;
+
+	if (!addr_text) {
+		fprintf(stderr, "setbreak: address required\n");
+		return -1;
+	}
+
+	if (expr_eval(stab, addr_text, &addr) < 0) {
+		fprintf(stderr, "setbreak: invalid address\n");
+		return -1;
+	}
+
+	if (index_text) {
+		index = atoi(index_text);
+	} else {
+		int i;
+
+		for (i = 0; i < dev->max_breakpoints; i++) {
+			int enabled;
+
+			if (!dev->getbrk(dev, i, &enabled, NULL) &&
+			    !enabled)
+				break;
+		}
+
+		if (i >= dev->max_breakpoints) {
+			fprintf(stderr, "setbreak: all breakpoint slots are "
+				"occupied\n");
+			return -1;
+		}
+
+		index = i;
+	}
+
+	printf("Setting breakpoint %d\n", index);
+	dev->setbrk(dev, index, 1, addr);
+
+	return 0;
+}
+
+static int cmd_delbreak(cproc_t cp, char **arg)
+{
+	device_t dev = cproc_device(cp);
+	char *index_text = get_arg(arg);
+	int ret = 0;
+
+	if (index_text) {
+		int index = atoi(index_text);
+
+		printf("Clearing breakpoint %d\n", index);
+		ret = dev->setbrk(dev, index, 0, 0);
+	} else {
+		int i;
+
+		printf("Clearing all breakpoints...\n");
+		for (i = 0; i < dev->max_breakpoints; i++)
+			if (dev->setbrk(dev, i, 0, 0) < 0)
+				ret = -1;
+	}
+
+	return ret;
+}
+
+static int cmd_break(cproc_t cp, char **arg)
+{
+	device_t dev = cproc_device(cp);
+	stab_t stab = cproc_stab(cp);
+	int i;
+
+	printf("%d breakpoints available:\n", dev->max_breakpoints);
+	for (i = 0; i < dev->max_breakpoints; i++) {
+		int enabled;
+		uint16_t addr;
+
+		if (!dev->getbrk(dev, i, &enabled, &addr) && enabled) {
+			char name[128];
+			uint16_t offset;
+
+			printf("    %d. 0x%04x", i, addr);
+			if (!stab_nearest(stab, addr, name,
+					  sizeof(name), &offset)) {
+				printf(" (%s", name);
+				if (offset)
+					printf("+0x%x", offset);
+				printf(")");
+			}
+			printf("\n");
+		}
+	}
+
+	return 0;
+}
+
 static const struct cproc_command commands[] = {
+	{
+		.name = "setbreak",
+		.func = cmd_setbreak,
+		.help =
+"setbreak <addr> [index]\n"
+"    Set a breakpoint. If no index is specified, the first available\n"
+"    slot will be used.\n"
+	},
+	{
+		.name = "delbreak",
+		.func = cmd_delbreak,
+		.help =
+"delbreak [index]\n"
+"    Delete a breakpoint. If no index is specified, then all active\n"
+"    breakpoints are cleared.\n"
+	},
+	{
+		.name = "break",
+		.func = cmd_break,
+		.help =
+"break\n"
+"    List active breakpoints.\n"
+	},
 	{
 		.name = "regs",
 		.func = cmd_regs,
@@ -629,9 +733,9 @@ static const struct cproc_command commands[] = {
 		.name = "run",
 		.func = cmd_run,
 		.help =
-"run [breakpoint]\n"
-"    Run the CPU until either a specified breakpoint occurs or the\n"
-"    command is interrupted.\n"
+"run\n"
+"    Run the CPU to until a breakpoint is reached or the command is\n"
+"    interrupted.\n"
 	},
 	{
 		.name = "set",
