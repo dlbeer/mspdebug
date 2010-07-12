@@ -27,6 +27,16 @@ READLINE_CFLAGS = -DUSE_READLINE
 READLINE_LIBS = -lreadline
 endif
 
+# Mac OS X/MacPorts stuff
+UNAME :=$(shell sh -c 'uname -s')
+ifeq ($(UNAME),Darwin)
+	MACPORTS_CFLAGS = -I/opt/local/include
+	MACPORTS_LDFLAGS = -L/opt/local/lib
+else
+	MACPORTS_CFLAGS =
+	MACPORTS_LDFLAGS =
+endif
+
 MSPDEBUG_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
 
 all: mspdebug
@@ -47,7 +57,7 @@ mspdebug: main.o fet.o rf2500.o dis.o uif.o olimex.o ihex.o elf32.o stab.o \
           util.o bsl.o sim.o symmap.o gdb.o btree.o rtools.o sym.o devcmd.o \
 	  cproc.o vector.o cproc_util.o expr.o fet_error.o binfile.o fet_db.o \
 	  usbutil.o titext.o
-	$(CC) $(LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
+	$(CC) $(LDFLAGS) $(MACPORTS_LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(READLINE_CFLAGS) $(MSPDEBUG_CFLAGS) -o $@ -c $*.c
+	$(CC) $(CFLAGS) $(MACPORTS_CFLAGS) $(READLINE_CFLAGS) $(MSPDEBUG_CFLAGS) -o $@ -c $*.c
