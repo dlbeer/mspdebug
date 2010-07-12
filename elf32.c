@@ -296,6 +296,8 @@ static int syms_load_syms(struct elf32_info *info, FILE *in,
 
 		for (i = 0; i < count; i++) {
 			Elf32_Sym *y = &syms[i];
+			int st = ELF32_ST_TYPE(y->st_info);
+			const char *name = info->string_tab + y->st_name;
 
 			if (y->st_name > info->string_len) {
 				fprintf(stderr, "elf32: symbol out of "
@@ -303,7 +305,11 @@ static int syms_load_syms(struct elf32_info *info, FILE *in,
 				return -1;
 			}
 
-			if (stab_set(stab, info->string_tab + y->st_name,
+			if (name[0] &&
+			    (st == STT_OBJECT || st == STT_FUNC ||
+			     st == STT_SECTION || st == STT_COMMON ||
+			     st == STT_TLS) &&
+			    stab_set(stab, info->string_tab + y->st_name,
 				     y->st_value) < 0)
 				return -1;
 		}
