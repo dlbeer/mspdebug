@@ -19,11 +19,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include "titext.h"
-
-static inline int ishex(int c)
-{
-	return isdigit(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-}
+#include "util.h"
 
 static int is_address_line(const char *text)
 {
@@ -65,7 +61,9 @@ int titext_check(FILE *in)
 	char buf[64];
 
 	rewind(in);
-	fgets(buf, sizeof(buf), in);
+	if (!fgets(buf, sizeof(buf), in))
+		return 0;
+
 	return is_address_line(buf);
 }
 

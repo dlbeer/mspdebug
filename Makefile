@@ -20,11 +20,11 @@ INSTALL = /usr/bin/install
 PREFIX ?= /usr/local
 
 ifdef WITHOUT_READLINE
-READLINE_CFLAGS =
-READLINE_LIBS =
+	READLINE_CFLAGS =
+	READLINE_LIBS =
 else
-READLINE_CFLAGS = -DUSE_READLINE
-READLINE_LIBS = -lreadline
+	READLINE_CFLAGS = -DUSE_READLINE
+	READLINE_LIBS = -lreadline
 endif
 
 # Mac OS X/MacPorts stuff
@@ -56,7 +56,7 @@ install: mspdebug mspdebug.man
 mspdebug: main.o fet.o rf2500.o dis.o uif.o olimex.o ihex.o elf32.o stab.o \
           util.o bsl.o sim.o symmap.o gdb.o btree.o rtools.o sym.o devcmd.o \
 	  cproc.o vector.o cproc_util.o expr.o fet_error.o binfile.o fet_db.o \
-	  usbutil.o titext.o
+	  usbutil.o titext.o srec.o
 	$(CC) $(LDFLAGS) $(MACPORTS_LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
 
 .c.o:

@@ -20,6 +20,7 @@
 #define UTIL_H_
 
 #include <stdint.h>
+#include <ctype.h>
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -48,5 +49,10 @@ void debug_hexdump(const char *label,
 
 /* Get text length, not including ANSI codes */
 int textlen(const char *text);
+
+static inline int ishex(int c)
+{
+	return isdigit(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+}
 
 #endif

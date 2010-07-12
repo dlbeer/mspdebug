@@ -22,6 +22,7 @@
 #include "elf32.h"
 #include "symmap.h"
 #include "titext.h"
+#include "srec.h"
 
 struct file_format {
 	int (*check)(FILE *in);
@@ -46,6 +47,10 @@ static const struct file_format formats[] = {
 	{
 		.check = titext_check,
 		.extract = titext_extract
+	},
+	{
+		.check = srec_check,
+		.extract = srec_extract
 	}
 };
 
