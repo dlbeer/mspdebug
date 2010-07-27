@@ -184,9 +184,32 @@ static int cmd_run(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
 	device_status_t status;
+	uint16_t regs[DEVICE_NUM_REGS];
 
-	if (dev->ctl(dev, DEVICE_CTL_RUN) < 0)
+	if (dev->getregs(dev, regs) < 0) {
+		fprintf(stderr, "warning: device: can't fetch registers\n");
+	} else {
+		int i;
+
+		for (i = 0; i < dev->max_breakpoints; i++) {
+			struct device_breakpoint *bp = &dev->breakpoints[i];
+
+			if ((bp->flags & DEVICE_BP_ENABLED) &&
+			    bp->addr == regs[0])
+				break;
+		}
+
+		if (i < dev->max_breakpoints) {
+			printf("Stepping over breakpoint #%d at 0x%04x\n",
+			       i, regs[0]);
+			dev->ctl(dev, DEVICE_CTL_STEP);
+		}
+	}
+
+	if (dev->ctl(dev, DEVICE_CTL_RUN) < 0) {
+		fprintf(stderr, "run: failed to start CPU\n");
 		return -1;
+	}
 
 	printf("Running. Press Ctrl+C to interrupt...\n");
 
