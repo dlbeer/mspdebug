@@ -373,7 +373,7 @@ static int run_final_status(struct gdb_data *data)
 		return gdb_send(data, "E00");
 
 	gdb_packet_start(data);
-	gdb_printf(data, "T00");
+	gdb_printf(data, "T05");
 	for (i = 0; i < 16; i++)
 		gdb_printf(data, "%02x:%02x%02x;", i,
 			   regs[i] & 0xff, regs[i] >> 8);
@@ -489,7 +489,7 @@ static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 {
 	switch (buf[0]) {
 	case '?': /* Return target halt reason */
-		return gdb_send(data, "T00");
+		return run_final_status(data);
 
 	case 'z':
 	case 'Z':
