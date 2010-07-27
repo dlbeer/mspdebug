@@ -559,7 +559,7 @@ static int cmd_setbreak(cproc_t cp, char **arg)
 	stab_t stab = cproc_stab(cp);
 	char *addr_text = get_arg(arg);
 	char *index_text = get_arg(arg);
-	int index;
+	int index = -1;
 	int addr;
 
 	if (!addr_text) {
@@ -574,29 +574,22 @@ static int cmd_setbreak(cproc_t cp, char **arg)
 
 	if (index_text) {
 		index = atoi(index_text);
-	} else {
-		int i;
 
-		for (i = 0; i < dev->max_breakpoints; i++) {
-			int enabled;
-
-			if (!dev->getbrk(dev, i, &enabled, NULL) &&
-			    !enabled)
-				break;
-		}
-
-		if (i >= dev->max_breakpoints) {
-			fprintf(stderr, "setbreak: all breakpoint slots are "
-				"occupied\n");
+		if (index < 0 || index >= dev->max_breakpoints) {
+			fprintf(stderr, "setbreak: invalid breakpoint "
+				"slot: %d\n", index);
 			return -1;
 		}
-
-		index = i;
 	}
 
-	printf("Setting breakpoint %d\n", index);
-	dev->setbrk(dev, index, 1, addr);
+	index = device_setbrk(dev, index, 1, addr);
+	if (index < 0) {
+		fprintf(stderr, "setbreak: all breakpoint slots are "
+			"occupied\n");
+		return -1;
+	}
 
+	printf("Set breakpoint %d\n", index);
 	return 0;
 }
 
@@ -609,15 +602,20 @@ static int cmd_delbreak(cproc_t cp, char **arg)
 	if (index_text) {
 		int index = atoi(index_text);
 
+		if (index < 0 || index >= dev->max_breakpoints) {
+			fprintf(stderr, "delbreak: invalid breakpoint "
+				"slot: %d\n", index);
+			return -1;
+		}
+
 		printf("Clearing breakpoint %d\n", index);
-		ret = dev->setbrk(dev, index, 0, 0);
+		device_setbrk(dev, index, 0, 0);
 	} else {
 		int i;
 
 		printf("Clearing all breakpoints...\n");
 		for (i = 0; i < dev->max_breakpoints; i++)
-			if (dev->setbrk(dev, i, 0, 0) < 0)
-				ret = -1;
+			device_setbrk(dev, i, 0, 0);
 	}
 
 	return ret;
@@ -631,15 +629,14 @@ static int cmd_break(cproc_t cp, char **arg)
 
 	printf("%d breakpoints available:\n", dev->max_breakpoints);
 	for (i = 0; i < dev->max_breakpoints; i++) {
-		int enabled;
-		uint16_t addr;
+		const struct device_breakpoint *bp = &dev->breakpoints[i];
 
-		if (!dev->getbrk(dev, i, &enabled, &addr) && enabled) {
+		if (bp->flags & DEVICE_BP_ENABLED) {
 			char name[128];
 			uint16_t offset;
 
-			printf("    %d. 0x%04x", i, addr);
-			if (!stab_nearest(stab, addr, name,
+			printf("    %d. 0x%04x", i, bp->addr);
+			if (!stab_nearest(stab, bp->addr, name,
 					  sizeof(name), &offset)) {
 				printf(" (%s", name);
 				if (offset)

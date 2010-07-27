@@ -28,13 +28,6 @@
 #define MEM_SIZE	65536
 #define MEM_IO_END      0x200
 
-#define NUM_BREAKPOINTS 8
-
-struct sim_bp {
-	int                     enabled;
-	uint16_t                addr;
-};
-
 struct sim_device {
 	struct device           base;
 
@@ -47,8 +40,6 @@ struct sim_device {
 
 	int                     running;
 	uint16_t                current_insn;
-
-	struct sim_bp           bps[NUM_BREAKPOINTS];
 };
 
 #define MEM_GETB(dev, offset) ((dev)->memory[offset])
@@ -489,38 +480,6 @@ static int sim_setregs(device_t dev_base, const uint16_t *regs)
 	return 0;
 }
 
-static int sim_setbrk(device_t dev_base, int n, int enabled, uint16_t addr)
-{
-	struct sim_device *dev = (struct sim_device *)dev_base;
-
-	if (n < 0 || n > NUM_BREAKPOINTS) {
-		fprintf(stderr, "sim: invalid breakpoint number: %d\n", n);
-		return -1;
-	}
-
-	dev->bps[n].enabled = enabled;
-	dev->bps[n].addr = addr;
-
-	return 0;
-}
-
-static int sim_getbrk(device_t dev_base, int n, int *enabled, uint16_t *addr)
-{
-	struct sim_device *dev = (struct sim_device *)dev_base;
-
-	if (n < 0 || n > NUM_BREAKPOINTS) {
-		fprintf(stderr, "sim: invalid breakpoint number: %d\n", n);
-		return -1;
-	}
-
-	if (enabled)
-		*enabled = dev->bps[n].enabled;
-	if (addr)
-		*addr = dev->bps[n].addr;
-
-	return 0;
-}
-
 static int sim_ctl(device_t dev_base, device_ctl_t op)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
@@ -562,10 +521,11 @@ static device_status_t sim_poll(device_t dev_base)
 	while (count > 0) {
 		int i;
 
-		for (i = 0; i < NUM_BREAKPOINTS; i++) {
-			struct sim_bp *bp = &dev->bps[i];
+		for (i = 0; i < dev->base.max_breakpoints; i++) {
+			struct device_breakpoint *bp =
+				&dev->base.breakpoints[i];
 
-			if (bp->enabled &&
+			if ((bp->flags & DEVICE_BP_ENABLED) &&
 			    dev->regs[MSP430_REG_PC] == bp->addr) {
 				dev->running = 0;
 				return DEVICE_STATUS_HALTED;
@@ -603,14 +563,14 @@ device_t sim_open(sim_fetch_func_t fetch_func,
 		return NULL;
 	}
 
-	dev->base.max_breakpoints = NUM_BREAKPOINTS;
+	memset(dev, 0, sizeof(*dev));
+
+	dev->base.max_breakpoints = DEVICE_MAX_BREAKPOINTS;
 	dev->base.destroy = sim_destroy;
 	dev->base.readmem = sim_readmem;
 	dev->base.writemem = sim_writemem;
 	dev->base.getregs = sim_getregs;
 	dev->base.setregs = sim_setregs;
-	dev->base.setbrk = sim_setbrk;
-	dev->base.getbrk = sim_getbrk;
 	dev->base.ctl = sim_ctl;
 	dev->base.poll = sim_poll;
 
@@ -623,8 +583,6 @@ device_t sim_open(sim_fetch_func_t fetch_func,
 
 	dev->running = 0;
 	dev->current_insn = 0;
-
-	memset(dev->bps, 0, sizeof(dev->bps));
 
 	printf("Simulation started, 0x%x bytes of RAM\n", MEM_SIZE);
 	return (device_t)dev;

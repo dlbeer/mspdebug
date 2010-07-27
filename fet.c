@@ -33,12 +33,6 @@
 #include "fet_db.h"
 
 #define MAX_PARAMS		16
-#define MAX_BREAKPOINTS         16
-
-struct fet_bp {
-	int             enabled;
-	uint16_t        addr;
-};
 
 struct fet_device {
 	struct device                   base;
@@ -46,9 +40,6 @@ struct fet_device {
 	transport_t                     transport;
 	int                             proto_flags;
 	int                             version;
-
-	/* Breakpoint array */
-	struct fet_bp                   bps[MAX_BREAKPOINTS];
 
 	/* Device-specific information */
 	u_int16_t                       code_start;
@@ -627,6 +618,33 @@ static device_status_t fet_poll(device_t dev_base)
 	return DEVICE_STATUS_RUNNING;
 }
 
+static int refresh_bps(struct fet_device *dev)
+{
+	int i;
+	int ret = 0;
+
+	for (i = 0; i < dev->base.max_breakpoints; i++) {
+		struct device_breakpoint *bp = &dev->base.breakpoints[i];
+
+		if (bp->flags & DEVICE_BP_DIRTY) {
+			uint16_t addr = bp->addr;
+
+			if (!(bp->flags & DEVICE_BP_ENABLED))
+				addr = 0;
+
+			if (xfer(dev, C_BREAKPOINT, NULL, 0, 2, i, addr) < 0) {
+				fprintf(stderr, "fet: failed to refresh "
+					"breakpoint #%d\n", i);
+				ret = -1;
+			} else {
+				bp->flags &= ~DEVICE_BP_DIRTY;
+			}
+		}
+	}
+
+	return ret;
+}
+
 static int fet_ctl(device_t dev_base, device_ctl_t action)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
@@ -640,6 +658,9 @@ static int fet_ctl(device_t dev_base, device_ctl_t action)
 		break;
 
 	case DEVICE_CTL_RUN:
+		if (refresh_bps(dev) < 0)
+			fprintf(stderr, "warning: fet: failed to refresh "
+				"breakpoints\n");
 		return do_run(dev, FET_RUN_BREAKPOINT);
 
 	case DEVICE_CTL_HALT:
@@ -783,43 +804,6 @@ static int fet_setregs(device_t dev_base, const uint16_t *regs)
 	return 0;
 }
 
-static int fet_setbrk(device_t dev_base, int n, int enabled, uint16_t addr)
-{
-	struct fet_device *dev = (struct fet_device *)dev_base;
-
-	if (n < 0 || n > dev_base->max_breakpoints) {
-		fprintf(stderr, "fet: invalid breakpoint number: %d\n", n);
-		return -1;
-	}
-
-	if (xfer(dev, C_BREAKPOINT, NULL, 0, 2, n, enabled ? addr : 0) < 0) {
-		fprintf(stderr, "fet: set breakpoint failed\n");
-		return -1;
-	}
-
-	dev->bps[n].enabled = enabled;
-	dev->bps[n].addr = addr;
-
-	return 0;
-}
-
-static int fet_getbrk(device_t dev_base, int n, int *enabled, uint16_t *addr)
-{
-	struct fet_device *dev = (struct fet_device *)dev_base;
-
-	if (n < 0 || n > dev_base->max_breakpoints) {
-		fprintf(stderr, "fet: invalid breakpoint number: %d\n", n);
-		return -1;
-	}
-
-	if (enabled)
-		*enabled = dev->bps[n].enabled;
-	if (addr)
-		*addr = dev->bps[n].addr;
-
-	return 0;
-}
-
 static int do_configure(struct fet_device *dev)
 {
 	if (dev->proto_flags & FET_PROTO_SPYBIWIRE) {
@@ -863,22 +847,18 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		return NULL;
 	}
 
+	memset(dev, 0, sizeof(*dev));
+
 	dev->base.destroy = fet_destroy;
 	dev->base.readmem = fet_readmem;
 	dev->base.writemem = fet_writemem;
 	dev->base.getregs = fet_getregs;
 	dev->base.setregs = fet_setregs;
-	dev->base.setbrk = fet_setbrk;
-	dev->base.getbrk = fet_getbrk;
 	dev->base.ctl = fet_ctl;
 	dev->base.poll = fet_poll;
 
-	memset(dev->bps, 0, sizeof(dev->bps));
-
 	dev->transport = transport;
 	dev->proto_flags = proto_flags;
-
-	dev->fet_len = 0;
 
 	if (proto_flags & FET_PROTO_OLIMEX) {
 		printf("Resetting Olimex command processor...\n");
@@ -917,11 +897,11 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		goto fail;
 	}
 
-	printf("Resetting all breakpoints...\n");
+	/* Make sure breakpoints get reset on the first run */
+	if (dev->base.max_breakpoints > DEVICE_MAX_BREAKPOINTS)
+		dev->base.max_breakpoints = DEVICE_MAX_BREAKPOINTS;
 	for (i = 0; i < dev->base.max_breakpoints; i++)
-		xfer(dev, C_BREAKPOINT, NULL, 0, 2, i, 0);
-	if (dev->base.max_breakpoints > MAX_BREAKPOINTS)
-		dev->base.max_breakpoints = MAX_BREAKPOINTS;
+		dev->base.breakpoints[i].flags = DEVICE_BP_DIRTY;
 
 	return (device_t)dev;
 

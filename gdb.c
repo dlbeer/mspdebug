@@ -435,50 +435,6 @@ static int run(struct gdb_data *data, char *buf)
 	return run_final_status(data);
 }
 
-static int add_breakpoint(device_t dev, int addr)
-{
-	int i;
-	int avail = -1;
-
-	for (i = 0; i < dev->max_breakpoints; i++) {
-		int enabled;
-		uint16_t ba;
-
-		if (!dev->getbrk(dev, i, &enabled, &ba)) {
-			if (!enabled && avail < 0)
-				avail = i;
-			if (enabled && addr == ba) {
-				fprintf(stderr, "warning: gdb: breakpoint at "
-					"0x%04x already set", addr);
-				return 0;
-			}
-		}
-	}
-
-	if (avail < 0) {
-		fprintf(stderr, "gdb: no breakpoint slots available\n");
-		return -1;
-	}
-
-	return dev->setbrk(dev, avail, 1, addr);
-}
-
-static int remove_breakpoint(device_t dev, int addr)
-{
-	int i;
-
-	for (i = 0; i < dev->max_breakpoints; i++) {
-		int enabled;
-		uint16_t ba;
-
-		if (!dev->getbrk(dev, i, &enabled, &ba) && enabled &&
-		    ba == addr && dev->setbrk(dev, i, 0, 0) < 0)
-			return -1;
-	}
-
-	return 0;
-}
-
 static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 {
 	char *parts[2];
@@ -514,7 +470,7 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 	addr = strtoul(parts[1], NULL, 16);
 
 	if (enable) {
-		if (add_breakpoint(data->device, addr) < 0) {
+		if (device_setbrk(data->device, -1, 1, addr) < 0) {
 			fprintf(stderr, "gdb: can't add breakpoint at "
 				"0x%04x\n", addr);
 			return gdb_send(data, "E00");
@@ -522,12 +478,7 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 
 		printf("Breakpoint set at 0x%04x\n", addr);
 	} else {
-		if (remove_breakpoint(data->device, addr) < 0) {
-			fprintf(stderr, "gdb: can't remove breakpoint at "
-				"0x%04x\n", addr);
-			return gdb_send(data, "E00");
-		}
-
+		device_setbrk(data->device, -1, 0, addr);
 		printf("Breakpoint cleared at 0x%04x\n", addr);
 	}
 
@@ -695,7 +646,7 @@ static int gdb_server(device_t device, int port)
 	/* Put the hardware breakpoint setting into a known state. */
 	printf("Clearing all breakpoints...\n");
 	for (i = 0; i < device->max_breakpoints; i++)
-		device->setbrk(device, i, 0, 0);
+		device_setbrk(device, i, 0, 0);
 
 	gdb_reader_loop(&data);
 
