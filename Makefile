@@ -28,7 +28,7 @@ else
 endif
 
 # Mac OS X/MacPorts stuff
-UNAME :=$(shell sh -c 'uname -s')
+UNAME := $(shell sh -c 'uname -s')
 ifeq ($(UNAME),Darwin)
 	MACPORTS_CFLAGS = -I/opt/local/include
 	MACPORTS_LDFLAGS = -L/opt/local/lib
@@ -56,7 +56,7 @@ install: mspdebug mspdebug.man
 mspdebug: main.o fet.o rf2500.o dis.o uif.o olimex.o ihex.o elf32.o stab.o \
           util.o bsl.o sim.o symmap.o gdb.o btree.o rtools.o sym.o devcmd.o \
 	  cproc.o vector.o cproc_util.o expr.o fet_error.o binfile.o fet_db.o \
-	  usbutil.o titext.o srec.o device.o
+	  usbutil.o titext.o srec.o device.o coff.o
 	$(CC) $(LDFLAGS) $(MACPORTS_LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
 
 .c.o:
