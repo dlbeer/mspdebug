@@ -16,3 +16,6 @@ Peter Jansen <pwjansen@yahoo.com>:
         * Support for MSP430F169.
         * Testing and analysis for Olimex MSP430-JTAG-TINY.
         * libusb driver for Olimex MSP430-JTAG-TINY.
+
+Aurélien Gauducheau <aurelien.gauducheau@gmail.com>:
+	* Testing and analysis for MSP430F5529.
