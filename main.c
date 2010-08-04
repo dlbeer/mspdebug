@@ -462,7 +462,7 @@ int main(int argc, char **argv)
 	int ret = 0;
 
 	puts(
-"MSPDebug version 0.9 - debugging tool for MSP430 MCUs\n"
+"MSPDebug version 0.10 - debugging tool for MSP430 MCUs\n"
 "Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
