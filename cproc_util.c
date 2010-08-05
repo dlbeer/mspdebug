@@ -183,7 +183,7 @@ static int dis_format(stab_t stab, char *buf, int max_len,
 }
 
 void cproc_disassemble(cproc_t cp,
-		       uint16_t offset, const uint8_t *data, int length)
+		       address_t offset, const uint8_t *data, int length)
 {
 	stab_t stab = cproc_stab(cp);
 	int first_line = 1;
@@ -239,7 +239,7 @@ void cproc_disassemble(cproc_t cp,
 	}
 }
 
-void cproc_hexdump(cproc_t cp, uint16_t addr, const uint8_t *data, int data_len)
+void cproc_hexdump(cproc_t cp, address_t addr, const uint8_t *data, int data_len)
 {
 	int offset = 0;
 

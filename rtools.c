@@ -697,8 +697,8 @@ static int add_irq_edges(address_t offset, address_t len, uint8_t *memory,
 		struct cg_edge br;
 
 		br.src = offset + i;
-		br.dst = ((uint16_t)memory[i]) |
-			(((uint16_t)memory[i + 1]) << 8);
+		br.dst = ((address_t)memory[i]) |
+			(((address_t)memory[i + 1]) << 8);
 		br.is_tail_call = 0;
 
 		if (vector_push(&graph->edge_from, &br, 1) < 0)

@@ -23,11 +23,11 @@
 #include "cproc.h"
 
 /* Print colorized disassembly on command processor standard output */
-void cproc_disassemble(cproc_t cp, uint16_t addr,
+void cproc_disassemble(cproc_t cp, address_t addr,
 		       const uint8_t *buf, int len);
 
 /* Print colorized hexdump on standard output */
-void cproc_hexdump(cproc_t cp, uint16_t addr,
+void cproc_hexdump(cproc_t cp, address_t addr,
 		   const uint8_t *buf, int len);
 
 /* Colorized register dump */
