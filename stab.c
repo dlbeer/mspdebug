@@ -58,8 +58,8 @@ static void sym_key_init(struct sym_key *key, const char *text)
 }
 
 struct addr_key {
-	uint16_t       addr;
-	char            name[64];
+	address_t      addr;
+	char           name[64];
 };
 
 static const struct addr_key addr_key_zero = {
@@ -80,7 +80,7 @@ static int addr_key_compare(const void *left, const void *right)
 	return strcmp(kl->name, kr->name);
 }
 
-static void addr_key_init(struct addr_key *key, uint16_t addr,
+static void addr_key_init(struct addr_key *key, address_t addr,
 			  const char *text)
 {
 	int len = strlen(text);
@@ -98,7 +98,7 @@ static const struct btree_def sym_table_def = {
 	.zero = &sym_key_zero,
 	.branches = 32,
 	.key_size = sizeof(struct sym_key),
-	.data_size = sizeof(uint16_t)
+	.data_size = sizeof(address_t)
 };
 
 static const struct btree_def addr_table_def = {
@@ -128,8 +128,8 @@ int stab_set(stab_t st, const char *name, int value)
 {
 	struct sym_key skey;
 	struct addr_key akey;
-	uint16_t addr = value;
-	uint16_t old_addr;
+	address_t addr = value;
+	address_t old_addr;
 
 	sym_key_init(&skey, name);
 
@@ -152,8 +152,8 @@ int stab_set(stab_t st, const char *name, int value)
 	return 0;
 }
 
-int stab_nearest(stab_t st, uint16_t addr, char *ret_name, int max_len,
-		 uint16_t *ret_offset)
+int stab_nearest(stab_t st, address_t addr, char *ret_name, int max_len,
+		 address_t *ret_offset)
 {
 	struct addr_key akey;
 	int i;
@@ -173,10 +173,10 @@ int stab_nearest(stab_t st, uint16_t addr, char *ret_name, int max_len,
 	return -1;
 }
 
-int stab_get(stab_t st, const char *name, int *value)
+int stab_get(stab_t st, const char *name, address_t *value)
 {
 	struct sym_key skey;
-	uint16_t addr;
+	address_t addr;
 
 	sym_key_init(&skey, name);
 	if (btree_get(st->sym, &skey, &addr))
@@ -189,7 +189,7 @@ int stab_get(stab_t st, const char *name, int *value)
 int stab_del(stab_t st, const char *name)
 {
 	struct sym_key skey;
-	uint16_t value;
+	address_t value;
 	struct addr_key akey;
 
 	sym_key_init(&skey, name);

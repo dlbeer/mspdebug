@@ -28,7 +28,7 @@ static int format_addr(stab_t stab, char *buf, int max_len,
 		       msp430_amode_t amode, uint16_t addr)
 {
 	char name[64];
-	uint16_t offset;
+	address_t offset;
 	int numeric = 0;
 	const char *prefix = "";
 
@@ -193,7 +193,7 @@ void cproc_disassemble(cproc_t cp,
 		int retval;
 		int count;
 		int i;
-		uint16_t oboff;
+		address_t oboff;
 		char obname[64];
 		char buf[256];
 		int len = 0;

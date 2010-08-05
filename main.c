@@ -51,20 +51,21 @@ static void io_prefix(stab_t stab,
 		      uint16_t addr, int is_byte)
 {
 	char name[64];
+	address_t offset;
 
-	if (!stab_nearest(stab, pc, name, sizeof(name), &pc)) {
+	if (!stab_nearest(stab, pc, name, sizeof(name), &offset)) {
 		printf("%s", name);
-		if (pc)
-			printf("+0x%x", pc);
+		if (offset)
+			printf("+0x%x", offset);
 	} else {
 		printf("0x%04x", pc);
 	}
 
 	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
-	if (!stab_nearest(stab, addr, name, sizeof(name), &addr)) {
+	if (!stab_nearest(stab, addr, name, sizeof(name), &offset)) {
 		printf(" (%s", name);
-		if (addr)
-			printf("+0x%x", addr);
+		if (offset)
+			printf("+0x%x", offset);
 		printf(")");
 	}
 }
@@ -79,7 +80,7 @@ static int fetch_io(void *user_data, uint16_t pc,
 	for (;;) {
 		char text[128];
 		int len;
-		int data;
+		address_t data;
 
 		printf("? ");
 		fflush(stdout);

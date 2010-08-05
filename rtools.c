@@ -128,7 +128,7 @@ static int isearch_addr(cproc_t cp, const char *term, char **arg,
 	int which = toupper(*term) == 'S' ?
 		ISEARCH_SRC_ADDR : ISEARCH_DST_ADDR;
 	const char *addr_text;
-	int addr;
+	address_t addr;
 
 	if (q->flags & which) {
 		fprintf(stderr, "isearch: address already specified\n");
@@ -392,8 +392,8 @@ static int cmd_isearch(cproc_t cp, char **arg)
 	struct isearch_query q;
 	const char *addr_text;
 	const char *len_text;
-	int addr;
-	int len;
+	address_t addr;
+	address_t len;
 
 	addr_text = get_arg(arg);
 	len_text = get_arg(arg);
@@ -711,7 +711,7 @@ static int add_irq_edges(int offset, int len, uint8_t *memory,
 }
 
 static int add_symbol_nodes(void *user_data, const char *name,
-			    uint16_t offset)
+			    address_t offset)
 {
 	struct call_graph *graph = (struct call_graph *)user_data;
 
@@ -778,7 +778,7 @@ static void cgraph_summary(struct call_graph *graph, cproc_t cp)
 		int from_count = 0;
 		int to_count = 0;
 		char name[64];
-		uint16_t o;
+		address_t o;
 
 		while (j < graph->edge_from.size &&
 		       CG_EDGE_FROM(graph, j)->src < n->offset)
@@ -817,7 +817,7 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 	int j = 0;
 	int k = 0;
 	char name[64];
-	u_int16_t offset;
+	address_t offset;
 	struct cg_node *n;
 
 	while (i + 1 < graph->node_list.size &&
@@ -893,7 +893,7 @@ static int cmd_cgraph(cproc_t cp, char **arg)
 	stab_t stab = cproc_stab(cp);
 	device_t dev = cproc_device(cp);
 	char *offset_text, *len_text, *addr_text;;
-	int offset, len, addr;
+	address_t offset, len, addr;
 	uint8_t *memory;
 	struct call_graph graph;
 

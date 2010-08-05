@@ -33,17 +33,17 @@
  */
 
 struct addr_exp_state {
-	int     last_operator;
-	int     data_stack[32];
-	int     data_stack_size;
-	int     op_stack[32];
-	int     op_stack_size;
+	int            last_operator;
+	address_t      data_stack[32];
+	int            data_stack_size;
+	int            op_stack[32];
+	int            op_stack_size;
 };
 
 static int addr_exp_data(stab_t stab,
 			 struct addr_exp_state *s, const char *text)
 {
-	int value;
+	address_t value;
 
 	if (!s->last_operator || s->last_operator == ')') {
 		fprintf(stderr, "syntax error at token %s\n", text);
@@ -73,10 +73,9 @@ static int addr_exp_data(stab_t stab,
 static int addr_exp_pop(struct addr_exp_state *s)
 {
 	char op = s->op_stack[--s->op_stack_size];
-	int data1 = s->data_stack[--s->data_stack_size];
-	int data2 = 0;
-
-	int result = 0;
+	address_t data1 = s->data_stack[--s->data_stack_size];
+	address_t data2 = 0;
+	address_t result = 0;
 
 	if (op != 'N')
 		data2 = s->data_stack[--s->data_stack_size];
@@ -197,7 +196,7 @@ static int addr_exp_op(struct addr_exp_state *s, char op)
 	return -1;
 }
 
-static int addr_exp_finish(struct addr_exp_state *s, int *ret)
+static int addr_exp_finish(struct addr_exp_state *s, address_t *ret)
 {
 	if (s->last_operator && s->last_operator != ')') {
 		fprintf(stderr, "syntax error at end of expression\n");
@@ -226,7 +225,7 @@ static int addr_exp_finish(struct addr_exp_state *s, int *ret)
 	return 0;
 }
 
-int expr_eval(stab_t stab, const char *text, int *addr)
+int expr_eval(stab_t stab, const char *text, address_t *addr)
 {
 	const char *text_save = text;
 	int last_cc = 1;

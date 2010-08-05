@@ -58,8 +58,8 @@ static int cmd_md(cproc_t cp, char **arg)
 	device_t dev = cproc_device(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
-	int offset = 0;
-	int length = 0x40;
+	address_t offset = 0;
+	address_t length = 0x40;
 
 	if (!off_text) {
 		fprintf(stderr, "md: offset must be specified\n");
@@ -107,8 +107,8 @@ static int cmd_mw(cproc_t cp, char **arg)
 	stab_t stab = cproc_stab(cp);
 	char *off_text = get_arg(arg);
 	char *byte_text;
-	int offset = 0;
-	int length = 0;
+	address_t offset = 0;
+	address_t length = 0;
 	uint8_t buf[1024];
 
 	if (!off_text) {
@@ -236,7 +236,7 @@ static int cmd_set(cproc_t cp, char **arg)
 	char *reg_text = get_arg(arg);
 	char *val_text = get_arg(arg);
 	int reg;
-	int value = 0;
+	address_t value = 0;
 	uint16_t regs[DEVICE_NUM_REGS];
 
 	if (!(reg_text && val_text)) {
@@ -271,8 +271,8 @@ static int cmd_dis(cproc_t cp, char **arg)
 	stab_t stab = cproc_stab(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
-	int offset = 0;
-	int length = 0x40;
+	address_t offset = 0;
+	address_t length = 0x40;
 	uint8_t buf[4096];
 
 	if (!off_text) {
@@ -397,8 +397,8 @@ static int cmd_hexout(cproc_t cp, char **arg)
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
 	char *filename = *arg;
-	int off;
-	int length;
+	address_t off;
+	address_t length;
 	struct hexout_data hexout;
 
 	if (!(off_text && len_text && *filename)) {
@@ -583,7 +583,7 @@ static int cmd_setbreak(cproc_t cp, char **arg)
 	char *addr_text = get_arg(arg);
 	char *index_text = get_arg(arg);
 	int index = -1;
-	int addr;
+	address_t addr;
 
 	if (!addr_text) {
 		fprintf(stderr, "setbreak: address required\n");
@@ -656,7 +656,7 @@ static int cmd_break(cproc_t cp, char **arg)
 
 		if (bp->flags & DEVICE_BP_ENABLED) {
 			char name[128];
-			uint16_t offset;
+			address_t offset;
 
 			printf("    %d. 0x%04x", i, bp->addr);
 			if (!stab_nearest(stab, bp->addr, name,

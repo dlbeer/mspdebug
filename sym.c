@@ -33,8 +33,8 @@
 static int cmd_eval(cproc_t cp, char **arg)
 {
 	stab_t stab = cproc_stab(cp);
-	int addr;
-	uint16_t offset;
+	address_t addr;
+	address_t offset;
 	char name[64];
 
 	if (expr_eval(stab, *arg, &addr) < 0) {
@@ -83,7 +83,7 @@ static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 	return 0;
 }
 
-static int savemap_cb(void *user_data, const char *name, uint16_t value)
+static int savemap_cb(void *user_data, const char *name, address_t value)
 {
 	FILE *savemap_out = (FILE *)user_data;
 
@@ -127,13 +127,13 @@ static int cmd_sym_savemap(cproc_t cp, char **arg)
 	return 0;
 }
 
-static int print_sym(void *user_data, const char *name, uint16_t value)
+static int print_sym(void *user_data, const char *name, address_t value)
 {
 	printf("0x%04x: %s\n", value, name);
 	return 0;
 }
 
-static int find_sym(void *user_data, const char *name, uint16_t value)
+static int find_sym(void *user_data, const char *name, address_t value)
 {
 	regex_t *find_preg = (regex_t *)user_data;
 
@@ -185,7 +185,7 @@ static int renames_do(stab_t stab,
 			VECTOR_PTR(rename->list, i, struct rename_record);
 		char new_name[128];
 		int len = r->start;
-		int value;
+		address_t value;
 
 		if (len + 1 > sizeof(new_name))
 			len = sizeof(new_name) - 1;
@@ -217,7 +217,7 @@ static int renames_do(stab_t stab,
 	return 0;
 }
 
-static int find_renames(void *user_data, const char *name, uint16_t value)
+static int find_renames(void *user_data, const char *name, address_t value)
 {
 	struct rename_data *rename = (struct rename_data *)user_data;
 	regmatch_t pmatch;
@@ -317,7 +317,7 @@ static int cmd_sym(cproc_t cp, char **arg)
 	if (!strcasecmp(subcmd, "set")) {
 		char *name = get_arg(arg);
 		char *val_text = get_arg(arg);
-		int value;
+		address_t value;
 
 		if (!(name && val_text)) {
 			fprintf(stderr, "sym: need a name and value to set "

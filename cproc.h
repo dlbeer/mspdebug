@@ -66,7 +66,7 @@ struct cproc_option {
 
 	union {
 		char                    text[128];
-		int                     numeric;
+		address_t               numeric;
 	}                       data;
 };
 

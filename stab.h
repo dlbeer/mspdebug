@@ -20,6 +20,7 @@
 #define STAB_H_
 
 #include <stdint.h>
+#include "util.h"
 
 struct stab;
 typedef struct stab *stab_t;
@@ -41,13 +42,13 @@ int stab_set(stab_t st, const char *name, int value);
  *
  * Returns 0 if found, 1 otherwise.
  */
-int stab_nearest(stab_t st, uint16_t addr, char *ret_name, int max_len,
-		 uint16_t *ret_offset);
+int stab_nearest(stab_t st, address_t addr, char *ret_name, int max_len,
+		 address_t *ret_offset);
 
 /* Retrieve the value of a symbol. Returns 0 on success or -1 if the symbol
  * doesn't exist.
  */
-int stab_get(stab_t st, const char *name, int *value);
+int stab_get(stab_t st, const char *name, address_t *value);
 
 /* Delete a symbol table entry. Returns 0 on success or -1 if the symbol
  * doesn't exist.
@@ -56,7 +57,7 @@ int stab_del(stab_t st, const char *name);
 
 /* Enumerate all symbols in the table */
 typedef int (*stab_callback_t)(void *user_data,
-			       const char *name, uint16_t value);
+			       const char *name, address_t value);
 
 int stab_enum(stab_t st, stab_callback_t cb, void *user_data);
 
