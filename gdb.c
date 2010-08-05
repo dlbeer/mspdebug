@@ -282,7 +282,7 @@ static int write_registers(struct gdb_data *data, char *buf)
 static int read_memory(struct gdb_data *data, char *text)
 {
 	char *length_text = strchr(text, ',');
-	int length, addr;
+	address_t length, addr;
 	uint8_t buf[MAX_MEM_XFER];
 	int i;
 
@@ -316,7 +316,7 @@ static int write_memory(struct gdb_data *data, char *text)
 {
 	char *data_text = strchr(text, ':');
 	char *length_text = strchr(text, ',');
-	int length, addr;
+	address_t length, addr;
 	uint8_t buf[MAX_MEM_XFER];
 	int buflen = 0;
 
@@ -374,9 +374,20 @@ static int run_final_status(struct gdb_data *data)
 
 	gdb_packet_start(data);
 	gdb_printf(data, "T05");
-	for (i = 0; i < 16; i++)
-		gdb_printf(data, "%02x:%02x%02x;", i,
-			   regs[i] & 0xff, regs[i] >> 8);
+	for (i = 0; i < 16; i++) {
+		address_t value = regs[i];
+		int j;
+
+		/* NOTE: this only gives GDB the lower 16 bits of each
+		 *       register. It complains if we give the full data.
+		 */
+		gdb_printf(data, "%02x:", i);
+		for (j = 0; j < 2; j++) {
+			gdb_printf(data, "%02x", value & 0xff);
+			value >>= 8;
+		}
+		gdb_printf(data, ";");
+	}
 	gdb_packet_end(data);
 
 	return gdb_flush_ack(data);
@@ -439,7 +450,7 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 {
 	char *parts[2];
 	int type;
-	int addr;
+	address_t addr;
 	int i;
 
 	/* Break up the arguments */
