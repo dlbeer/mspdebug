@@ -42,7 +42,7 @@ static int cmd_eval(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	printf("0x%04x", addr);
+	printf("0x%05x", addr);
 	if (!stab_nearest(stab, addr, name, sizeof(name), &offset)) {
 		printf(" = %s", name);
 		if (offset)

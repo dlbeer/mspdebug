@@ -81,11 +81,6 @@ static int cmd_md(cproc_t cp, char **arg)
 		length = 0x10000 - offset;
 	}
 
-	if (offset < 0 || length <= 0 || (offset + length) > 0x10000) {
-		fprintf(stderr, "md: memory out of range\n");
-		return -1;
-	}
-
 	while (length) {
 		uint8_t buf[128];
 		int blen = length > sizeof(buf) ? sizeof(buf) : length;
@@ -132,11 +127,6 @@ static int cmd_mw(cproc_t cp, char **arg)
 
 	if (!length)
 		return 0;
-
-	if (offset < 0 || (offset + length) > 0x10000) {
-		fprintf(stderr, "md: memory out of range\n");
-		return -1;
-	}
 
 	if (dev->writemem(dev, offset, buf, length) < 0)
 		return -1;
@@ -295,12 +285,6 @@ static int cmd_dis(cproc_t cp, char **arg)
 		length = 0x10000 - offset;
 	}
 
-	if (offset < 0 || length <= 0 || length > sizeof(buf) ||
-	    (offset + length) > 0x10000) {
-		fprintf(stderr, "dis: memory out of range\n");
-		return -1;
-	}
-
 	if (dev->readmem(dev, offset, buf, length) < 0)
 		return -1;
 
@@ -310,9 +294,11 @@ static int cmd_dis(cproc_t cp, char **arg)
 
 struct hexout_data {
 	FILE            *file;
-	uint16_t        addr;
+	address_t       addr;
 	uint8_t         buf[16];
 	int             len;
+
+	uint16_t        segoff;
 };
 
 static int hexout_start(struct hexout_data *hexout, const char *filename)
@@ -325,40 +311,60 @@ static int hexout_start(struct hexout_data *hexout, const char *filename)
 
 	hexout->addr = 0;
 	hexout->len = 0;
+	hexout->segoff = 0;
 
 	return 0;
 }
 
-static int hexout_flush(struct hexout_data *hexout)
+static int hexout_write(FILE *out, int len, uint16_t addr, int type,
+			const uint8_t *payload)
 {
 	int i;
 	int cksum = 0;
 
-	if (!hexout->len)
-		return 0;
-
-	if (fprintf(hexout->file, ":%02X%04X00",
-		    hexout->len, hexout->addr) < 0)
+	if (fprintf(out, ":%02X%04X00", len, addr) < 0)
 		goto fail;
-	cksum += hexout->len;
-	cksum += hexout->addr & 0xff;
-	cksum += hexout->addr >> 8;
+	cksum += len;
+	cksum += addr & 0xff;
+	cksum += addr >> 8;
 
-	for (i = 0; i < hexout->len; i++) {
-		if (fprintf(hexout->file, "%02X", hexout->buf[i]) < 0)
+	for (i = 0; i < len; i++) {
+		if (fprintf(out, "%02X", payload[i]) < 0)
 			goto fail;
-		cksum += hexout->buf[i];
+		cksum += payload[i];
 	}
 
-	if (fprintf(hexout->file, "%02X\n", ~(cksum - 1) & 0xff) < 0)
+	if (fprintf(out, "%02X\n", ~(cksum - 1) & 0xff) < 0)
 		goto fail;
 
-	hexout->len = 0;
 	return 0;
 
 fail:
 	perror("hexout: can't write HEX data");
 	return -1;
+}
+
+static int hexout_flush(struct hexout_data *hexout)
+{
+        address_t addr_low = hexout->addr & 0xffff;
+	address_t segoff = hexout->addr >> 16;
+
+	if (!hexout->len)
+		return 0;
+
+	if (segoff != hexout->segoff) {
+		uint8_t offset_data[] = {segoff >> 8, segoff & 0xff};
+
+		if (hexout_write(hexout->file, 2, 0, 4, offset_data) < 0)
+			return -1;
+		hexout->segoff = segoff;
+	}
+
+	if (hexout_write(hexout->file, hexout->len, addr_low,
+			 0, hexout->buf) < 0)
+		return -1;
+	hexout->len = 0;
+	return 0;
 }
 
 static int hexout_feed(struct hexout_data *hexout,
@@ -658,7 +664,7 @@ static int cmd_break(cproc_t cp, char **arg)
 			char name[128];
 			address_t offset;
 
-			printf("    %d. 0x%04x", i, bp->addr);
+			printf("    %d. 0x%05x", i, bp->addr);
 			if (!stab_nearest(stab, bp->addr, name,
 					  sizeof(name), &offset)) {
 				printf(" (%s", name);

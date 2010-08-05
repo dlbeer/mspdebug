@@ -231,7 +231,7 @@ static void display_option(const struct cproc_option *o)
 		break;
 
 	case CPROC_OPTION_NUMERIC:
-		printf("0x%x (%d)", o->data.numeric,
+		printf("0x%x (%u)", o->data.numeric,
 		       o->data.numeric);
 		break;
 

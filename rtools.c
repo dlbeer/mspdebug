@@ -327,19 +327,12 @@ static int isearch_match(const struct msp430_instruction *insn,
 	return 1;
 }
 
-static int do_isearch(cproc_t cp,
-		      int addr, int len, const struct isearch_query *q)
+static int do_isearch(cproc_t cp, address_t addr, address_t len,
+		      const struct isearch_query *q)
 {
 	uint8_t *mbuf;
 	device_t dev = cproc_device(cp);
-	int i;
-
-	if (len <= 0 || len > 0x10000 ||
-	    addr <= 0 || addr >= 0x10000 ||
-	    addr + len > 0x10000) {
-		fprintf(stderr, "isearch: invalid memory range\n");
-		return -1;
-	}
+	address_t i;
 
 	mbuf = malloc(len);
 	if (!mbuf) {
@@ -354,6 +347,8 @@ static int do_isearch(cproc_t cp,
 		return -1;
 	}
 
+	addr &= ~1;
+	len &= ~1;
 	for (i = 0; i < len; i += 2) {
 		struct msp430_instruction insn;
 		int count = dis_decode(mbuf + i, addr + i, len - i, &insn);
@@ -440,8 +435,8 @@ static int cmd_isearch(cproc_t cp, char **arg)
 struct cg_edge {
 	int             is_tail_call;
 
-	uint16_t        src;
-	uint16_t        dst;
+	address_t       src;
+	address_t       dst;
 };
 
 static int cmp_branch_by_dst(const void *a, const void *b)
@@ -491,7 +486,7 @@ static int cmp_branch_by_src(const void *a, const void *b)
 }
 
 struct cg_node {
-	uint16_t        offset;
+	address_t      offset;
 };
 
 static int cmp_node(const void *a, const void *b)
@@ -558,7 +553,7 @@ static int find_possible_edges(int offset, int len, uint8_t *memory,
 static int add_nodes_from_edges(struct call_graph *graph)
 {
 	int i;
-	uint16_t last_addr = 0;
+	address_t last_addr = 0;
 	int have_last_addr = 0;
 
 	qsort(graph->edge_from.ptr, graph->edge_from.size,
@@ -675,10 +670,13 @@ static int build_inverse(struct call_graph *graph)
 	return 0;
 }
 
-static int add_irq_edges(int offset, int len, uint8_t *memory,
+static int add_irq_edges(address_t offset, address_t len, uint8_t *memory,
 			 struct call_graph *graph)
 {
 	int i;
+
+	if (offset > 0x10000 || offset + len <= 0xffe0)
+		return 0;
 
 	if (offset < 0xffe0) {
 		len -= (0xffe0 - offset);
@@ -732,7 +730,7 @@ static int add_symbol_nodes(void *user_data, const char *name,
 	return 0;
 }
 
-static int cgraph_init(int offset, int len, uint8_t *memory,
+static int cgraph_init(address_t offset, address_t len, uint8_t *memory,
 		       struct call_graph *graph, stab_t stab)
 {
 	vector_init(&graph->edge_to, sizeof(struct cg_edge));
@@ -922,12 +920,6 @@ static int cmd_cgraph(cproc_t cp, char **arg)
 
 	if (addr_text && expr_eval(stab, addr_text, &addr) < 0) {
 		fprintf(stderr, "cgraph: invalid address: %s\n", addr_text);
-		return -1;
-	}
-
-	if (offset < 0 || offset >= 0x10000 ||
-	    len <= 0 || (offset + len) > 0x10000) {
-		fprintf(stderr, "cgraph: invalid range\n");
 		return -1;
 	}
 

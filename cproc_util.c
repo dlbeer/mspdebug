@@ -214,7 +214,7 @@ void cproc_disassemble(cproc_t cp,
 			count = length;
 
 		len += snprintf(buf + len, sizeof(buf) - len,
-				"    \x1b[36m%04x\x1b[0m:", offset);
+				"    \x1b[36m%05x\x1b[0m:", offset);
 
 		for (i = 0; i < count; i++)
 			len += snprintf(buf + len, sizeof(buf) - len,
@@ -250,7 +250,7 @@ void cproc_hexdump(cproc_t cp, uint16_t addr, const uint8_t *data, int data_len)
 
 		/* Address label */
 		len += snprintf(buf + len, sizeof(buf) - len,
-				"    \x1b[36m%04x:\x1b[0m", offset + addr);
+				"    \x1b[36m%05x:\x1b[0m", offset + addr);
 
 		/* Hex portion */
 		for (i = 0; i < 16 && offset + i < data_len; i++)
@@ -295,7 +295,7 @@ void cproc_regs(cproc_t cp, const address_t *regs)
 			int k = j * 4 + i;
 
 			len += snprintf(buf + len, sizeof(buf) - len,
-					"(\x1b[1m%3s:\x1b[0m %04x)  ",
+					"(\x1b[1m%3s:\x1b[0m %05x)  ",
 					dis_reg_name(k), regs[k]);
 		}
 
