@@ -222,32 +222,37 @@ static device_status_t bsl_poll(device_t dev_base)
 	return DEVICE_STATUS_HALTED;
 }
 
-static int bsl_getregs(device_t dev_base, uint16_t *regs)
+static int bsl_getregs(device_t dev_base, address_t *regs)
 {
 	fprintf(stderr, "bsl: register fetch is not implemented\n");
 	return -1;
 }
 
-static int bsl_setregs(device_t dev_base, const uint16_t *regs)
+static int bsl_setregs(device_t dev_base, const address_t *regs)
 {
 	fprintf(stderr, "bsl: register store is not implemented\n");
 	return -1;
 }
 
 static int bsl_writemem(device_t dev_base,
-			uint16_t addr, const uint8_t *mem, int len)
+			address_t addr, const uint8_t *mem, address_t len)
 {
 	fprintf(stderr, "bsl: memory write is not implemented\n");
 	return -1;
 }
 
 static int bsl_readmem(device_t dev_base,
-		       uint16_t addr, uint8_t *mem, int len)
+		       address_t addr, uint8_t *mem, address_t len)
 {
 	struct bsl_device *dev = (struct bsl_device *)dev_base;
 
+        if ((addr | len | (addr + len)) & 0xffff0000) {
+		fprintf(stderr, "bsl: memory read out of range\n");
+		return -1;
+	}
+
 	while (len) {
-		int count = len;
+		address_t count = len;
 
 		if (count > 128)
 			count = 128;

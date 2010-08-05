@@ -20,6 +20,7 @@
 #define DEVICE_H_
 
 #include <stdint.h>
+#include "util.h"
 
 struct device;
 typedef struct device *device_t;
@@ -46,8 +47,8 @@ typedef enum {
 #define DEVICE_BP_DIRTY         0x02
 
 struct device_breakpoint {
-	uint16_t                addr;
-	int                     flags;
+	address_t      addr;
+	int            flags;
 };
 
 struct device {
@@ -63,14 +64,14 @@ struct device {
 	void (*destroy)(device_t dev);
 
 	/* Read/write memory */
-	int (*readmem)(device_t dev, uint16_t addr,
-		       uint8_t *mem, int len);
-	int (*writemem)(device_t dev, uint16_t addr,
-			const uint8_t *mem, int len);
+	int (*readmem)(device_t dev, address_t addr,
+		       uint8_t *mem, address_t len);
+	int (*writemem)(device_t dev, address_t addr,
+			const uint8_t *mem, address_t len);
 
 	/* Read/write registers */
-	int (*getregs)(device_t dev, uint16_t *regs);
-	int (*setregs)(device_t dev, const uint16_t *regs);
+	int (*getregs)(device_t dev, address_t *regs);
+	int (*setregs)(device_t dev, const address_t *regs);
 
 	/* CPU control */
 	int (*ctl)(device_t dev, device_ctl_t op);
@@ -87,6 +88,6 @@ struct device {
  * modified. Otherwise, if which < 0, breakpoint slots are selected
  * automatically.
  */
-int device_setbrk(device_t dev, int which, int enabled, uint16_t address);
+int device_setbrk(device_t dev, int which, int enabled, address_t address);
 
 #endif

@@ -280,7 +280,7 @@ void cproc_hexdump(cproc_t cp, uint16_t addr, const uint8_t *data, int data_len)
 	}
 }
 
-void cproc_regs(cproc_t cp, const uint16_t *regs)
+void cproc_regs(cproc_t cp, const address_t *regs)
 {
 	int i;
 

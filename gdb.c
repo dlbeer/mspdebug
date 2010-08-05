@@ -213,7 +213,7 @@ static int gdb_send(struct gdb_data *data, const char *msg)
 
 static int read_registers(struct gdb_data *data)
 {
-	uint16_t regs[DEVICE_NUM_REGS];
+	address_t regs[DEVICE_NUM_REGS];
 	int i;
 
 	printf("Reading registers\n");
@@ -258,7 +258,7 @@ static int monitor_command(struct gdb_data *data, char *buf)
 
 static int write_registers(struct gdb_data *data, char *buf)
 {
-	uint16_t regs[DEVICE_NUM_REGS];
+	address_t regs[DEVICE_NUM_REGS];
 	int i;
 
 	if (strlen(buf) < DEVICE_NUM_REGS * 4)
@@ -352,7 +352,7 @@ static int write_memory(struct gdb_data *data, char *text)
 
 static int run_set_pc(struct gdb_data *data, char *buf)
 {
-	uint16_t regs[DEVICE_NUM_REGS];
+	address_t regs[DEVICE_NUM_REGS];
 
 	if (!*buf)
 		return 0;
@@ -366,7 +366,7 @@ static int run_set_pc(struct gdb_data *data, char *buf)
 
 static int run_final_status(struct gdb_data *data)
 {
-	uint16_t regs[DEVICE_NUM_REGS];
+	address_t regs[DEVICE_NUM_REGS];
 	int i;
 
 	if (data->device->getregs(data->device, regs) < 0)

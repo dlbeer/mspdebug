@@ -42,7 +42,7 @@ struct fet_device {
 	int                             version;
 
 	/* Device-specific information */
-	u_int16_t                       code_start;
+	uint16_t                        code_start;
 
 	uint8_t                         fet_buf[65538];
 	int                             fet_len;
@@ -443,7 +443,7 @@ static int xfer(struct fet_device *dev,
 
 	va_start(ap, nparams);
 	for (i = 0; i < nparams; i++)
-		params[i] = va_arg(ap, unsigned int);
+		params[i] = va_arg(ap, uint32_t);
 	va_end(ap);
 
 	if (data && (dev->proto_flags & FET_PROTO_RF2500)) {
@@ -707,7 +707,8 @@ static void fet_destroy(device_t dev_base)
 	free(dev);
 }
 
-int fet_readmem(device_t dev_base, uint16_t addr, uint8_t *buffer, int count)
+int fet_readmem(device_t dev_base, address_t addr, uint8_t *buffer,
+		address_t count)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
@@ -735,8 +736,8 @@ int fet_readmem(device_t dev_base, uint16_t addr, uint8_t *buffer, int count)
 	return 0;
 }
 
-int fet_writemem(device_t dev_base, uint16_t addr,
-		 const uint8_t *buffer, int count)
+int fet_writemem(device_t dev_base, address_t addr,
+		 const uint8_t *buffer, address_t count)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
@@ -760,7 +761,7 @@ int fet_writemem(device_t dev_base, uint16_t addr,
 	return 0;
 }
 
-static int fet_getregs(device_t dev_base, uint16_t *regs)
+static int fet_getregs(device_t dev_base, address_t *regs)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 	int i;
@@ -775,12 +776,12 @@ static int fet_getregs(device_t dev_base, uint16_t *regs)
 	}
 
 	for (i = 0; i < DEVICE_NUM_REGS; i++)
-		regs[i] = LE_WORD(dev->fet_reply.data, i * 4);
+		regs[i] = LE_LONG(dev->fet_reply.data, i * 4);
 
 	return 0;
 }
 
-static int fet_setregs(device_t dev_base, const uint16_t *regs)
+static int fet_setregs(device_t dev_base, const address_t *regs)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 	uint8_t buf[DEVICE_NUM_REGS * 4];;
@@ -791,7 +792,9 @@ static int fet_setregs(device_t dev_base, const uint16_t *regs)
 
 	for (i = 0; i < DEVICE_NUM_REGS; i++) {
 		buf[i * 4] = regs[i] & 0xff;
-		buf[i * 4 + 1] = regs[i] >> 8;
+		buf[i * 4 + 1] = (regs[i] >> 8) & 0xff;
+		buf[i * 4 + 2] = (regs[i] >> 16) & 0xff;
+		buf[i * 4 + 3] = regs[i] >> 24;
 	}
 
 	ret = xfer(dev, C_WRITEREGISTERS, buf, sizeof(buf), 1, 0xffff);

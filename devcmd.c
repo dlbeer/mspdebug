@@ -34,7 +34,7 @@
 static int cmd_regs(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	uint16_t regs[DEVICE_NUM_REGS];
+	address_t regs[DEVICE_NUM_REGS];
 	uint8_t code[16];
 	int len = sizeof(code);
 
@@ -184,7 +184,7 @@ static int cmd_run(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
 	device_status_t status;
-	uint16_t regs[DEVICE_NUM_REGS];
+	address_t regs[DEVICE_NUM_REGS];
 
 	if (dev->getregs(dev, regs) < 0) {
 		fprintf(stderr, "warning: device: can't fetch registers\n");
@@ -237,7 +237,7 @@ static int cmd_set(cproc_t cp, char **arg)
 	char *val_text = get_arg(arg);
 	int reg;
 	address_t value = 0;
-	uint16_t regs[DEVICE_NUM_REGS];
+	address_t regs[DEVICE_NUM_REGS];
 
 	if (!(reg_text && val_text)) {
 		fprintf(stderr, "set: must specify a register and a value\n");

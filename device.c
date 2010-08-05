@@ -60,7 +60,7 @@ static void delbrk(device_t dev, uint16_t addr)
 	}
 }
 
-int device_setbrk(device_t dev, int which, int enabled, uint16_t addr)
+int device_setbrk(device_t dev, int which, int enabled, address_t addr)
 {
 	if (which < 0) {
 		if (enabled)

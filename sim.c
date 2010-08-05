@@ -440,10 +440,16 @@ static void sim_destroy(device_t dev_base)
 	free(dev_base);
 }
 
-static int sim_readmem(device_t dev_base, uint16_t addr,
-		       uint8_t *mem, int len)
+static int sim_readmem(device_t dev_base, address_t addr,
+		       uint8_t *mem, address_t len)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
+
+	if (addr > MEM_SIZE || (addr + len) < addr ||
+	    (addr + len) > MEM_SIZE) {
+		fprintf(stderr, "sim: memory read out of range\n");
+		return -1;
+	}
 
 	if (addr + len > MEM_SIZE)
 		len = MEM_SIZE - addr;
@@ -452,31 +458,38 @@ static int sim_readmem(device_t dev_base, uint16_t addr,
 	return 0;
 }
 
-static int sim_writemem(device_t dev_base, uint16_t addr,
-			const uint8_t *mem, int len)
+static int sim_writemem(device_t dev_base, address_t addr,
+			const uint8_t *mem, address_t len)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
 
-	if (addr + len > MEM_SIZE)
-		len = MEM_SIZE - addr;
+	if (addr > MEM_SIZE || (addr + len) < addr ||
+	    (addr + len) > MEM_SIZE) {
+		fprintf(stderr, "sim: memory write out of range\n");
+		return -1;
+	}
 
 	memcpy(dev->memory + addr, mem, len);
 	return 0;
 }
 
-static int sim_getregs(device_t dev_base, uint16_t *regs)
+static int sim_getregs(device_t dev_base, address_t *regs)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
+	int i;
 
-	memcpy(regs, dev->regs, sizeof(dev->regs));
+	for (i = 0; i < DEVICE_NUM_REGS; i++)
+		regs[i] = dev->regs[i];
 	return 0;
 }
 
-static int sim_setregs(device_t dev_base, const uint16_t *regs)
+static int sim_setregs(device_t dev_base, const address_t *regs)
 {
 	struct sim_device *dev = (struct sim_device *)dev_base;
+	int i;
 
-	memcpy(dev->regs, regs, sizeof(dev->regs));
+	for (i = 0; i < DEVICE_NUM_REGS; i++)
+		dev->regs[i] = regs[i];
 	return 0;
 }
 
