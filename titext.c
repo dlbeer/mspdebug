@@ -67,7 +67,7 @@ int titext_check(FILE *in)
 	return is_address_line(buf);
 }
 
-static int process_data_line(int address, const char *buf,
+static int process_data_line(address_t address, const char *buf,
 			     binfile_imgcb_t cb, void *user_data)
 {
 	uint8_t data[64];
@@ -129,7 +129,7 @@ static int process_data_line(int address, const char *buf,
 
 int titext_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 {
-	int address = 0;
+	address_t address = 0;
 	int lno = 0;
 	char buf[128];
 

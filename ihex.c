@@ -28,12 +28,16 @@ int ihex_check(FILE *in)
 }
 
 static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
-		     void *user_data)
+		     void *user_data, address_t *segment_offset)
 {
 	uint8_t cksum = 0;
+	address_t address;
+	uint8_t type;
+	uint8_t *payload;
+	int data_len;
 	int i;
 
-	if (nbytes < 5 || data[3])
+	if (nbytes < 5)
 		return 0;
 
 	/* Verify checksum */
@@ -47,15 +51,53 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 		return -1;
 	}
 
-	return cb(user_data,
-		  ((uint16_t)data[1]) << 8 | ((uint16_t)data[2]),
-		  data + 4, nbytes - 5);
+	/* Extract other bits */
+	type = data[3];
+	address = (data[1] << 8) | data[2];
+	payload = data + 4;
+	data_len = nbytes - 5;
+
+	switch (type) {
+	case 0:
+		return cb(user_data, address, payload, data_len);
+
+	case 1:
+		break;
+
+	case 2:
+		if (data_len != 2) {
+			fprintf(stderr, "ihex: invalid 02 record\n");
+			return -1;
+		}
+
+		*segment_offset = (address_t)((payload[0] << 8) |
+						payload[1]) << 4;
+		break;
+
+	case 4:
+		if (data_len != 2) {
+			fprintf(stderr, "ihex: invalid 04 record\n");
+			return -1;
+		}
+
+		*segment_offset = (address_t)((payload[0] << 8) |
+						payload[1]) << 16;
+		break;
+
+	default:
+		fprintf(stderr, "warning: ihex: unknown record type: "
+			"0x%02x\n", type);
+		break;
+	}
+
+	return 0;
 }
 
 int ihex_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 {
 	char buf[128];
 	int lno = 0;
+	address_t segment_offset = 0;
 
 	rewind(in);
 	while (fgets(buf, sizeof(buf), in)) {
@@ -85,7 +127,8 @@ int ihex_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 		}
 
 		/* Handle the line */
-		if (feed_line(in, data, nbytes, cb, user_data) < 0) {
+		if (feed_line(in, data, nbytes, cb, user_data,
+			      &segment_offset) < 0) {
 			fprintf(stderr, "ihex: error on line %d\n", lno);
 			return -1;
 		}

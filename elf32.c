@@ -136,11 +136,11 @@ static uint32_t file_to_phys(struct elf32_info *info, uint32_t v)
 }
 
 static int feed_section(struct elf32_info *info,
-			FILE *in, int offset, int size, binfile_imgcb_t cb,
-			void *user_data)
+			FILE *in, uint32_t offset, uint32_t size,
+			binfile_imgcb_t cb, void *user_data)
 {
 	uint8_t buf[1024];
-	uint16_t addr = file_to_phys(info, offset);
+	uint32_t addr = file_to_phys(info, offset);
 
 	if (fseek(in, offset, SEEK_SET) < 0) {
 		perror("elf32: can't seek to section");

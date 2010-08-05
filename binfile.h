@@ -25,7 +25,7 @@
 
 /* Callback for binary image data */
 typedef int (*binfile_imgcb_t)(void *user_data,
-			       uint16_t addr, const uint8_t *data, int len);
+			       address_t addr, const uint8_t *data, int len);
 
 #define BINFILE_HAS_SYMS        0x01
 #define BINFILE_HAS_TEXT        0x02

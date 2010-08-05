@@ -58,7 +58,7 @@ int symmap_syms(FILE *in, stab_t stab)
 		name = strtok(NULL, " \t\r\n");
 
 		if (addr && name) {
-			int addr_val = strtoul(addr, NULL, 16);
+			address_t addr_val = strtoul(addr, NULL, 16);
 
 			if (stab_set(stab, name, addr_val) < 0)
 				return -1;

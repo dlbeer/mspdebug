@@ -118,7 +118,7 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 
 		if (buf[1] >= '1' && buf[1] <= '3') {
 			int addrbytes = buf[1] - '1' + 2;
-			int addr = 0;
+			address_t addr = 0;
 
 			for (i = 0; i < addrbytes; i++)
 				addr = (addr << 8) | bytes[i + 1];

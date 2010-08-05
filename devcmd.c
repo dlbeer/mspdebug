@@ -452,7 +452,7 @@ struct prog_data {
 	device_t        dev;
 
 	uint8_t         buf[128];
-	uint16_t        addr;
+	address_t       addr;
 	int             len;
 	int             have_erased;
 };
@@ -494,7 +494,7 @@ static int prog_flush(struct prog_data *prog)
 }
 
 static int prog_feed(void *user_data,
-		     uint16_t addr, const uint8_t *data, int len)
+		     address_t addr, const uint8_t *data, int len)
 {
 	struct prog_data *prog = (struct prog_data *)user_data;
 
