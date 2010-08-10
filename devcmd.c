@@ -263,7 +263,7 @@ static int cmd_dis(cproc_t cp, char **arg)
 	char *len_text = get_arg(arg);
 	address_t offset = 0;
 	address_t length = 0x40;
-	uint8_t buf[4096];
+	uint8_t *buf;
 
 	if (!off_text) {
 		fprintf(stderr, "dis: offset must be specified\n");
@@ -285,10 +285,19 @@ static int cmd_dis(cproc_t cp, char **arg)
 		length = 0x10000 - offset;
 	}
 
-	if (dev->readmem(dev, offset, buf, length) < 0)
+	buf = malloc(length);
+	if (!buf) {
+		perror("dis: couldn't allocate memory");
 		return -1;
+	}
 
-	cproc_disassemble(cp, offset, (uint8_t *)buf, length);
+	if (dev->readmem(dev, offset, buf, length) < 0) {
+		free(buf);
+		return -1;
+	}
+
+	cproc_disassemble(cp, offset, buf, length);
+	free(buf);
 	return 0;
 }
 
