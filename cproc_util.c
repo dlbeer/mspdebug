@@ -136,6 +136,8 @@ static int dis_format(stab_t stab, char *buf, int max_len,
 		suffix = ".B";
 	else if (insn->dsize == MSP430_DSIZE_AWORD)
 		suffix = ".A";
+	else if (insn->dsize == MSP430_DSIZE_UNKNOWN)
+		suffix = ".?";
 
 	len = snprintf(buf + total, max_len - total,
 		       "\x1b[36m%s%s\x1b[0m", opname, suffix);

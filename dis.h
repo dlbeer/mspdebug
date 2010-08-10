@@ -109,7 +109,8 @@ typedef enum {
 typedef enum {
 	MSP430_DSIZE_BYTE,
 	MSP430_DSIZE_WORD,
-	MSP430_DSIZE_AWORD
+	MSP430_DSIZE_AWORD,
+	MSP430_DSIZE_UNKNOWN
 } msp430_dsize_t;
 
 /* MSP430 operations.
@@ -182,7 +183,21 @@ typedef enum {
 	MSP430_OP_SETC          = 0x10014,
 	MSP430_OP_SETN          = 0x10015,
 	MSP430_OP_SETZ          = 0x10016,
-	MSP430_OP_TST           = 0x10017
+	MSP430_OP_TST           = 0x10017,
+
+	/* MSP430X double operand */
+	MSP430_OP_MOVX          = 0x24000,
+	MSP430_OP_ADDX          = 0x25000,
+	MSP430_OP_ADDCX         = 0x26000,
+	MSP430_OP_SUBCX         = 0x27000,
+	MSP430_OP_SUBX          = 0x28000,
+	MSP430_OP_CMPX          = 0x29000,
+	MSP430_OP_DADDX         = 0x2A000,
+	MSP430_OP_BITX          = 0x2B000,
+	MSP430_OP_BICX          = 0x2C000,
+	MSP430_OP_BISX          = 0x2D000,
+	MSP430_OP_XORX          = 0x2E000,
+	MSP430_OP_ANDX          = 0x2F000
 } msp430_op_t;
 
 /* This represents a decoded instruction. All decoded addresses are
@@ -205,6 +220,10 @@ struct msp430_instruction {
 	msp430_amode_t          dst_mode;
 	address_t		dst_addr;
 	msp430_reg_t            dst_reg;
+
+	int			rep_index;
+	int			rep_register;
+	int			zero_carry;
 };
 
 /* Decode a single instruction.

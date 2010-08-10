@@ -26,6 +26,7 @@
 #include "util.h"
 
 #define ALL_ONES               0xfffff
+#define EXTENSION_BIT          0x20000
 
 /**********************************************************************/
 /* Disassembler
@@ -402,43 +403,72 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 	       struct msp430_instruction *insn)
 {
 	uint16_t op;
+	uint16_t ex_word = 0;
 	int ret;
 	address_t ds_mask = ALL_ONES;
 
 	memset(insn, 0, sizeof(*insn));
+	insn->offset = offset;
 
+	/* Perform decoding */
 	if (len < 2)
 		return -1;
-
-	insn->offset = offset;
 	op = (code[1] << 8) | code[0];
 
-	if ((op & 0xf000) == 0x1000)
-		insn->itype = MSP430_ITYPE_SINGLE;
-	else if ((op & 0xff00) >= 0x2000 &&
-		 (op & 0xff00) < 0x4000)
-		insn->itype = MSP430_ITYPE_JUMP;
-	else if ((op & 0xf000) >= 0x4000)
-		insn->itype = MSP430_ITYPE_DOUBLE;
-	else
-		return -1;
+	if ((op & 0xf800) == 0x1800) {
+		ex_word = op;
+		code += 2;
+		offset += 2;
+		len -= 2;
 
-	switch (insn->itype) {
-	case MSP430_ITYPE_SINGLE:
-		ret = decode_single(code, offset, len, insn);
-		break;
+		if (len < 2)
+			return -1;
+		op = (code[1] << 8) | code[0];
 
-	case MSP430_ITYPE_DOUBLE:
-		ret = decode_double(code, offset, len, insn);
-		break;
+		if ((op & 0xff00) >= 0x4000) {
+			insn->itype = MSP430_ITYPE_DOUBLE;
+			ret = decode_double(code, offset, len, insn);
+			insn->op |= EXTENSION_BIT;
+		} else {
+			return -1;
+		}
 
-	case MSP430_ITYPE_JUMP:
-		ret = decode_jump(code, offset, len, insn);
-		break;
+		if (insn->dst_mode == MSP430_AMODE_REGISTER &&
+		    (insn->itype == MSP430_ITYPE_SINGLE ||
+		     insn->src_mode == MSP430_AMODE_REGISTER)) {
+			insn->zero_carry = (ex_word >> 8) & 1;
+			insn->rep_register = (ex_word >> 7) & 1;
+			insn->rep_index = ex_word & 0xf;
+		} else {
+			insn->dst_addr |= (ex_word & 0xf) << 16;
+			insn->src_addr |= ((ex_word >> 6) & 0xf) << 16;
+		}
 
-	default: break;
+		if (ex_word & 0x40) {
+			if (insn->dsize == MSP430_DSIZE_BYTE)
+				insn->dsize = MSP430_DSIZE_AWORD;
+			else
+				insn->dsize = MSP430_DSIZE_UNKNOWN;
+		}
+	} else {
+		if ((op & 0xf000) == 0x1000) {
+			insn->itype = MSP430_ITYPE_SINGLE;
+			ret = decode_single(code, offset, len, insn);
+		} else if ((op & 0xff00) >= 0x2000 &&
+			   (op & 0xff00) < 0x4000) {
+			insn->itype = MSP430_ITYPE_JUMP;
+			ret = decode_jump(code, offset, len, insn);
+		} else if ((op & 0xf000) >= 0x4000) {
+			insn->itype = MSP430_ITYPE_DOUBLE;
+			ret = decode_double(code, offset, len, insn);
+		} else {
+			return -1;
+		}
 	}
 
+	/* Interpret "emulated" instructions, constant generation, and
+	 * trim data sizes.
+	 */
 	find_cgens(insn);
 	find_emulated_ops(insn);
 
@@ -517,7 +547,21 @@ static const struct {
 	{MSP430_OP_SETC,        "SETC"},
 	{MSP430_OP_SETN,        "SETN"},
 	{MSP430_OP_SETZ,        "SETZ"},
-	{MSP430_OP_TST,         "TST"}
+	{MSP430_OP_TST,         "TST"},
+
+	/* MSP430X double operand */
+	{MSP430_OP_MOVX,        "MOVX"},
+	{MSP430_OP_ADDX,        "ADDX"},
+	{MSP430_OP_ADDCX,       "ADDCX"},
+	{MSP430_OP_SUBCX,       "SUBCX"},
+	{MSP430_OP_SUBX,        "SUBX"},
+	{MSP430_OP_CMPX,        "CMPX"},
+	{MSP430_OP_DADDX,       "DADDX"},
+	{MSP430_OP_BITX,        "BITX"},
+	{MSP430_OP_BICX,        "BICX"},
+	{MSP430_OP_BISX,        "BISX"},
+	{MSP430_OP_XORX,        "XORX"},
+	{MSP430_OP_ANDX,        "ANDX"}
 };
 
 /* Return the mnemonic for an operation, if possible. */
