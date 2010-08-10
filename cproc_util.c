@@ -242,7 +242,7 @@ void cproc_disassemble(cproc_t cp,
 			len += snprintf(buf + len, sizeof(buf) - len,
 					" %02x", data[i]);
 
-		while (i < 7) {
+		while (i < 9) {
 			buf[len++] = ' ';
 			buf[len++] = ' ';
 			buf[len++] = ' ';
