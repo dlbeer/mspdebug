@@ -385,6 +385,7 @@ static int cmd_isearch(cproc_t cp, char **arg)
 		{"opcode",      isearch_opcode},
 		{"byte",        isearch_bw},
 		{"word",        isearch_bw},
+		{"aword",       isearch_bw},
 		{"jump",        isearch_type},
 		{"single",      isearch_type},
 		{"double",      isearch_type},
