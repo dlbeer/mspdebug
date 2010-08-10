@@ -477,7 +477,11 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 			insn->dsize = (op & 0x0100) ?
 				MSP430_DSIZE_WORD : MSP430_DSIZE_AWORD;
 			ret = 2;
-		} else if ((op & 0xf000) == 0x1000) {
+		} else if ((op & 0xff80) == 0x1300) {
+			insn->itype = MSP430_ITYPE_NOARG;
+			insn->op = MSP430_OP_RETI;
+			ret = 2;
+		} else if ((op & 0xf000) == 0x1000 && (op & 0xfc00) < 0x1300) {
 			insn->itype = MSP430_ITYPE_SINGLE;
 			ret = decode_single(code, offset, len, insn);
 		} else if ((op & 0xff00) >= 0x2000 &&
