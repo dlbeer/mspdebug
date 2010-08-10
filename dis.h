@@ -107,10 +107,10 @@ typedef enum {
  *    data[15:0], {12'b0, data[19:16]}
  */
 typedef enum {
-	MSP430_DSIZE_WORD = 0,
-	MSP430_DSIZE_BYTE,
-	MSP430_DSIZE_AWORD,
-	MSP430_DSIZE_UNKNOWN
+	MSP430_DSIZE_WORD    = 0,
+	MSP430_DSIZE_BYTE    = 1,
+	MSP430_DSIZE_UNKNOWN = 2,
+	MSP430_DSIZE_AWORD   = 3,
 } msp430_dsize_t;
 
 /* MSP430 operations.
