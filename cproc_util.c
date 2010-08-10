@@ -141,7 +141,8 @@ static int dis_format(stab_t stab, char *buf, int max_len,
 
 	/* Don't show the .A suffix for these instructions */
 	if (insn->op == MSP430_OP_MOVA || insn->op == MSP430_OP_CMPA ||
-	    insn->op == MSP430_OP_SUBA || insn->op == MSP430_OP_ADDA)
+	    insn->op == MSP430_OP_SUBA || insn->op == MSP430_OP_ADDA ||
+	    insn->op == MSP430_OP_BRA || insn->op == MSP430_OP_RETA)
 		suffix = "";
 
 	len = snprintf(buf + total, max_len - total,
