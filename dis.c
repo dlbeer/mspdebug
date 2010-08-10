@@ -459,7 +459,16 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 				insn->dsize = MSP430_DSIZE_UNKNOWN;
 		}
 	} else {
-		if ((op & 0xfc00) == 0x1400) {
+		if ((op & 0xf0e0) == 0x0040) {
+			insn->itype = MSP430_ITYPE_SINGLE;
+			insn->op = op & 0xf3e0;
+			insn->dst_mode = MSP430_AMODE_REGISTER;
+			insn->dst_reg = op & 0xf;
+			insn->rep_index = (op >> 10) & 3;
+			insn->dsize = (op & 0x0010) ?
+				MSP430_DSIZE_WORD : MSP430_DSIZE_AWORD;
+			ret = 2;
+		} else if ((op & 0xfc00) == 0x1400) {
 			insn->itype = MSP430_ITYPE_SINGLE;
 			insn->op = op & 0xfe00;
 			insn->dst_mode = MSP430_AMODE_REGISTER;
@@ -590,7 +599,13 @@ static const struct {
 
 	/* MSP430X group 14xx */
 	{MSP430_OP_PUSHM,	"PUSHM"},
-	{MSP430_OP_POPM,	"POPM"}
+	{MSP430_OP_POPM,	"POPM"},
+
+	/* MSP430X group 00xx, non-address */
+	{MSP430_OP_RRCM,        "RRCM"},
+	{MSP430_OP_RRAM,        "RRAM"},
+	{MSP430_OP_RLAM,	"RLAM"},
+	{MSP430_OP_RRUM,	"RRUM"}
 };
 
 /* Return the mnemonic for an operation, if possible. */

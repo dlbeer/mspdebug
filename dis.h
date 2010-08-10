@@ -209,7 +209,13 @@ typedef enum {
 
 	/* MSP430X group 14xx */
 	MSP430_OP_PUSHM         = 0x1400,
-	MSP430_OP_POPM		= 0x1600
+	MSP430_OP_POPM		= 0x1600,
+
+	/* MSP430X group 00xx, non-address */
+	MSP430_OP_RRCM		= 0x0040,
+	MSP430_OP_RRAM		= 0x0140,
+	MSP430_OP_RLAM		= 0x0240,
+	MSP430_OP_RRUM		= 0x0340
 } msp430_op_t;
 
 /* This represents a decoded instruction. All decoded addresses are
