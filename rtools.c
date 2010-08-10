@@ -36,7 +36,7 @@
  */
 
 #define ISEARCH_OPCODE          0x0001
-#define ISEARCH_BW              0x0002
+#define ISEARCH_DSIZE           0x0002
 #define ISEARCH_SRC_ADDR        0x0004
 #define ISEARCH_DST_ADDR        0x0008
 #define ISEARCH_SRC_MODE        0x0010
@@ -80,13 +80,26 @@ static int isearch_opcode(cproc_t cp, const char *term, char **arg,
 static int isearch_bw(cproc_t cp, const char *term, char **arg,
 		      struct isearch_query *q)
 {
-	if (q->flags & ISEARCH_BW) {
+	if (q->flags & ISEARCH_DSIZE) {
 		fprintf(stderr, "isearch: operand size already specified\n");
 		return -1;
 	}
 
-	q->flags |= ISEARCH_BW;
-	q->insn.is_byte_op = (toupper(*term) == 'B');
+	q->flags |= ISEARCH_DSIZE;
+	switch (toupper(*term)) {
+	case 'B':
+		q->insn.dsize = MSP430_DSIZE_BYTE;
+		break;
+
+	case 'W':
+		q->insn.dsize = MSP430_DSIZE_WORD;
+		break;
+
+	case 'A':
+		q->insn.dsize = MSP430_DSIZE_AWORD;
+		break;
+	}
+
 	return 0;
 }
 
@@ -268,8 +281,8 @@ static int isearch_match(const struct msp430_instruction *insn,
 	    insn->op != q->insn.op)
 		return 0;
 
-	if ((q->flags & ISEARCH_BW) &&
-	    (q->insn.is_byte_op ? 1 : 0) != (insn->is_byte_op ? 1 : 0))
+	if ((q->flags & ISEARCH_DSIZE) &&
+	    q->insn.dsize != insn->dsize)
 		return 0;
 
 	if (q->flags & ISEARCH_SRC_ADDR) {
@@ -967,7 +980,7 @@ static const struct cproc_command rtools_commands[] = {
 "    Search for an instruction matching certain search terms. These\n"
 "    terms may be any of the following:\n"
 "        opcode <opcode>\n"
-"        byte|word\n"
+"        byte|word|aword\n"
 "        jump|single|double|noarg\n"
 "        src <value>\n"
 "        dst <value>\n"

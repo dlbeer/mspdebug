@@ -127,13 +127,18 @@ static int dis_format(stab_t stab, char *buf, int max_len,
 	int tlen;
 	int total = 0;
 	const char *opname = dis_opcode_name(insn->op);
+	const char *suffix = "";
 
 	if (!opname)
 		opname = "???";
 
+	if (insn->dsize == MSP430_DSIZE_BYTE)
+		suffix = ".B";
+	else if (insn->dsize == MSP430_DSIZE_AWORD)
+		suffix = ".A";
+
 	len = snprintf(buf + total, max_len - total,
-		       "\x1b[36m%s%s\x1b[0m", opname,
-		       insn->is_byte_op ? ".B" : "");
+		       "\x1b[36m%s%s\x1b[0m", opname, suffix);
 	tlen = textlen(buf + total);
 	total += len;
 

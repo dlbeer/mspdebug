@@ -19,6 +19,7 @@
 #ifndef DIS_H_
 
 #include <stdint.h>
+#include "util.h"
 
 /* Addressing modes.
  *
@@ -97,6 +98,19 @@ typedef enum {
 	MSP430_ITYPE_DOUBLE,
 	MSP430_ITYPE_SINGLE
 } msp430_itype_t;
+
+/* MSP430(X) data sizes.
+ *
+ * An address-word is a 20-bit value. When stored in memory, they are
+ * stored as two 16-bit words in the following order:
+ *
+ *    data[15:0], {12'b0, data[19:16]}
+ */
+typedef enum {
+	MSP430_DSIZE_BYTE,
+	MSP430_DSIZE_WORD,
+	MSP430_DSIZE_AWORD
+} msp430_dsize_t;
 
 /* MSP430 operations.
  *
@@ -177,19 +191,19 @@ typedef enum {
  * For jump instructions, the target address is stored in dst_operand.
  */
 struct msp430_instruction {
-	uint16_t               offset;
+	address_t               offset;
 	int                     len;
 
 	msp430_op_t             op;
 	msp430_itype_t          itype;
-	int                     is_byte_op;
+	msp430_dsize_t          dsize;
 
 	msp430_amode_t          src_mode;
-	uint16_t               src_addr;
+	address_t               src_addr;
 	msp430_reg_t            src_reg;
 
 	msp430_amode_t          dst_mode;
-	uint16_t               dst_addr;
+	address_t		dst_addr;
 	msp430_reg_t            dst_reg;
 };
 
@@ -203,7 +217,7 @@ struct msp430_instruction {
  * pointed to by insn.
  */
 int dis_decode(const uint8_t *code,
-	       uint16_t offset, uint16_t len,
+	       address_t offset, address_t len,
 	       struct msp430_instruction *insn);
 
 /* Look up names for registers and opcodes */

@@ -25,6 +25,8 @@
 #include "dis.h"
 #include "util.h"
 
+#define ALL_ONES               0xfffff
+
 /**********************************************************************/
 /* Disassembler
  */
@@ -34,14 +36,14 @@
  * Returns the number of bytes consumed in decoding, or -1 if the a
  * valid single-operand instruction could not be found.
  */
-static int decode_single(const uint8_t *code, uint16_t offset,
-			 uint16_t size, struct msp430_instruction *insn)
+static int decode_single(const uint8_t *code, address_t offset,
+			 address_t size, struct msp430_instruction *insn)
 {
 	uint16_t op = (code[1] << 8) | code[0];
 	int need_arg = 0;
 
 	insn->op = op & 0xff80;
-	insn->is_byte_op = op & 0x0400;
+	insn->dsize = (op & 0x0400) ? MSP430_DSIZE_BYTE : MSP430_DSIZE_WORD;
 
 	insn->dst_mode = (op >> 4) & 0x3;
 	insn->dst_reg = op & 0xf;
@@ -86,8 +88,8 @@ static int decode_single(const uint8_t *code, uint16_t offset,
  * Returns the number of bytes consumed or -1 if a valid instruction
  * could not be found.
  */
-static int decode_double(const uint8_t *code, uint16_t offset,
-			 uint16_t size, struct msp430_instruction *insn)
+static int decode_double(const uint8_t *code, address_t offset,
+			 address_t size, struct msp430_instruction *insn)
 {
 	uint16_t op = (code[1] << 8) | code[0];
 	int need_src = 0;
@@ -95,7 +97,7 @@ static int decode_double(const uint8_t *code, uint16_t offset,
 	int ret = 2;
 
 	insn->op = op & 0xf000;
-	insn->is_byte_op = op & 0x0040;
+	insn->dsize = (op & 0x0040) ? MSP430_DSIZE_BYTE : MSP430_DSIZE_WORD;
 
 	insn->src_mode = (op >> 4) & 0x3;
 	insn->src_reg = (op >> 8) & 0xf;
@@ -175,7 +177,7 @@ static int decode_double(const uint8_t *code, uint16_t offset,
  * All jump instructions are one word in length, so this function
  * always returns 2 (to indicate the consumption of 2 bytes).
  */
-static int decode_jump(const uint8_t *code, uint16_t offset, uint16_t len,
+static int decode_jump(const uint8_t *code, address_t offset, address_t len,
 		       struct msp430_instruction *insn)
 {
 	uint16_t op = (code[1] << 8) | code[0];
@@ -193,7 +195,7 @@ static int decode_jump(const uint8_t *code, uint16_t offset, uint16_t len,
 }
 
 static void remap_cgen(msp430_amode_t *mode,
-		       uint16_t *addr,
+		       address_t *addr,
 		       msp430_reg_t *reg)
 {
 	if (*reg == MSP430_REG_SR) {
@@ -212,7 +214,7 @@ static void remap_cgen(msp430_amode_t *mode,
 		else if (*mode == MSP430_AMODE_INDIRECT)
 			*addr = 2;
 		else if (*mode == MSP430_AMODE_INDIRECT_INC)
-			*addr = 0xffff;
+			*addr = ALL_ONES;
 
 		*mode = MSP430_AMODE_IMMEDIATE;
 	}
@@ -377,7 +379,7 @@ static void find_emulated_ops(struct msp430_instruction *insn)
 
 	case MSP430_OP_XOR:
 		if (insn->src_mode == MSP430_AMODE_IMMEDIATE &&
-		    insn->src_addr == 0xffff) {
+		    insn->src_addr == ALL_ONES) {
 			insn->op = MSP430_OP_INV;
 			insn->itype = MSP430_ITYPE_SINGLE;
 		}
@@ -396,11 +398,12 @@ static void find_emulated_ops(struct msp430_instruction *insn)
  * successful, the decoded instruction is written into the structure
  * pointed to by insn.
  */
-int dis_decode(const uint8_t *code, uint16_t offset, uint16_t len,
+int dis_decode(const uint8_t *code, address_t offset, address_t len,
 	       struct msp430_instruction *insn)
 {
 	uint16_t op;
 	int ret;
+	address_t ds_mask = ALL_ONES;
 
 	memset(insn, 0, sizeof(*insn));
 
@@ -439,12 +442,15 @@ int dis_decode(const uint8_t *code, uint16_t offset, uint16_t len,
 	find_cgens(insn);
 	find_emulated_ops(insn);
 
-	if (insn->is_byte_op) {
-		if (insn->src_mode == MSP430_AMODE_IMMEDIATE)
-			insn->src_addr &= 0xff;
-		if (insn->dst_mode == MSP430_AMODE_IMMEDIATE)
-			insn->dst_addr &= 0xff;
-	}
+	if (insn->dsize == MSP430_DSIZE_BYTE)
+		ds_mask = 0xff;
+	else if (insn->dsize == MSP430_DSIZE_WORD)
+		ds_mask = 0xffff;
+
+	if (insn->src_mode == MSP430_AMODE_IMMEDIATE)
+		insn->src_addr &= ds_mask;
+	if (insn->dst_mode == MSP430_AMODE_IMMEDIATE)
+		insn->dst_addr &= ds_mask;
 
 	insn->len = ret;
 	return ret;
