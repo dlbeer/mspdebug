@@ -214,6 +214,12 @@ typedef enum {
 	MSP430_OP_PUSHM         = 0x1400,
 	MSP430_OP_POPM		= 0x1600,
 
+	/* MSP430X address instructions */
+	MSP430_OP_MOVA          = 0x0000,
+	MSP430_OP_CMPA          = 0x0090,
+	MSP430_OP_ADDA          = 0x00A0,
+	MSP430_OP_SUBA          = 0x00B0,
+
 	/* MSP430X group 00xx, non-address */
 	MSP430_OP_RRCM		= 0x0040,
 	MSP430_OP_RRAM		= 0x0140,

@@ -139,6 +139,11 @@ static int dis_format(stab_t stab, char *buf, int max_len,
 	else if (insn->dsize == MSP430_DSIZE_UNKNOWN)
 		suffix = ".?";
 
+	/* Don't show the .A suffix for these instructions */
+	if (insn->op == MSP430_OP_MOVA || insn->op == MSP430_OP_CMPA ||
+	    insn->op == MSP430_OP_SUBA || insn->op == MSP430_OP_ADDA)
+		suffix = "";
+
 	len = snprintf(buf + total, max_len - total,
 		       "\x1b[36m%s%s\x1b[0m", opname, suffix);
 	tlen = textlen(buf + total);

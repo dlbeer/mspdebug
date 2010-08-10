@@ -32,6 +32,128 @@
 /* Disassembler
  */
 
+static int decode_00xx(const uint8_t *code, address_t offset,
+		       address_t len, struct msp430_instruction *insn)
+{
+	uint16_t op = code[0] | (code[1] << 8);
+	int subtype = (op >> 4) & 0xf;
+	int have_arg = 0;
+	address_t arg;
+
+	/* Parameters common to most cases */
+	insn->op = MSP430_OP_MOVA;
+	insn->itype = MSP430_ITYPE_DOUBLE;
+	insn->dsize = MSP430_DSIZE_AWORD;
+	insn->dst_mode = MSP430_AMODE_REGISTER;
+	insn->dst_reg = op & 0xf;
+	insn->src_mode = MSP430_AMODE_REGISTER;
+	insn->src_reg = (op >> 8) & 0xf;
+
+	if (len >= 4) {
+		have_arg = 1;
+		arg = code[2] | (code[3] << 8);
+	}
+
+	switch (subtype) {
+	case 0:
+		insn->src_mode = MSP430_AMODE_INDIRECT;
+		return 2;
+
+	case 1:
+		insn->src_mode = MSP430_AMODE_INDIRECT_INC;
+		return 2;
+
+	case 2:
+		if (!have_arg)
+			return -1;
+		insn->src_mode = MSP430_AMODE_ABSOLUTE;
+		insn->src_addr = ((op & 0xf00) << 8) | arg;
+		return 4;
+
+	case 3:
+		if (!have_arg)
+			return -1;
+		insn->src_mode = MSP430_AMODE_INDEXED;
+		insn->src_addr = arg;
+		return 4;
+
+	case 4:
+	case 5:
+		/* RxxM */
+		insn->itype = MSP430_ITYPE_SINGLE;
+		insn->op = op & 0xf3e0;
+		insn->dst_mode = MSP430_AMODE_REGISTER;
+		insn->dst_reg = op & 0xf;
+		insn->rep_index = (op >> 10) & 3;
+		insn->dsize = (op & 0x0010) ?
+			MSP430_DSIZE_WORD : MSP430_DSIZE_AWORD;
+		return 2;
+
+	case 6:
+		if (!have_arg)
+			return -1;
+
+		insn->dst_mode = MSP430_AMODE_ABSOLUTE;
+		insn->dst_addr = ((op & 0xf) << 16) | arg;
+		return 4;
+
+	case 7:
+		if (!have_arg)
+			return -1;
+		insn->dst_mode = MSP430_AMODE_INDEXED;
+		insn->dst_addr = arg;
+		return 4;
+
+	case 8:
+		if (!have_arg)
+			return -1;
+		insn->src_mode = MSP430_AMODE_IMMEDIATE;
+		insn->src_addr = ((op & 0xf00) << 8) | arg;
+		return 4;
+
+	case 9:
+		if (!have_arg)
+			return -1;
+		insn->op = MSP430_OP_CMPA;
+		insn->src_mode = MSP430_AMODE_IMMEDIATE;
+		insn->src_addr = ((op & 0xf00) << 8) | arg;
+		return 4;
+
+	case 10:
+		if (!have_arg)
+			return -1;
+		insn->op = MSP430_OP_ADDA;
+		insn->src_mode = MSP430_AMODE_IMMEDIATE;
+		insn->src_addr = ((op & 0xf00) << 8) | arg;
+		return 4;
+
+	case 11:
+		if (!have_arg)
+			return -1;
+		insn->op = MSP430_OP_SUBA;
+		insn->src_mode = MSP430_AMODE_IMMEDIATE;
+		insn->src_addr = ((op & 0xf00) << 8) | arg;
+		return 4;
+
+	case 12:
+		return 2;
+
+	case 13:
+		insn->op = MSP430_OP_CMPA;
+		return 2;
+
+	case 14:
+		insn->op = MSP430_OP_ADDA;
+		return 2;
+
+	case 15:
+		insn->op = MSP430_OP_SUBA;
+		return 2;
+	}
+
+	return -1;
+}
+
 static int decode_13xx(const uint8_t *code, address_t offset,
 		       address_t len, struct msp430_instruction *insn)
 {
@@ -522,16 +644,10 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 				insn->dsize = MSP430_DSIZE_UNKNOWN;
 		}
 	} else {
-		if ((op & 0xf0e0) == 0x0040) {
-			insn->itype = MSP430_ITYPE_SINGLE;
-			insn->op = op & 0xf3e0;
-			insn->dst_mode = MSP430_AMODE_REGISTER;
-			insn->dst_reg = op & 0xf;
-			insn->rep_index = (op >> 10) & 3;
-			insn->dsize = (op & 0x0010) ?
-				MSP430_DSIZE_WORD : MSP430_DSIZE_AWORD;
-			ret = 2;
+		if ((op & 0xf000) == 0x0000) {
+			ret = decode_00xx(code, offset, len, insn);
 		} else if ((op & 0xfc00) == 0x1400) {
+			/* PUSHM/POPM */
 			insn->itype = MSP430_ITYPE_SINGLE;
 			insn->op = op & 0xfe00;
 			insn->dst_mode = MSP430_AMODE_REGISTER;
@@ -668,6 +784,12 @@ static const struct {
 	/* MSP430X group 14xx */
 	{MSP430_OP_PUSHM,	"PUSHM"},
 	{MSP430_OP_POPM,	"POPM"},
+
+	/* MSP430X address instructions */
+	{MSP430_OP_MOVA,        "MOVA"},
+	{MSP430_OP_CMPA,        "CMPA"},
+	{MSP430_OP_SUBA,	"SUBA"},
+	{MSP430_OP_ADDA,	"ADDA"},
 
 	/* MSP430X group 00xx, non-address */
 	{MSP430_OP_RRCM,        "RRCM"},
