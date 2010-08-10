@@ -32,6 +32,69 @@
 /* Disassembler
  */
 
+static int decode_13xx(const uint8_t *code, address_t offset,
+		       address_t len, struct msp430_instruction *insn)
+{
+	uint16_t op = code[0] | (code[1] << 8);
+	int subtype = (op >> 4) & 0xf;
+
+	insn->itype = MSP430_ITYPE_SINGLE;
+	insn->op = MSP430_OP_CALLA;
+
+	switch (subtype) {
+	case 0:
+		insn->itype = MSP430_ITYPE_NOARG;
+		insn->op = MSP430_OP_RETI;
+		return 2;
+
+	case 4:
+		insn->dst_mode = MSP430_AMODE_REGISTER;
+		insn->dst_reg = op & 0xf;
+		return 2;
+
+	case 5:
+		insn->dst_mode = MSP430_AMODE_INDEXED;
+		insn->dst_reg = op & 0xf;
+		break;
+
+	case 6:
+		insn->dst_mode = MSP430_AMODE_INDIRECT;
+		insn->dst_reg = op & 0xf;
+		return 2;
+
+	case 7:
+		insn->dst_mode = MSP430_AMODE_INDIRECT_INC;
+		insn->dst_reg = op & 0xf;
+		return 2;
+
+	case 8:
+		insn->dst_mode = MSP430_AMODE_ABSOLUTE;
+		insn->dst_addr = (address_t)(op & 0xf) << 16;
+		break;
+
+	case 9:
+		insn->dst_mode = MSP430_AMODE_SYMBOLIC;
+		insn->dst_addr = (address_t)(op & 0xf) << 16;
+		break;
+
+	case 11:
+		insn->dst_mode = MSP430_AMODE_IMMEDIATE;
+		insn->dst_addr = (address_t)(op & 0xf) << 16;
+		break;
+
+	default:
+		return -1;
+	}
+
+	if (len < 4)
+		return -1;
+
+	insn->dst_addr |= code[2];
+	insn->dst_addr |= code[3] << 8;
+
+	return 4;
+}
+
 /* Decode a single-operand instruction.
  *
  * Returns the number of bytes consumed in decoding, or -1 if the a
@@ -477,11 +540,9 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 			insn->dsize = (op & 0x0100) ?
 				MSP430_DSIZE_WORD : MSP430_DSIZE_AWORD;
 			ret = 2;
-		} else if ((op & 0xff80) == 0x1300) {
-			insn->itype = MSP430_ITYPE_NOARG;
-			insn->op = MSP430_OP_RETI;
-			ret = 2;
-		} else if ((op & 0xf000) == 0x1000 && (op & 0xfc00) < 0x1300) {
+		} else if ((op & 0xff00) == 0x1300) {
+			ret = decode_13xx(code, offset, len, insn);
+		} else if ((op & 0xf000) == 0x1000) {
 			insn->itype = MSP430_ITYPE_SINGLE;
 			ret = decode_single(code, offset, len, insn);
 		} else if ((op & 0xff00) >= 0x2000 &&
@@ -600,6 +661,9 @@ static const struct {
 	{MSP430_OP_RRAX,        "RRAX"},
 	{MSP430_OP_SXTX,        "SXTX"},
 	{MSP430_OP_PUSHX,       "PUSHX"},
+
+	/* MSP430X group 13xx */
+	{MSP430_OP_CALLA,	"CALLA"},
 
 	/* MSP430X group 14xx */
 	{MSP430_OP_PUSHM,	"PUSHM"},

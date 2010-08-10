@@ -207,6 +207,9 @@ typedef enum {
 	MSP430_OP_XORX          = 0x2E000,
 	MSP430_OP_ANDX          = 0x2F000,
 
+	/* MSP430X group 13xx */
+	MSP430_OP_CALLA         = 0x21300,
+
 	/* MSP430X group 14xx */
 	MSP430_OP_PUSHM         = 0x1400,
 	MSP430_OP_POPM		= 0x1600,
