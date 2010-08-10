@@ -80,11 +80,12 @@ static int decode_00xx(const uint8_t *code, address_t offset,
 	case 4:
 	case 5:
 		/* RxxM */
-		insn->itype = MSP430_ITYPE_SINGLE;
+		insn->itype = MSP430_ITYPE_DOUBLE;
 		insn->op = op & 0xf3e0;
 		insn->dst_mode = MSP430_AMODE_REGISTER;
 		insn->dst_reg = op & 0xf;
-		insn->rep_index = (op >> 10) & 3;
+		insn->src_mode = MSP430_AMODE_IMMEDIATE;
+		insn->src_addr = (op >> 10) & 3;
 		insn->dsize = (op & 0x0010) ?
 			MSP430_DSIZE_WORD : MSP430_DSIZE_AWORD;
 		return 2;
@@ -223,11 +224,12 @@ static int decode_14xx(const uint8_t *code, address_t offset,
 	uint16_t op = (code[1] << 8) | code[0];
 
 	/* PUSHM/POPM */
-	insn->itype = MSP430_ITYPE_SINGLE;
+	insn->itype = MSP430_ITYPE_DOUBLE;
 	insn->op = op & 0xfe00;
 	insn->dst_mode = MSP430_AMODE_REGISTER;
 	insn->dst_reg = op & 0xf;
-	insn->rep_index = (op >> 4) & 0xf;
+	insn->src_mode = MSP430_AMODE_IMMEDIATE;
+	insn->src_addr = (op >> 4) & 0xf;
 	insn->dsize = (op & 0x0100) ?
 		MSP430_DSIZE_WORD : MSP430_DSIZE_AWORD;
 

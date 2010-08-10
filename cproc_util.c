@@ -184,6 +184,15 @@ static int dis_format(stab_t stab, char *buf, int max_len,
 					insn->dst_addr,
 					insn->dst_reg);
 
+	/* Repetition count */
+	if (insn->rep_register)
+		total += snprintf(buf + total, max_len - total,
+				  " [repeat %s]",
+				  dis_reg_name(insn->rep_index));
+	else if (insn->rep_index)
+		total += snprintf(buf + total, max_len - total,
+				  " [repeat %d]", insn->rep_index + 1);
+
 	if (total < max_len)
 		buf[total] = 0;
 	else if (total) {
