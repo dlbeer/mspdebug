@@ -185,7 +185,15 @@ typedef enum {
 	MSP430_OP_SETZ          = 0x10016,
 	MSP430_OP_TST           = 0x10017,
 
-	/* MSP430X double operand */
+	/* MSP430X single operand (extension word) */
+	MSP430_OP_RRCX          = 0x21000,
+	MSP430_OP_RRUX          = 0x21001, /* note: ZC = 1 */
+	MSP430_OP_SWPBX         = 0x21080,
+	MSP430_OP_RRAX          = 0x21100,
+	MSP430_OP_SXTX          = 0x21180,
+	MSP430_OP_PUSHX         = 0x21200,
+
+	/* MSP430X double operand (extension word) */
 	MSP430_OP_MOVX          = 0x24000,
 	MSP430_OP_ADDX          = 0x25000,
 	MSP430_OP_ADDCX         = 0x26000,
@@ -223,7 +231,6 @@ struct msp430_instruction {
 
 	int			rep_index;
 	int			rep_register;
-	int			zero_carry;
 };
 
 /* Decode a single instruction.

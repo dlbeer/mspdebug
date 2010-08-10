@@ -429,6 +429,10 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 			insn->itype = MSP430_ITYPE_DOUBLE;
 			ret = decode_double(code, offset, len, insn);
 			insn->op |= EXTENSION_BIT;
+		} else if ((op & 0xf000) == 0x1000 && (op & 0xfc00) < 0x1280) {
+			insn->itype = MSP430_ITYPE_SINGLE;
+			ret = decode_single(code, offset, len, insn);
+			insn->op |= EXTENSION_BIT;
 		} else {
 			return -1;
 		}
@@ -436,7 +440,11 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 		if (insn->dst_mode == MSP430_AMODE_REGISTER &&
 		    (insn->itype == MSP430_ITYPE_SINGLE ||
 		     insn->src_mode == MSP430_AMODE_REGISTER)) {
-			insn->zero_carry = (ex_word >> 8) & 1;
+			if ((ex_word >> 8) & 1) {
+				if (insn->op != MSP430_OP_RRCX)
+					return -1;
+				insn->op = MSP430_OP_RRUX;
+			}
 			insn->rep_register = (ex_word >> 7) & 1;
 			insn->rep_index = ex_word & 0xf;
 		} else {
@@ -549,7 +557,7 @@ static const struct {
 	{MSP430_OP_SETZ,        "SETZ"},
 	{MSP430_OP_TST,         "TST"},
 
-	/* MSP430X double operand */
+	/* MSP430X double operand (extension word) */
 	{MSP430_OP_MOVX,        "MOVX"},
 	{MSP430_OP_ADDX,        "ADDX"},
 	{MSP430_OP_ADDCX,       "ADDCX"},
@@ -561,7 +569,15 @@ static const struct {
 	{MSP430_OP_BICX,        "BICX"},
 	{MSP430_OP_BISX,        "BISX"},
 	{MSP430_OP_XORX,        "XORX"},
-	{MSP430_OP_ANDX,        "ANDX"}
+	{MSP430_OP_ANDX,        "ANDX"},
+
+	/* MSP430X single operand (extension word) */
+	{MSP430_OP_RRCX,        "RRCX"},
+	{MSP430_OP_RRUX,        "RRUX"},
+	{MSP430_OP_SWPBX,       "SWPBX"},
+	{MSP430_OP_RRAX,        "RRAX"},
+	{MSP430_OP_SXTX,        "SXTX"},
+	{MSP430_OP_PUSHX,       "PUSHX"}
 };
 
 /* Return the mnemonic for an operation, if possible. */
