@@ -212,10 +212,16 @@ transport_t rf2500_open(const char *devpath)
 		return NULL;
 	}
 
-	/* Flush out lingering data */
+	/* Flush out lingering data.
+	 *
+	 * The timeout apparently doesn't work on OS/X, and this loop
+	 * just hangs once the endpoint buffer empties.
+	 */
+#ifndef __APPLE__
 	while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
 			     buf, sizeof(buf),
 			     100) >= 0);
+#endif
 
 	return (transport_t)tr;
 }
