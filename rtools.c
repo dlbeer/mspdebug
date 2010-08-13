@@ -28,7 +28,7 @@
 #include "rtools.h"
 #include "stab.h"
 #include "expr.h"
-#include "cproc_util.h"
+#include "output_util.h"
 #include "vector.h"
 
 /************************************************************************
@@ -366,7 +366,7 @@ static int do_isearch(cproc_t cp, address_t addr, address_t len,
 		int count = dis_decode(mbuf + i, addr + i, len - i, &insn);
 
 		if (count >= 0 && isearch_match(&insn, q))
-			cproc_disassemble(cp, addr + i, mbuf + i, count);
+			disassemble(addr + i, mbuf + i, count);
 	}
 
 	free(mbuf);

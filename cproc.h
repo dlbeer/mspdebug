@@ -71,13 +71,6 @@ void cproc_destroy(cproc_t cp);
 int cproc_register_commands(cproc_t cp, const struct cproc_command *cmd,
 			    int count);
 
-/* Print a line of text on the command processor's standard output.
- *
- * ANSI colour codes can be embedded in the output text, and will be stripped
- * out if colour is disabled.
- */
-void cproc_printf(cproc_t cp, const char *fmt, ...);
-
 /* This should be called before a destructive operation to give the user
  * a chance to abort. If it returns 1, then the operation should be aborted.
  *

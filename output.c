@@ -16,21 +16,53 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef CPROC_UTIL_H_
-#define CPROC_UTIL_H_
+#include <stdio.h>
+#include <stdarg.h>
+#include "opdb.h"
+#include "output.h"
 
-#include <stdint.h>
-#include "cproc.h"
+static char out_buf[1024];
+static int out_len;
+static int in_code;
 
-/* Print colorized disassembly on command processor standard output */
-void cproc_disassemble(cproc_t cp, address_t addr,
-		       const uint8_t *buf, int len);
+static int write_text(const char *buf)
+{
+	int want_color = opdb_get_boolean("color");
+	int len = 0;
 
-/* Print colorized hexdump on standard output */
-void cproc_hexdump(cproc_t cp, address_t addr,
-		   const uint8_t *buf, int len);
+	while (*buf) {
+		if (*buf == 27)
+			in_code = 1;
 
-/* Colorized register dump */
-void cproc_regs(cproc_t cp, const address_t *regs);
+		if (!in_code)
+			len++;
 
-#endif
+		if (*buf == '\n') {
+			out_buf[out_len] = 0;
+			puts(out_buf);
+			out_len = 0;
+		} else if ((want_color || !in_code) &&
+			   out_len + 1 < sizeof(out_buf)) {
+			out_buf[out_len++] = *buf;
+		}
+
+		if (isalpha(*buf))
+			in_code = 0;
+
+		buf++;
+	}
+
+	return len;
+}
+
+int printc(const char *fmt, ...)
+{
+	char buf[1024];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	return write_text(buf);
+}

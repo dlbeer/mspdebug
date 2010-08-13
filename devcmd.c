@@ -27,7 +27,7 @@
 #include "stab.h"
 #include "expr.h"
 #include "cproc.h"
-#include "cproc_util.h"
+#include "output_util.h"
 #include "util.h"
 #include "dis.h"
 
@@ -39,7 +39,7 @@ static int cmd_regs(cproc_t cp, char **arg)
 
 	if (device_default->getregs(device_default, regs) < 0)
 		return -1;
-	cproc_regs(cp, regs);
+	show_regs(regs);
 
 	/* Try to disassemble the instruction at PC */
 	if (len > 0x10000 - regs[0])
@@ -47,7 +47,7 @@ static int cmd_regs(cproc_t cp, char **arg)
 	if (device_default->readmem(device_default, regs[0], code, len) < 0)
 		return 0;
 
-	cproc_disassemble(cp, regs[0], (uint8_t *)code, len);
+	disassemble(regs[0], (uint8_t *)code, len);
 	return 0;
 }
 
@@ -85,7 +85,7 @@ static int cmd_md(cproc_t cp, char **arg)
 		if (device_default->readmem(device_default,
 					    offset, buf, blen) < 0)
 			return -1;
-		cproc_hexdump(cp, offset, buf, blen);
+		hexdump(offset, buf, blen);
 
 		offset += blen;
 		length -= blen;
@@ -240,7 +240,7 @@ static int cmd_set(cproc_t cp, char **arg)
 	if (device_default->setregs(device_default, regs) < 0)
 		return -1;
 
-	cproc_regs(cp, regs);
+	show_regs(regs);
 	return 0;
 }
 
@@ -284,7 +284,7 @@ static int cmd_dis(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	cproc_disassemble(cp, offset, buf, length);
+	disassemble(offset, buf, length);
 	free(buf);
 	return 0;
 }

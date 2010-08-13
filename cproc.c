@@ -34,6 +34,7 @@
 #include "vector.h"
 #include "stab.h"
 #include "util.h"
+#include "output.h"
 
 struct cproc {
 	struct vector           command_list;
@@ -150,16 +151,14 @@ static int cmd_help(cproc_t cp, char **arg)
 		struct opdb_key key;
 
 		if (cmd) {
-			cproc_printf(cp, "\x1b[1mCOMMAND: %s\x1b[0m\n",
-				     cmd->name);
-			fputs(cmd->help, stdout);
+			printc("\x1b[1mCOMMAND: %s\x1b[0m\n\n%s\n",
+			       cmd->name, cmd->help);
 			return 0;
 		}
 
 		if (!opdb_get(topic, &key, NULL)) {
-			cproc_printf(cp, "\x1b[1mOPTION: %s (%s)\x1b[0m\n",
-				     key.name, type_text(key.type));
-			fputs(key.help, stdout);
+			printc("\x1b[1mOPTION: %s (%s)\x1b[0m\n\n%s\n",
+			       key.name, type_text(key.type), key.help);
 			return 0;
 		}
 
@@ -341,39 +340,6 @@ int cproc_register_commands(cproc_t cp, const struct cproc_command *cmd,
 
 	cp->lists_modified = 1;
 	return 0;
-}
-
-void cproc_printf(cproc_t cp, const char *fmt, ...)
-{
-	char buf[256];
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, ap);
-	va_end(ap);
-
-	if (!opdb_get_boolean("color")) {
-		char *src = buf;
-		char *dst = buf;
-
-		for (;;) {
-			if (*src == 27) {
-				while (*src && !isalpha(*src))
-					src++;
-				if (*src)
-					src++;
-			}
-
-			if (!*src)
-				break;
-
-			*(dst++) = *(src++);
-		}
-
-		*dst = 0;
-	}
-
-	puts(buf);
 }
 
 void cproc_modify(cproc_t cp, int flags)

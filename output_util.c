@@ -20,12 +20,11 @@
 #include <assert.h>
 
 #include "dis.h"
-#include "cproc_util.h"
+#include "output_util.h"
 #include "stab.h"
 #include "util.h"
 
-static int format_addr(char *buf, int max_len,
-		       msp430_amode_t amode, uint16_t addr)
+static int format_addr(msp430_amode_t amode, uint16_t addr)
 {
 	char name[64];
 	address_t offset;
@@ -56,18 +55,14 @@ static int format_addr(char *buf, int max_len,
 	     (addr >= 0x200 && addr < 0xfff0)) &&
 	    !stab_nearest(stab_default, addr, name, sizeof(name), &offset) &&
 	    !offset)
-		return snprintf(buf, max_len,
-				"%s\x1b[1m%s\x1b[0m", prefix, name);
+		return printc("%s\x1b[1m%s\x1b[0m", prefix, name);
 	else if (numeric)
-		return snprintf(buf, max_len,
-				"%s\x1b[1m0x%x\x1b[0m", prefix, addr);
+		return printc("%s\x1b[1m0x%x\x1b[0m", prefix, addr);
 	else
-		return snprintf(buf, max_len,
-				"%s\x1b[1m0x%04x\x1b[0m", prefix, addr);
+		return printc("%s\x1b[1m0x%04x\x1b[0m", prefix, addr);
 }
 
-static int format_reg(char *buf, int max_len,
-		      msp430_amode_t amode, msp430_reg_t reg)
+static int format_reg(msp430_amode_t amode, msp430_reg_t reg)
 {
 	const char *prefix = "";
 	const char *suffix = "";
@@ -98,9 +93,7 @@ static int format_reg(char *buf, int max_len,
 	if (!name)
 		name = "???";
 
-	return snprintf(buf, max_len,
-			"%s\x1b[33m%s\x1b[0m%s",
-			prefix, name, suffix);
+	return printc("%s\x1b[33m%s\x1b[0m%s", prefix, name, suffix);
 }
 
 /* Given an operands addressing mode, value and associated register,
@@ -108,24 +101,21 @@ static int format_reg(char *buf, int max_len,
  *
  * Returns the number of characters printed.
  */
-static int format_operand(char *buf, int max_len,
-			  msp430_amode_t amode, uint16_t addr,
+static int format_operand(msp430_amode_t amode, uint16_t addr,
 			  msp430_reg_t reg)
 {
 	int len = 0;
 
-	len += format_addr(buf, max_len, amode, addr);
-	len += format_reg(buf + len, max_len - len, amode, reg);
+	len += format_addr(amode, addr);
+	len += format_reg(amode, reg);
+
 	return len;
 }
 
 /* Write assembly language for the instruction to this buffer */
-static int dis_format(char *buf, int max_len,
-		      const struct msp430_instruction *insn)
+static int dis_format(const struct msp430_instruction *insn)
 {
-	int len;
-	int tlen;
-	int total = 0;
+	int len = 0;
 	const char *opname = dis_opcode_name(insn->op);
 	const char *suffix = "";
 
@@ -145,67 +135,38 @@ static int dis_format(char *buf, int max_len,
 	    insn->op == MSP430_OP_BRA || insn->op == MSP430_OP_RETA)
 		suffix = "";
 
-	len = snprintf(buf + total, max_len - total,
-		       "\x1b[36m%s%s\x1b[0m", opname, suffix);
-	tlen = textlen(buf + total);
-	total += len;
-
-	while (tlen < 8 && total < max_len) {
-		buf[total++] = ' ';
-		tlen++;
-	}
+	len += printc("\x1b[36m%s%s\x1b[0m", opname, suffix);
+	while (len < 8)
+		len += printc(" ");
 
 	/* Source operand */
 	if (insn->itype == MSP430_ITYPE_DOUBLE) {
-		len = format_operand(buf + total,
-				     max_len - total,
-				     insn->src_mode,
-				     insn->src_addr,
-				     insn->src_reg);
-		tlen = textlen(buf + total);
-		total += len;
+		len += format_operand(insn->src_mode,
+				      insn->src_addr,
+				      insn->src_reg);
 
-		if (total < max_len)
-			buf[total++] = ',';
-
-		while (tlen < 15 && total < max_len) {
-			tlen++;
-			buf[total++] = ' ';
-		}
-
-		if (total < max_len)
-			buf[total++] = ' ';
+		printc(",");
+		while (len < 15)
+			len += printc(" ");
+		printc(" ");
 	}
 
 	/* Destination operand */
 	if (insn->itype != MSP430_ITYPE_NOARG)
-		total += format_operand(buf + total,
-					max_len - total,
-					insn->dst_mode,
+		len += format_operand(insn->dst_mode,
 					insn->dst_addr,
 					insn->dst_reg);
 
 	/* Repetition count */
 	if (insn->rep_register)
-		total += snprintf(buf + total, max_len - total,
-				  " [repeat %s]",
-				  dis_reg_name(insn->rep_index));
+		len += printc(" [repeat %s]", dis_reg_name(insn->rep_index));
 	else if (insn->rep_index)
-		total += snprintf(buf + total, max_len - total,
-				  " [repeat %d]", insn->rep_index + 1);
+		len += printc(" [repeat %d]", insn->rep_index + 1);
 
-	if (total < max_len)
-		buf[total] = 0;
-	else if (total) {
-		total--;
-		buf[total] = 0;
-	}
-
-	return total;
+	return len;
 }
 
-void cproc_disassemble(cproc_t cp,
-		       address_t offset, const uint8_t *data, int length)
+void disassemble(address_t offset, const uint8_t *data, int length)
 {
 	int first_line = 1;
 
@@ -216,16 +177,14 @@ void cproc_disassemble(cproc_t cp,
 		int i;
 		address_t oboff;
 		char obname[64];
-		char buf[256];
-		int len = 0;
 
 		if (!stab_nearest(stab_default, offset, obname, sizeof(obname),
 				  &oboff)) {
 			if (!oboff)
-				cproc_printf(cp, "\x1b[m%s:\x1b[0m", obname);
+				printc("\x1b[m%s:\x1b[0m\n", obname);
 			else if (first_line)
-				cproc_printf(cp, "\x1b[m%s+0x%x:\x1b[0m",
-					     obname, oboff);
+				printc("\x1b[m%s+0x%x:\x1b[0m\n",
+				       obname, oboff);
 		}
 		first_line = 0;
 
@@ -234,92 +193,72 @@ void cproc_disassemble(cproc_t cp,
 		if (count > length)
 			count = length;
 
-		len += snprintf(buf + len, sizeof(buf) - len,
-				"    \x1b[36m%05x\x1b[0m:", offset);
+		printc("    \x1b[36m%05x\x1b[0m:", offset);
 
 		for (i = 0; i < count; i++)
-			len += snprintf(buf + len, sizeof(buf) - len,
-					" %02x", data[i]);
+			printc(" %02x", data[i]);
 
 		while (i < 9) {
-			buf[len++] = ' ';
-			buf[len++] = ' ';
-			buf[len++] = ' ';
+			printc("   ");
 			i++;
 		}
 
 		if (retval >= 0)
-			len += dis_format(buf + len, sizeof(buf) - len,
-					  &insn);
+			dis_format(&insn);
+		printc("\n");
 
-		buf[len] = 0;
-		cproc_printf(cp, "%s", buf);
 		offset += count;
 		length -= count;
 		data += count;
 	}
 }
 
-void cproc_hexdump(cproc_t cp, address_t addr, const uint8_t *data, int data_len)
+void hexdump(address_t addr, const uint8_t *data, int data_len)
 {
 	int offset = 0;
 
 	while (offset < data_len) {
-		char buf[128];
-		int len = 0;
 		int i, j;
 
 		/* Address label */
-		len += snprintf(buf + len, sizeof(buf) - len,
-				"    \x1b[36m%05x:\x1b[0m", offset + addr);
+		printc("    \x1b[36m%05x:\x1b[0m", offset + addr);
 
 		/* Hex portion */
 		for (i = 0; i < 16 && offset + i < data_len; i++)
-			len += snprintf(buf + len, sizeof(buf) - len,
-					" %02x", data[offset + i]);
-		for (j = i; j < 16; j++) {
-			buf[len++] = ' ';
-			buf[len++] = ' ';
-			buf[len++] = ' ';
-		}
+			printc(" %02x", data[offset + i]);
+		for (j = i; j < 16; j++)
+			printc("   ");
 
 		/* Printable characters */
-		len += snprintf(buf + len, sizeof(buf) - len,
-				" \x1b[32m|");
+		printc(" \x1b[32m|");
 		for (j = 0; j < i; j++) {
 			int c = data[offset + j];
 
-			buf[len++] = (c >= 32 && c <= 126) ? c : '.';
+			printc("%c", (c >= 32 && c <= 126) ? c : '.');
 		}
 		for (; j < 16; j++)
-			buf[len++] = ' ';
-		len += snprintf(buf + len, sizeof(buf) - len,
-				"|\x1b[0m");
+			printc(" ");
+		printc("|\x1b[0m\n");
 
-		cproc_printf(cp, "%s", buf);
 		offset += i;
 	}
 }
 
-void cproc_regs(cproc_t cp, const address_t *regs)
+void show_regs(const address_t *regs)
 {
 	int i;
 
 	for (i = 0; i < 4; i++) {
 		int j;
-		char buf[128];
-		int len = 0;
 
-		for (j = 0; j < 4; j++)
-			buf[len++] = ' ';
+		printc("    ");
 		for (j = 0; j < 4; j++) {
 			int k = j * 4 + i;
 
-			len += snprintf(buf + len, sizeof(buf) - len,
-					"(\x1b[1m%3s:\x1b[0m %05x)  ",
-					dis_reg_name(k), regs[k]);
+			printc("(\x1b[1m%3s:\x1b[0m %05x)  ",
+			       dis_reg_name(k), regs[k]);
 		}
 
-		cproc_printf(cp, "%s", buf);
+		printc("\n");
 	}
 }
