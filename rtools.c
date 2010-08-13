@@ -50,7 +50,7 @@ struct isearch_query {
 	struct msp430_instruction       insn;
 };
 
-static int isearch_opcode(cproc_t cp, const char *term, char **arg,
+static int isearch_opcode(const char *term, char **arg,
 			  struct isearch_query *q)
 {
 	const char *opname = get_arg(arg);
@@ -77,7 +77,7 @@ static int isearch_opcode(cproc_t cp, const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_bw(cproc_t cp, const char *term, char **arg,
+static int isearch_bw(const char *term, char **arg,
 		      struct isearch_query *q)
 {
 	if (q->flags & ISEARCH_DSIZE) {
@@ -103,7 +103,7 @@ static int isearch_bw(cproc_t cp, const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_type(cproc_t cp, const char *term, char **arg,
+static int isearch_type(const char *term, char **arg,
 			struct isearch_query *q)
 {
 	if (q->flags & ISEARCH_TYPE) {
@@ -135,7 +135,7 @@ static int isearch_type(cproc_t cp, const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_addr(cproc_t cp, const char *term, char **arg,
+static int isearch_addr(const char *term, char **arg,
 			struct isearch_query *q)
 {
 	int which = toupper(*term) == 'S' ?
@@ -166,7 +166,7 @@ static int isearch_addr(cproc_t cp, const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_reg(cproc_t cp, const char *term, char **arg,
+static int isearch_reg(const char *term, char **arg,
 		       struct isearch_query *q)
 {
 	int which = toupper(*term) == 'S' ?
@@ -201,7 +201,7 @@ static int isearch_reg(cproc_t cp, const char *term, char **arg,
 	return 0;
 }
 
-static int isearch_mode(cproc_t cp, const char *term, char **arg,
+static int isearch_mode(const char *term, char **arg,
 			struct isearch_query *q)
 {
 	int which = toupper(*term) == 'S' ?
@@ -340,7 +340,7 @@ static int isearch_match(const struct msp430_instruction *insn,
 	return 1;
 }
 
-static int do_isearch(cproc_t cp, address_t addr, address_t len,
+static int do_isearch(address_t addr, address_t len,
 		      const struct isearch_query *q)
 {
 	uint8_t *mbuf;
@@ -373,12 +373,11 @@ static int do_isearch(cproc_t cp, address_t addr, address_t len,
 	return 0;
 }
 
-int cmd_isearch(cproc_t cp, char **arg)
+int cmd_isearch(char **arg)
 {
 	const static struct {
 		const char      *name;
-		int             (*func)(cproc_t cp,
-					const char *term, char **arg,
+		int             (*func)(const char *term, char **arg,
 					struct isearch_query *q);
 	} term_handlers[] = {
 		{"opcode",      isearch_opcode},
@@ -424,8 +423,7 @@ int cmd_isearch(cproc_t cp, char **arg)
 
 		for (i = 0; i < ARRAY_LEN(term_handlers); i++)
 			if (!strcasecmp(term_handlers[i].name, term)) {
-				if (term_handlers[i].func(cp, term, arg,
-							  &q) < 0)
+				if (term_handlers[i].func(term, arg, &q) < 0)
 					return -1;
 				break;
 			}
@@ -437,7 +435,7 @@ int cmd_isearch(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	return do_isearch(cp, addr, len, &q);
+	return do_isearch(addr, len, &q);
 }
 
 /************************************************************************
@@ -776,7 +774,7 @@ static int cgraph_init(address_t offset, address_t len, uint8_t *memory,
 	return -1;
 }
 
-static void cgraph_summary(struct call_graph *graph, cproc_t cp)
+static void cgraph_summary(struct call_graph *graph)
 {
 	int i;
 	int j = 0; /* Edge from index */
@@ -819,8 +817,7 @@ static void cgraph_summary(struct call_graph *graph, cproc_t cp)
 	}
 }
 
-static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
-			     int addr)
+static void cgraph_func_info(struct call_graph *graph, address_t addr)
 {
 	int i = 0;
 	int j = 0;
@@ -900,7 +897,7 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 	}
 }
 
-int cmd_cgraph(cproc_t cp, char **arg)
+int cmd_cgraph(char **arg)
 {
 	char *offset_text, *len_text, *addr_text;;
 	address_t offset, len, addr;
@@ -958,9 +955,9 @@ int cmd_cgraph(cproc_t cp, char **arg)
 	free(memory);
 
 	if (addr_text)
-		cgraph_func_info(&graph, cp, addr);
+		cgraph_func_info(&graph, addr);
 	else
-		cgraph_summary(&graph, cp);
+		cgraph_summary(&graph);
 
 	cgraph_destroy(&graph);
 	return 0;

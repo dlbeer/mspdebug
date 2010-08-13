@@ -19,21 +19,19 @@
 #ifndef DEVCMD_H_
 #define DEVCMD_H_
 
-#include "cproc.h"
-
-int cmd_regs(cproc_t cp, char **arg);
-int cmd_md(cproc_t cp, char **arg);
-int cmd_mw(cproc_t cp, char **arg);
-int cmd_reset(cproc_t cp, char **arg);
-int cmd_erase(cproc_t cp, char **arg);
-int cmd_step(cproc_t cp, char **arg);
-int cmd_run(cproc_t cp, char **arg);
-int cmd_set(cproc_t cp, char **arg);
-int cmd_dis(cproc_t cp, char **arg);
-int cmd_hexout(cproc_t cp, char **arg);
-int cmd_prog(cproc_t cp, char **arg);
-int cmd_setbreak(cproc_t cp, char **arg);
-int cmd_delbreak(cproc_t cp, char **arg);
-int cmd_break(cproc_t cp, char **arg);
+int cmd_regs(char **arg);
+int cmd_md(char **arg);
+int cmd_mw(char **arg);
+int cmd_reset(char **arg);
+int cmd_erase(char **arg);
+int cmd_step(char **arg);
+int cmd_run(char **arg);
+int cmd_set(char **arg);
+int cmd_dis(char **arg);
+int cmd_hexout(char **arg);
+int cmd_prog(char **arg);
+int cmd_setbreak(char **arg);
+int cmd_delbreak(char **arg);
+int cmd_break(char **arg);
 
 #endif

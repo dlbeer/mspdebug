@@ -662,7 +662,7 @@ static int gdb_server(int port)
 	return data.error ? -1 : 0;
 }
 
-int cmd_gdb(cproc_t cp, char **arg)
+int cmd_gdb(char **arg)
 {
 	char *port_text = get_arg(arg);
 	int port = 2000;

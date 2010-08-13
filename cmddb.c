@@ -24,7 +24,6 @@
 #include "devcmd.h"
 #include "gdb.h"
 #include "rtools.h"
-#include "cproc.h"
 #include "sym.h"
 #include "stdcmd.h"
 

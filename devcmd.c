@@ -26,12 +26,12 @@
 #include "binfile.h"
 #include "stab.h"
 #include "expr.h"
-#include "cproc.h"
+#include "reader.h"
 #include "output_util.h"
 #include "util.h"
 #include "dis.h"
 
-int cmd_regs(cproc_t cp, char **arg)
+int cmd_regs(char **arg)
 {
 	address_t regs[DEVICE_NUM_REGS];
 	uint8_t code[16];
@@ -51,7 +51,7 @@ int cmd_regs(cproc_t cp, char **arg)
 	return 0;
 }
 
-int cmd_md(cproc_t cp, char **arg)
+int cmd_md(char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
@@ -94,7 +94,7 @@ int cmd_md(cproc_t cp, char **arg)
 	return 0;
 }
 
-int cmd_mw(cproc_t cp, char **arg)
+int cmd_mw(char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *byte_text;
@@ -130,12 +130,12 @@ int cmd_mw(cproc_t cp, char **arg)
 	return 0;
 }
 
-int cmd_reset(cproc_t cp, char **arg)
+int cmd_reset(char **arg)
 {
 	return device_default->ctl(device_default, DEVICE_CTL_RESET);
 }
 
-int cmd_erase(cproc_t cp, char **arg)
+int cmd_erase(char **arg)
 {
 	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0)
 		return -1;
@@ -144,7 +144,7 @@ int cmd_erase(cproc_t cp, char **arg)
 	return device_default->ctl(device_default, DEVICE_CTL_ERASE);
 }
 
-int cmd_step(cproc_t cp, char **arg)
+int cmd_step(char **arg)
 {
 	char *count_text = get_arg(arg);
 	int count = 1;
@@ -158,10 +158,10 @@ int cmd_step(cproc_t cp, char **arg)
 		count--;
 	}
 
-	return cmd_regs(cp, NULL);
+	return cmd_regs(NULL);
 }
 
-int cmd_run(cproc_t cp, char **arg)
+int cmd_run(char **arg)
 {
 	device_status_t status;
 	address_t regs[DEVICE_NUM_REGS];
@@ -207,10 +207,10 @@ int cmd_run(cproc_t cp, char **arg)
 	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0)
 		return -1;
 
-	return cmd_regs(cp, NULL);
+	return cmd_regs(NULL);
 }
 
-int cmd_set(cproc_t cp, char **arg)
+int cmd_set(char **arg)
 {
 	char *reg_text = get_arg(arg);
 	char *val_text = get_arg(arg);
@@ -244,7 +244,7 @@ int cmd_set(cproc_t cp, char **arg)
 	return 0;
 }
 
-int cmd_dis(cproc_t cp, char **arg)
+int cmd_dis(char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
@@ -393,7 +393,7 @@ static int hexout_feed(struct hexout_data *hexout,
 	return 0;
 }
 
-int cmd_hexout(cproc_t cp, char **arg)
+int cmd_hexout(char **arg)
 {
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
@@ -523,12 +523,12 @@ static int prog_feed(void *user_data,
 	return 0;
 }
 
-int cmd_prog(cproc_t cp, char **arg)
+int cmd_prog(char **arg)
 {
 	FILE *in;
 	struct prog_data prog;
 
-	if (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
+	if (prompt_abort(MODIFY_SYMS))
 		return 0;
 
 	in = fopen(*arg, "r");
@@ -564,11 +564,11 @@ int cmd_prog(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	cproc_unmodify(cp, CPROC_MODIFY_SYMS);
+	unmark_modified(MODIFY_SYMS);
 	return 0;
 }
 
-int cmd_setbreak(cproc_t cp, char **arg)
+int cmd_setbreak(char **arg)
 {
 	char *addr_text = get_arg(arg);
 	char *index_text = get_arg(arg);
@@ -606,7 +606,7 @@ int cmd_setbreak(cproc_t cp, char **arg)
 	return 0;
 }
 
-int cmd_delbreak(cproc_t cp, char **arg)
+int cmd_delbreak(char **arg)
 {
 	char *index_text = get_arg(arg);
 	int ret = 0;
@@ -633,7 +633,7 @@ int cmd_delbreak(cproc_t cp, char **arg)
 	return ret;
 }
 
-int cmd_break(cproc_t cp, char **arg)
+int cmd_break(char **arg)
 {
 	int i;
 

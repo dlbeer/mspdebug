@@ -28,52 +28,31 @@
 #include <readline/history.h>
 #endif
 
-#include "opdb.h"
-#include "expr.h"
-#include "cproc.h"
 #include "vector.h"
-#include "stab.h"
 #include "util.h"
 #include "output.h"
 #include "cmddb.h"
 #include "stdcmd.h"
+#include "reader.h"
 
-struct cproc {
-	int                     modify_flags;
-	int                     in_reader_loop;
-};
+static int modify_flags;
+static int in_reader_loop;
 
-cproc_t cproc_new(void)
+void mark_modified(int flags)
 {
-	cproc_t cp = malloc(sizeof(*cp));
-
-	if (!cp)
-		return NULL;
-
-	memset(cp, 0, sizeof(*cp));
-	return cp;
+	modify_flags |= flags;
 }
 
-void cproc_destroy(cproc_t cp)
+void unmark_modified(int flags)
 {
-	free(cp);
+	modify_flags &= ~flags;
 }
 
-void cproc_modify(cproc_t cp, int flags)
-{
-	cp->modify_flags |= flags;
-}
-
-void cproc_unmodify(cproc_t cp, int flags)
-{
-	cp->modify_flags &= ~flags;
-}
-
-int cproc_prompt_abort(cproc_t cp, int flags)
+int prompt_abort(int flags)
 {
         char buf[32];
 
-        if (!(cp->in_reader_loop && (cp->modify_flags & flags)))
+        if (!(in_reader_loop && (modify_flags & flags)))
                 return 0;
 
         for (;;) {
@@ -129,7 +108,7 @@ static char *readline(const char *prompt)
 #define add_history(x)
 #endif
 
-static int process_command(cproc_t cp, char *arg, int interactive)
+static int do_command(char *arg, int interactive)
 {
 	const char *cmd_text;
 	int len = strlen(arg);
@@ -143,12 +122,12 @@ static int process_command(cproc_t cp, char *arg, int interactive)
 		struct cmddb_record cmd;
 
 		if (!cmddb_get(cmd_text, &cmd)) {
-			int old = cp->in_reader_loop;
+			int old = in_reader_loop;
 			int ret;
 
-			cp->in_reader_loop = interactive;
-			ret = cmd.func(cp, &arg);
-			cp->in_reader_loop = old;
+			in_reader_loop = interactive;
+			ret = cmd.func(&arg);
+			in_reader_loop = old;
 
 			return ret;
 		}
@@ -161,14 +140,14 @@ static int process_command(cproc_t cp, char *arg, int interactive)
 	return 0;
 }
 
-void cproc_reader_loop(cproc_t cp)
+void reader_loop(void)
 {
-	int old = cp->in_reader_loop;
+	int old = in_reader_loop;
 
-	cp->in_reader_loop = 1;
+	in_reader_loop = 1;
 
 	printf("\n");
-	cmd_help(cp, NULL);
+	cmd_help(NULL);
 	printf("\n");
 
 	do {
@@ -179,21 +158,21 @@ void cproc_reader_loop(cproc_t cp)
 				break;
 
 			add_history(buf);
-			process_command(cp, buf, 1);
+			do_command(buf, 1);
 			free(buf);
 		}
-	} while (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS));
+	} while (prompt_abort(MODIFY_SYMS));
 
 	printf("\n");
-	cp->in_reader_loop = old;
+	in_reader_loop = old;
 }
 
-int cproc_process_command(cproc_t cp, char *cmd)
+int process_command(char *cmd)
 {
-	return process_command(cp, cmd, 0);
+	return do_command(cmd, 0);
 }
 
-int cproc_process_file(cproc_t cp, const char *filename)
+int process_file(const char *filename)
 {
 	FILE *in;
 	char buf[1024];
@@ -217,7 +196,7 @@ int cproc_process_file(cproc_t cp, const char *filename)
 		if (*cmd == '#')
 			continue;
 
-		if (process_command(cp, cmd, 0) < 0) {
+		if (do_command(cmd, 0) < 0) {
 			fprintf(stderr, "read: error processing %s (line %d)\n",
 				filename, line_no);
 			fclose(in);

@@ -29,8 +29,9 @@
 #include "util.h"
 #include "vector.h"
 #include "sym.h"
+#include "reader.h"
 
-int cmd_eval(cproc_t cp, char **arg)
+int cmd_eval(char **arg)
 {
 	address_t addr;
 	address_t offset;
@@ -52,11 +53,11 @@ int cmd_eval(cproc_t cp, char **arg)
 	return 0;
 }
 
-static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
+static int cmd_sym_load_add(int clear, char **arg)
 {
 	FILE *in;
 
-	if (clear && cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
+	if (clear && prompt_abort(MODIFY_SYMS))
 		return 0;
 
 	in = fopen(*arg, "r");
@@ -67,9 +68,9 @@ static int cmd_sym_load_add(cproc_t cp, int clear, char **arg)
 
 	if (clear) {
 		stab_clear(stab_default);
-		cproc_unmodify(cp, CPROC_MODIFY_SYMS);
+		unmark_modified(MODIFY_SYMS);
 	} else {
-		cproc_modify(cp, CPROC_MODIFY_SYMS);
+		mark_modified(MODIFY_SYMS);
 	}
 
 	if (binfile_syms(in, stab_default) < 0) {
@@ -93,7 +94,7 @@ static int savemap_cb(void *user_data, const char *name, address_t value)
 	return 0;
 }
 
-static int cmd_sym_savemap(cproc_t cp, char **arg)
+static int cmd_sym_savemap(char **arg)
 {
 	FILE *savemap_out;
 	char *fname = get_arg(arg);
@@ -120,7 +121,7 @@ static int cmd_sym_savemap(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	cproc_unmodify(cp, CPROC_MODIFY_SYMS);
+	unmark_modified(MODIFY_SYMS);
 	return 0;
 }
 
@@ -140,7 +141,7 @@ static int find_sym(void *user_data, const char *name, address_t value)
 	return 0;
 }
 
-static int cmd_sym_find(cproc_t cp, char **arg)
+static int cmd_sym_find(char **arg)
 {
 	regex_t find_preg;
 	char *expr = get_arg(arg);
@@ -232,7 +233,7 @@ static int find_renames(void *user_data, const char *name, address_t value)
 	return 0;
 }
 
-static int cmd_sym_rename(cproc_t cp, char **arg)
+static int cmd_sym_rename(char **arg)
 {
 	const char *expr = get_arg(arg);
 	const char *replace = get_arg(arg);
@@ -263,12 +264,12 @@ static int cmd_sym_rename(cproc_t cp, char **arg)
 	vector_destroy(&rename.list);
 
 	if (ret > 0)
-		cproc_modify(cp, CPROC_MODIFY_SYMS);
+		mark_modified(MODIFY_SYMS);
 
 	return ret >= 0 ? 0 : -1;
 }
 
-static int cmd_sym_del(cproc_t cp, char **arg)
+static int cmd_sym_del(char **arg)
 {
 	char *name = get_arg(arg);
 
@@ -284,11 +285,11 @@ static int cmd_sym_del(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	cproc_modify(cp, CPROC_MODIFY_SYMS);
+	mark_modified(MODIFY_SYMS);
 	return 0;
 }
 
-int cmd_sym(cproc_t cp, char **arg)
+int cmd_sym(char **arg)
 {
 	char *subcmd = get_arg(arg);
 
@@ -299,10 +300,10 @@ int cmd_sym(cproc_t cp, char **arg)
 	}
 
 	if (!strcasecmp(subcmd, "clear")) {
-		if (cproc_prompt_abort(cp, CPROC_MODIFY_SYMS))
+		if (prompt_abort(MODIFY_SYMS))
 			return 0;
 		stab_clear(stab_default);
-		cproc_unmodify(cp, CPROC_MODIFY_SYMS);
+		unmark_modified(MODIFY_SYMS);
 		return 0;
 	}
 
@@ -326,22 +327,22 @@ int cmd_sym(cproc_t cp, char **arg)
 		if (stab_set(stab_default, name, value) < 0)
 			return -1;
 
-		cproc_modify(cp, CPROC_MODIFY_SYMS);
+		mark_modified(MODIFY_SYMS);
 		return 0;
 	}
 
 	if (!strcasecmp(subcmd, "del"))
-		return cmd_sym_del(cp, arg);
+		return cmd_sym_del(arg);
 	if (!strcasecmp(subcmd, "import"))
-		return cmd_sym_load_add(cp, 1, arg);
+		return cmd_sym_load_add(1, arg);
 	if (!strcasecmp(subcmd, "import+"))
-		return cmd_sym_load_add(cp, 0, arg);
+		return cmd_sym_load_add(0, arg);
 	if (!strcasecmp(subcmd, "export"))
-		return cmd_sym_savemap(cp, arg);
+		return cmd_sym_savemap(arg);
 	if (!strcasecmp(subcmd, "rename"))
-		return cmd_sym_rename(cp, arg);
+		return cmd_sym_rename(arg);
 	if (!strcasecmp(subcmd, "find"))
-		return cmd_sym_find(cp, arg);
+		return cmd_sym_find(arg);
 
 	fprintf(stderr, "sym: unknown subcommand: %s\n", subcmd);
 	return -1;

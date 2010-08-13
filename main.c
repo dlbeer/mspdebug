@@ -36,6 +36,7 @@
 #include "devcmd.h"
 #include "expr.h"
 #include "opdb.h"
+#include "reader.h"
 
 #include "sim.h"
 #include "bsl.h"
@@ -282,7 +283,7 @@ static void usage(const char *progname)
 	}
 }
 
-static void process_rc_file(cproc_t cp)
+static void process_rc_file(void)
 {
 	const char *home = getenv("HOME");
 	char text[256];
@@ -292,7 +293,7 @@ static void process_rc_file(cproc_t cp)
 
 	snprintf(text, sizeof(text), "%s/.mspdebug", home);
 	if (!access(text, F_OK))
-		cproc_process_file(cp, text);
+		process_file(text);
 }
 
 static int add_fet_device(void *user_data, const struct fet_db_record *r)
@@ -405,10 +406,9 @@ static int parse_cmdline_args(int argc, char **argv,
 	return 0;
 }
 
-cproc_t setup_cproc(struct cmdline_args *args)
+int setup_driver(struct cmdline_args *args)
 {
 	int i;
-	cproc_t cp;
 
 	i = 0;
 	while (i < ARRAY_LEN(driver_table) &&
@@ -417,33 +417,25 @@ cproc_t setup_cproc(struct cmdline_args *args)
 	if (i >= ARRAY_LEN(driver_table)) {
 		fprintf(stderr, "Unknown driver: %s. Try --help for a list.\n",
 			args->driver_name);
-		return NULL;
+		return -1;
 	}
 
 	stab_default = stab_new();
 	if (!stab_default)
-		return NULL;
+		return -1;
 
 	device_default = driver_table[i].func(args);
 	if (!device_default) {
 		stab_destroy(stab_default);
-		return NULL;
+		return -1;
 	}
 
-	cp = cproc_new();
-	if (!cp) {
-		device_default->destroy(device_default);
-		stab_destroy(stab_default);
-		return NULL;
-	}
-
-	return cp;
+	return 0;
 }
 
 int main(int argc, char **argv)
 {
 	struct cmdline_args args = {0};
-	cproc_t cp;
 	int ret = 0;
 
 	puts(
@@ -460,26 +452,24 @@ int main(int argc, char **argv)
 	ctrlc_init();
 	opdb_reset();
 
-	cp = setup_cproc(&args);
-	if (!cp)
+	if (setup_driver(&args) < 0)
 		return -1;
 
 	if (!args.no_rc)
-		process_rc_file(cp);
+		process_rc_file();
 
 	/* Process commands */
 	if (optind < argc) {
 		while (optind < argc) {
-			if (cproc_process_command(cp, argv[optind++]) < 0) {
+			if (process_command(argv[optind++]) < 0) {
 				ret = -1;
 				break;
 			}
 		}
 	} else {
-		cproc_reader_loop(cp);
+		reader_loop();
 	}
 
-	cproc_destroy(cp);
 	stab_destroy(stab_default);
 	device_default->destroy(device_default);
 

@@ -19,13 +19,11 @@
 #ifndef CMDDB_H_
 #define CMDDB_H_
 
-#include "cproc.h"
-
-typedef int (*cproc_command_func_t)(cproc_t cp, char **arg);
+typedef int (*cmddb_func_t)(char **arg);
 
 struct cmddb_record {
 	const char		*name;
-        cproc_command_func_t    func;
+        cmddb_func_t            func;
 	const char		*help;
 };
 

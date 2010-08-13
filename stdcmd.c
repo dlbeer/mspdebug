@@ -23,9 +23,9 @@
 #include "cmddb.h"
 #include "opdb.h"
 #include "vector.h"
-#include "cproc.h"
 #include "stdcmd.h"
 #include "output.h"
+#include "reader.h"
 #include "expr.h"
 
 static int namelist_cmp(const void *a, const void *b)
@@ -101,7 +101,7 @@ static int push_command_name(void *user_data, const struct cmddb_record *rec)
 	return vector_push((struct vector *)user_data, &rec->name, 1);
 }
 
-int cmd_help(cproc_t cp, char **arg)
+int cmd_help(char **arg)
 {
 	const char *topic = get_arg(arg);
 
@@ -200,7 +200,7 @@ static int display_option(void *user_data, const struct opdb_key *key,
 	return 0;
 }
 
-int cmd_opt(cproc_t cp, char **arg)
+int cmd_opt(char **arg)
 {
 	const char *opt_text = get_arg(arg);
 	struct opdb_key key;
@@ -231,7 +231,7 @@ int cmd_opt(cproc_t cp, char **arg)
 	return 0;
 }
 
-int cmd_read(cproc_t cp, char **arg)
+int cmd_read(char **arg)
 {
 	char *filename = get_arg(arg);
 
@@ -240,5 +240,5 @@ int cmd_read(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	return cproc_process_file(cp, filename);
+	return process_file(filename);
 }

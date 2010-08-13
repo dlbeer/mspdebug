@@ -19,9 +19,7 @@
 #ifndef SYM_H_
 #define SYM_H_
 
-#include "cproc.h"
-
-int cmd_eval(cproc_t cp, char **arg);
-int cmd_sym(cproc_t cp, char **arg);
+int cmd_eval(char **arg);
+int cmd_sym(char **arg);
 
 #endif

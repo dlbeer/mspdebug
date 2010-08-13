@@ -20,8 +20,8 @@
 #define STDCMD_H_
 
 /* Built-in commands */
-int cmd_help(cproc_t cp, char **arg);
-int cmd_read(cproc_t cp, char **arg);
-int cmd_opt(cproc_t cp, char **arg);
+int cmd_help(char **arg);
+int cmd_read(char **arg);
+int cmd_opt(char **arg);
 
 #endif
