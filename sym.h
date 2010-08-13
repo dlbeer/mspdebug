@@ -21,7 +21,7 @@
 
 #include "cproc.h"
 
-/* Register symbol-table manipulation commands */
-int sym_register(cproc_t cp);
+int cmd_eval(cproc_t cp, char **arg);
+int cmd_sym(cproc_t cp, char **arg);
 
 #endif

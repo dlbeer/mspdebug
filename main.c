@@ -437,14 +437,6 @@ cproc_t setup_cproc(struct cmdline_args *args)
 		return NULL;
 	}
 
-	if (sym_register(cp) < 0 ||
-	    devcmd_register(cp) < 0 ||
-	    gdb_register(cp) < 0 ||
-	    rtools_register(cp) < 0) {
-		cproc_destroy(cp);
-		return NULL;
-	}
-
 	return cp;
 }
 

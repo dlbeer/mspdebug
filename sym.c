@@ -30,7 +30,7 @@
 #include "vector.h"
 #include "sym.h"
 
-static int cmd_eval(cproc_t cp, char **arg)
+int cmd_eval(cproc_t cp, char **arg)
 {
 	address_t addr;
 	address_t offset;
@@ -288,7 +288,7 @@ static int cmd_sym_del(cproc_t cp, char **arg)
 	return 0;
 }
 
-static int cmd_sym(cproc_t cp, char **arg)
+int cmd_sym(cproc_t cp, char **arg)
 {
 	char *subcmd = get_arg(arg);
 
@@ -345,40 +345,4 @@ static int cmd_sym(cproc_t cp, char **arg)
 
 	fprintf(stderr, "sym: unknown subcommand: %s\n", subcmd);
 	return -1;
-}
-
-static const struct cproc_command commands[] = {
-	{
-		.name = "=",
-		.func = cmd_eval,
-		.help =
-"= <expression>\n"
-"    Evaluate an expression using the symbol table.\n"
-	},
-	{
-		.name = "sym",
-		.func = cmd_sym,
-		.help =
-"sym clear\n"
-"    Clear the symbol table.\n"
-"sym set <name> <value>\n"
-"    Set or overwrite the value of a symbol.\n"
-"sym del <name>\n"
-"    Delete a symbol from the symbol table.\n"
-"sym import <filename>\n"
-"    Load symbols from the given file.\n"
-"sym import+ <filename>\n"
-"    Load additional symbols from the given file.\n"
-"sym export <filename>\n"
-"    Save the current symbols to a BSD-style symbol file.\n"
-"sym find <regex>\n"
-"    Search for symbols by regular expression.\n"
-"sym rename <regex> <string>\n"
-"    Replace every occurance of a pattern in symbol names.\n"
-	}
-};
-
-int sym_register(cproc_t cp)
-{
-	return cproc_register_commands(cp, commands, ARRAY_LEN(commands));
 }

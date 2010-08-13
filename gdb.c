@@ -662,7 +662,7 @@ static int gdb_server(int port)
 	return data.error ? -1 : 0;
 }
 
-static int cmd_gdb(cproc_t cp, char **arg)
+int cmd_gdb(cproc_t cp, char **arg)
 {
 	char *port_text = get_arg(arg);
 	int port = 2000;
@@ -681,17 +681,4 @@ static int cmd_gdb(cproc_t cp, char **arg)
 	} while (opdb_get_boolean("gdb_loop"));
 
 	return 0;
-}
-
-static const struct cproc_command command_gdb = {
-	.name = "gdb",
-	.func = cmd_gdb,
-	.help =
-	"gdb [port]\n"
-	"    Run a GDB remote stub on the given TCP/IP port.\n"
-};
-
-int gdb_register(cproc_t cp)
-{
-	return cproc_register_commands(cp, &command_gdb, 1);
 }

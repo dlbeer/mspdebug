@@ -21,7 +21,7 @@
 
 #include "cproc.h"
 
-/* Register reverse-engineering tool commands. */
-int rtools_register(cproc_t cp);
+int cmd_isearch(cproc_t cp, char **arg);
+int cmd_cgraph(cproc_t cp, char **arg);
 
 #endif

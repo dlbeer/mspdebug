@@ -373,7 +373,7 @@ static int do_isearch(cproc_t cp, address_t addr, address_t len,
 	return 0;
 }
 
-static int cmd_isearch(cproc_t cp, char **arg)
+int cmd_isearch(cproc_t cp, char **arg)
 {
 	const static struct {
 		const char      *name;
@@ -900,7 +900,7 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 	}
 }
 
-static int cmd_cgraph(cproc_t cp, char **arg)
+int cmd_cgraph(cproc_t cp, char **arg)
 {
 	char *offset_text, *len_text, *addr_text;;
 	address_t offset, len, addr;
@@ -964,44 +964,4 @@ static int cmd_cgraph(cproc_t cp, char **arg)
 
 	cgraph_destroy(&graph);
 	return 0;
-}
-
-/************************************************************************
- * Setup and registration
- */
-
-static const struct cproc_command rtools_commands[] = {
-	{
-		.name = "isearch",
-		.func = cmd_isearch,
-		.help =
-"isearch <address> <length> [options ...]\n"
-"    Search for an instruction matching certain search terms. These\n"
-"    terms may be any of the following:\n"
-"        opcode <opcode>\n"
-"        byte|word|aword\n"
-"        jump|single|double|noarg\n"
-"        src <value>\n"
-"        dst <value>\n"
-"        srcreg <register>\n"
-"        dstreg <register>\n"
-"        srcmode R|I|S|&|@|+|#\n"
-"        dstmode R|I|S|&|@|+|#\n"
-"    For single-operand instructions, the operand is considered the\n"
-"    destination operand.\n"
-	},
-	{
-		.name = "cgraph",
-		.func = cmd_cgraph,
-		.help =
-"cgraph <address> <length> [function]\n"
-"    Analyse the range given and produce a call graph. Displays a summary\n"
-"    of all functions if no function address is given.\n"
-	}
-};
-
-int rtools_register(cproc_t cp)
-{
-	return cproc_register_commands(cp, rtools_commands,
-				       ARRAY_LEN(rtools_commands));
 }

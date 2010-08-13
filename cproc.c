@@ -35,48 +35,16 @@
 #include "stab.h"
 #include "util.h"
 #include "output.h"
+#include "cmddb.h"
 
 struct cproc {
-	struct vector           command_list;
-	int                     lists_modified;
-
 	int                     modify_flags;
 	int                     in_reader_loop;
 };
 
-static struct cproc_command *find_command(cproc_t cp, const char *name)
-{
-	int i;
-
-	for (i = 0; i < cp->command_list.size; i++) {
-		struct cproc_command *cmd =
-			VECTOR_PTR(cp->command_list, i, struct cproc_command);
-
-		if (!strcasecmp(cmd->name, name))
-			return cmd;
-	}
-
-	return NULL;
-}
-
 static int namelist_cmp(const void *a, const void *b)
 {
 	return strcasecmp(*(const char **)a, *(const char **)b);
-}
-
-/* NOTE: Both sort_lists and namelist_print assume that the first item in each
- *       vector element is a const char *
- */
-static void sort_lists(cproc_t cp)
-{
-	if (!cp->lists_modified)
-		return;
-
-	if (cp->command_list.ptr)
-		qsort(cp->command_list.ptr, cp->command_list.size,
-		      cp->command_list.elemsize, namelist_cmp);
-
-	cp->lists_modified = 0;
 }
 
 static void namelist_print(struct vector *v)
@@ -84,6 +52,8 @@ static void namelist_print(struct vector *v)
 	int i;
 	int max_len = 0;
 	int rows, cols;
+
+	qsort(v->ptr, v->size, v->elemsize, namelist_cmp);
 
 	for (i = 0; i < v->size; i++) {
 		const char *text = VECTOR_AT(*v, i, const char *);
@@ -137,22 +107,25 @@ static const char *type_text(opdb_type_t type)
 static int push_option_name(void *user_data, const struct opdb_key *key,
 			    const union opdb_value *value)
 {
-	struct vector *v = (struct vector *)user_data;
-
-	return vector_push(v, &key->name, 1);
+	return vector_push((struct vector *)user_data, &key->name, 1);
 }
 
-static int cmd_help(cproc_t cp, char **arg)
+static int push_command_name(void *user_data, const struct cmddb_record *rec)
+{
+	return vector_push((struct vector *)user_data, &rec->name, 1);
+}
+
+int cmd_help(cproc_t cp, char **arg)
 {
 	const char *topic = get_arg(arg);
 
 	if (topic) {
-		const struct cproc_command *cmd = find_command(cp, topic);
+		struct cmddb_record cmd;
 		struct opdb_key key;
 
-		if (cmd) {
+		if (!cmddb_get(topic, &cmd)) {
 			printc("\x1b[1mCOMMAND: %s\x1b[0m\n\n%s\n",
-			       cmd->name, cmd->help);
+			       cmd.name, cmd.help);
 			return 0;
 		}
 
@@ -168,18 +141,23 @@ static int cmd_help(cproc_t cp, char **arg)
 		struct vector v;
 
 		vector_init(&v, sizeof(const char *));
-		sort_lists(cp);
 
-		printf("Available commands:\n");
-		namelist_print(&cp->command_list);
-		printf("\n");
+		if (!cmddb_enum(push_command_name, &v)) {
+			printf("Available commands:\n");
+			namelist_print(&v);
+			printf("\n");
+		} else {
+			perror("help: can't allocate memory for command list");
+		}
+
+		vector_realloc(&v, 0);
 
 		if (!opdb_enum(push_option_name, &v)) {
 			printf("Available options:\n");
 			namelist_print(&v);
 			printf("\n");
 		} else {
-			perror("failed to allocate memory");
+			perror("help: can't allocate memory for option list");
 		}
 
 		vector_destroy(&v);
@@ -236,7 +214,7 @@ static int display_option(void *user_data, const struct opdb_key *key,
 	return 0;
 }
 
-static int cmd_opt(cproc_t cp, char **arg)
+int cmd_opt(cproc_t cp, char **arg)
 {
 	const char *opt_text = get_arg(arg);
 	struct opdb_key key;
@@ -267,7 +245,7 @@ static int cmd_opt(cproc_t cp, char **arg)
 	return 0;
 }
 
-static int cmd_read(cproc_t cp, char **arg)
+int cmd_read(cproc_t cp, char **arg)
 {
 	char *filename = get_arg(arg);
 
@@ -279,32 +257,6 @@ static int cmd_read(cproc_t cp, char **arg)
 	return cproc_process_file(cp, filename);
 }
 
-static const struct cproc_command built_in_commands[] = {
-	{
-		.name = "help",
-		.func = cmd_help,
-		.help =
-"help [command]\n"
-"    Without arguments, displays a list of commands. With a command\n"
-"    name as an argument, displays help for that command.\n"
-	},
-	{
-		.name = "opt",
-		.func = cmd_opt,
-		.help =
-"opt [name] [value]\n"
-"    Query or set option variables. With no arguments, displays all\n"
-"    available options.\n"
-	},
-	{
-		.name = "read",
-		.func = cmd_read,
-		.help =
-"read <filename>\n"
-"    Read commands from a file and evaluate them.\n"
-	}
-};
-
 cproc_t cproc_new(void)
 {
 	cproc_t cp = malloc(sizeof(*cp));
@@ -313,33 +265,12 @@ cproc_t cproc_new(void)
 		return NULL;
 
 	memset(cp, 0, sizeof(*cp));
-
-	vector_init(&cp->command_list, sizeof(struct cproc_command));
-
-	if (vector_push(&cp->command_list, &built_in_commands,
-			ARRAY_LEN(built_in_commands)) < 0) {
-		vector_destroy(&cp->command_list);
-		free(cp);
-		return NULL;
-	}
-
 	return cp;
 }
 
 void cproc_destroy(cproc_t cp)
 {
-	vector_destroy(&cp->command_list);
 	free(cp);
-}
-
-int cproc_register_commands(cproc_t cp, const struct cproc_command *cmd,
-			    int count)
-{
-	if (vector_push(&cp->command_list, cmd, count) < 0)
-		return -1;
-
-	cp->lists_modified = 1;
-	return 0;
 }
 
 void cproc_modify(cproc_t cp, int flags)
@@ -423,14 +354,14 @@ static int process_command(cproc_t cp, char *arg, int interactive)
 
 	cmd_text = get_arg(&arg);
 	if (cmd_text) {
-		const struct cproc_command *cmd = find_command(cp, cmd_text);
+		struct cmddb_record cmd;
 
-		if (cmd) {
+		if (!cmddb_get(cmd_text, &cmd)) {
 			int old = cp->in_reader_loop;
 			int ret;
 
 			cp->in_reader_loop = interactive;
-			ret = cmd->func(cp, &arg);
+			ret = cmd.func(cp, &arg);
 			cp->in_reader_loop = old;
 
 			return ret;

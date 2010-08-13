@@ -21,7 +21,19 @@
 
 #include "cproc.h"
 
-/* Register device commands */
-int devcmd_register(cproc_t cp);
+int cmd_regs(cproc_t cp, char **arg);
+int cmd_md(cproc_t cp, char **arg);
+int cmd_mw(cproc_t cp, char **arg);
+int cmd_reset(cproc_t cp, char **arg);
+int cmd_erase(cproc_t cp, char **arg);
+int cmd_step(cproc_t cp, char **arg);
+int cmd_run(cproc_t cp, char **arg);
+int cmd_set(cproc_t cp, char **arg);
+int cmd_dis(cproc_t cp, char **arg);
+int cmd_hexout(cproc_t cp, char **arg);
+int cmd_prog(cproc_t cp, char **arg);
+int cmd_setbreak(cproc_t cp, char **arg);
+int cmd_delbreak(cproc_t cp, char **arg);
+int cmd_break(cproc_t cp, char **arg);
 
 #endif
