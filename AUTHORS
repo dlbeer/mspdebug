@@ -17,8 +17,11 @@ Peter Jansen <pwjansen@yahoo.com>:
         * Testing and analysis for Olimex MSP430-JTAG-TINY.
         * libusb driver for Olimex MSP430-JTAG-TINY.
 
-Aurélien Gauducheau <aurelien.gauducheau@gmail.com>:
-	* Testing and analysis for MSP430F5529.
+Aurélien Gauducheau <aurelien.gauducheau@gmail.com>, Bondois Nicolas.
+Laboratoire Domus: Recherche en domotique et en informatique mobile
+(http://domus.usherbrooke.ca/?locale=en). Under supervision of
+Bessam Abdulrazak (http://pages.usherbrooke.ca/babdulrazak/):
+        * Testing and analysis for MSP430F5529.
 
 Andres Vahter <andres.vahter@gmail.com>:
 	* Support for MSP430F2234.
