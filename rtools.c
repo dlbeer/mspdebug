@@ -344,7 +344,6 @@ static int do_isearch(cproc_t cp, address_t addr, address_t len,
 		      const struct isearch_query *q)
 {
 	uint8_t *mbuf;
-	device_t dev = cproc_device(cp);
 	address_t i;
 
 	mbuf = malloc(len);
@@ -354,7 +353,7 @@ static int do_isearch(cproc_t cp, address_t addr, address_t len,
 		return -1;
 	}
 
-	if (dev->readmem(dev, addr, mbuf, len) < 0) {
+	if (device_default->readmem(device_default, addr, mbuf, len) < 0) {
 		fprintf(stderr, "isearch: couldn't read device memory\n");
 		free(mbuf);
 		return -1;
@@ -903,7 +902,6 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 
 static int cmd_cgraph(cproc_t cp, char **arg)
 {
-	device_t dev = cproc_device(cp);
 	char *offset_text, *len_text, *addr_text;;
 	address_t offset, len, addr;
 	uint8_t *memory;
@@ -945,7 +943,7 @@ static int cmd_cgraph(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (dev->readmem(dev, offset, memory, len) < 0) {
+	if (device_default->readmem(device_default, offset, memory, len) < 0) {
 		fprintf(stderr, "cgraph: couldn't fetch memory\n");
 		free(memory);
 		return -1;

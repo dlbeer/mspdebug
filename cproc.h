@@ -19,8 +19,6 @@
 #ifndef CPROC_H_
 #define CPROC_H_
 
-#include "device.h"
-
 /* Command processor.
  *
  * This contains a list of all defined commands and options, plus modification
@@ -89,11 +87,8 @@ struct cproc_option {
  * has been given. When you destroy a command processor, the device is
  * also destroyed.
  */
-cproc_t cproc_new(device_t dev);
+cproc_t cproc_new(void);
 void cproc_destroy(cproc_t cp);
-
-/* Fetch the command processor's device and symbol table */
-device_t cproc_device(cproc_t cp);
 
 /* Register commands and options with the command processor. These functions
  * return 0 on success or -1 if an error occurs (failure to allocate memory).

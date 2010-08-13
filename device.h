@@ -25,6 +25,8 @@
 struct device;
 typedef struct device *device_t;
 
+extern device_t device_default;
+
 typedef enum {
 	DEVICE_CTL_RESET,
 	DEVICE_CTL_RUN,

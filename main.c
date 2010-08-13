@@ -407,7 +407,6 @@ static int parse_cmdline_args(int argc, char **argv,
 cproc_t setup_cproc(struct cmdline_args *args)
 {
 	int i;
-	device_t msp430_dev;
 	cproc_t cp;
 
 	i = 0;
@@ -424,15 +423,15 @@ cproc_t setup_cproc(struct cmdline_args *args)
 	if (!stab_default)
 		return NULL;
 
-	msp430_dev = driver_table[i].func(args);
-	if (!msp430_dev) {
+	device_default = driver_table[i].func(args);
+	if (!device_default) {
 		stab_destroy(stab_default);
 		return NULL;
 	}
 
-	cp = cproc_new(msp430_dev);
+	cp = cproc_new();
 	if (!cp) {
-		msp430_dev->destroy(msp430_dev);
+		device_default->destroy(device_default);
 		stab_destroy(stab_default);
 		return NULL;
 	}
@@ -488,6 +487,7 @@ int main(int argc, char **argv)
 
 	cproc_destroy(cp);
 	stab_destroy(stab_default);
+	device_default->destroy(device_default);
 
 	return ret;
 }

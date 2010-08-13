@@ -47,8 +47,6 @@ struct gdb_data {
 
 	char            outbuf[MAX_MEM_XFER * 2 + 64];
 	int             outlen;
-
-	device_t        device;
 };
 
 static void gdb_printf(struct gdb_data *data, const char *fmt, ...)
@@ -217,7 +215,7 @@ static int read_registers(struct gdb_data *data)
 	int i;
 
 	printf("Reading registers\n");
-	if (data->device->getregs(data->device, regs) < 0)
+	if (device_default->getregs(device_default, regs) < 0)
 		return gdb_send(data, "E00");
 
 	gdb_packet_start(data);
@@ -245,11 +243,11 @@ static int monitor_command(struct gdb_data *data, char *buf)
 
 	if (!strcasecmp(cmd, "reset")) {
 		printf("Resetting device\n");
-		if (data->device->ctl(data->device, DEVICE_CTL_RESET) < 0)
+		if (device_default->ctl(device_default, DEVICE_CTL_RESET) < 0)
 			return gdb_send_hex(data, "Reset failed\n");
 	} else if (!strcasecmp(cmd, "erase")) {
 		printf("Erasing device\n");
-		if (data->device->ctl(data->device, DEVICE_CTL_ERASE) < 0)
+		if (device_default->ctl(device_default, DEVICE_CTL_ERASE) < 0)
 			return gdb_send_hex(data, "Erase failed\n");
 	}
 
@@ -273,7 +271,7 @@ static int write_registers(struct gdb_data *data, char *buf)
 		buf += 4;
 	}
 
-	if (data->device->setregs(data->device, regs) < 0)
+	if (device_default->setregs(device_default, regs) < 0)
 		return gdb_send(data, "E00");
 
 	return gdb_send(data, "OK");
@@ -301,7 +299,7 @@ static int read_memory(struct gdb_data *data, char *text)
 
 	printf("Reading %d bytes from 0x%04x\n", length, addr);
 
-	if (data->device->readmem(data->device, addr, buf, length) < 0)
+	if (device_default->readmem(device_default, addr, buf, length) < 0)
 		return gdb_send(data, "E00");
 
 	gdb_packet_start(data);
@@ -344,7 +342,7 @@ static int write_memory(struct gdb_data *data, char *text)
 
 	printf("Writing %d bytes to 0x%04x\n", buflen, addr);
 
-	if (data->device->writemem(data->device, addr, buf, buflen) < 0)
+	if (device_default->writemem(device_default, addr, buf, buflen) < 0)
 		return gdb_send(data, "E00");
 
 	return gdb_send(data, "OK");
@@ -357,11 +355,11 @@ static int run_set_pc(struct gdb_data *data, char *buf)
 	if (!*buf)
 		return 0;
 
-	if (data->device->getregs(data->device, regs) < 0)
+	if (device_default->getregs(device_default, regs) < 0)
 		return -1;
 
 	regs[0] = strtoul(buf, NULL, 16);
-	return data->device->setregs(data->device, regs);
+	return device_default->setregs(device_default, regs);
 }
 
 static int run_final_status(struct gdb_data *data)
@@ -369,7 +367,7 @@ static int run_final_status(struct gdb_data *data)
 	address_t regs[DEVICE_NUM_REGS];
 	int i;
 
-	if (data->device->getregs(data->device, regs) < 0)
+	if (device_default->getregs(device_default, regs) < 0)
 		return gdb_send(data, "E00");
 
 	gdb_packet_start(data);
@@ -398,7 +396,7 @@ static int single_step(struct gdb_data *data, char *buf)
 	printf("Single stepping\n");
 
 	if (run_set_pc(data, buf) < 0 ||
-	    data->device->ctl(data->device, DEVICE_CTL_STEP) < 0)
+	    device_default->ctl(device_default, DEVICE_CTL_STEP) < 0)
 		gdb_send(data, "E00");
 
 	return run_final_status(data);
@@ -409,11 +407,11 @@ static int run(struct gdb_data *data, char *buf)
 	printf("Running\n");
 
 	if (run_set_pc(data, buf) < 0 ||
-	    data->device->ctl(data->device, DEVICE_CTL_RUN) < 0)
+	    device_default->ctl(device_default, DEVICE_CTL_RUN) < 0)
 		return gdb_send(data, "E00");
 
 	for (;;) {
-		device_status_t status = data->device->poll(data->device);
+		device_status_t status = device_default->poll(device_default);
 
 		if (status == DEVICE_STATUS_ERROR)
 			return gdb_send(data, "E00");
@@ -440,7 +438,7 @@ static int run(struct gdb_data *data, char *buf)
 	}
 
  out:
-	if (data->device->ctl(data->device, DEVICE_CTL_HALT) < 0)
+	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0)
 		return gdb_send(data, "E00");
 
 	return run_final_status(data);
@@ -481,7 +479,7 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 	addr = strtoul(parts[1], NULL, 16);
 
 	if (enable) {
-		if (device_setbrk(data->device, -1, 1, addr) < 0) {
+		if (device_setbrk(device_default, -1, 1, addr) < 0) {
 			fprintf(stderr, "gdb: can't add breakpoint at "
 				"0x%04x\n", addr);
 			return gdb_send(data, "E00");
@@ -489,7 +487,7 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 
 		printf("Breakpoint set at 0x%04x\n", addr);
 	} else {
-		device_setbrk(data->device, -1, 0, addr);
+		device_setbrk(device_default, -1, 0, addr);
 		printf("Breakpoint cleared at 0x%04x\n", addr);
 	}
 
@@ -597,7 +595,7 @@ static void gdb_reader_loop(struct gdb_data *data)
 	}
 }
 
-static int gdb_server(device_t device, int port)
+static int gdb_server(int port)
 {
 	int sock;
 	int client;
@@ -652,12 +650,11 @@ static int gdb_server(device_t device, int port)
 	data.head = 0;
 	data.tail = 0;
 	data.outlen = 0;
-	data.device = device;
 
 	/* Put the hardware breakpoint setting into a known state. */
 	printf("Clearing all breakpoints...\n");
-	for (i = 0; i < device->max_breakpoints; i++)
-		device_setbrk(device, i, 0, 0);
+	for (i = 0; i < device_default->max_breakpoints; i++)
+		device_setbrk(device_default, i, 0, 0);
 
 	gdb_reader_loop(&data);
 
@@ -681,7 +678,7 @@ static int cmd_gdb(cproc_t cp, char **arg)
 	}
 
 	do {
-		if (gdb_server(cproc_device(cp), port) < 0)
+		if (gdb_server(port) < 0)
 			return -1;
 	} while (want_loop);
 

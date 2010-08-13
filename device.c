@@ -18,6 +18,8 @@
 
 #include "device.h"
 
+device_t device_default;
+
 static int addbrk(device_t dev, uint16_t addr)
 {
 	int i;
