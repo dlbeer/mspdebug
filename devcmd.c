@@ -54,7 +54,6 @@ static int cmd_regs(cproc_t cp, char **arg)
 
 static int cmd_md(cproc_t cp, char **arg)
 {
-	stab_t stab = cproc_stab(cp);
 	device_t dev = cproc_device(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
@@ -66,13 +65,13 @@ static int cmd_md(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab, off_text, &offset) < 0) {
+	if (expr_eval(stab_default, off_text, &offset) < 0) {
 		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (expr_eval(stab, len_text, &length) < 0) {
+		if (expr_eval(stab_default, len_text, &length) < 0) {
 			fprintf(stderr, "md: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -99,7 +98,6 @@ static int cmd_md(cproc_t cp, char **arg)
 static int cmd_mw(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	stab_t stab = cproc_stab(cp);
 	char *off_text = get_arg(arg);
 	char *byte_text;
 	address_t offset = 0;
@@ -111,7 +109,7 @@ static int cmd_mw(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab, off_text, &offset) < 0) {
+	if (expr_eval(stab_default, off_text, &offset) < 0) {
 		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
@@ -222,7 +220,6 @@ static int cmd_run(cproc_t cp, char **arg)
 static int cmd_set(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	stab_t stab = cproc_stab(cp);
 	char *reg_text = get_arg(arg);
 	char *val_text = get_arg(arg);
 	int reg;
@@ -240,7 +237,7 @@ static int cmd_set(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab, val_text, &value) < 0) {
+	if (expr_eval(stab_default, val_text, &value) < 0) {
 		fprintf(stderr, "set: can't parse value: %s\n", val_text);
 		return -1;
 	}
@@ -258,7 +255,6 @@ static int cmd_set(cproc_t cp, char **arg)
 static int cmd_dis(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	stab_t stab = cproc_stab(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
 	address_t offset = 0;
@@ -270,13 +266,13 @@ static int cmd_dis(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab, off_text, &offset) < 0) {
+	if (expr_eval(stab_default, off_text, &offset) < 0) {
 		fprintf(stderr, "dis: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (expr_eval(stab, len_text, &length) < 0) {
+		if (expr_eval(stab_default, len_text, &length) < 0) {
 			fprintf(stderr, "dis: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -408,7 +404,6 @@ static int hexout_feed(struct hexout_data *hexout,
 static int cmd_hexout(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	stab_t stab = cproc_stab(cp);
 	char *off_text = get_arg(arg);
 	char *len_text = get_arg(arg);
 	char *filename = *arg;
@@ -421,8 +416,8 @@ static int cmd_hexout(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab, off_text, &off) < 0 ||
-	    expr_eval(stab, len_text, &length) < 0)
+	if (expr_eval(stab_default, off_text, &off) < 0 ||
+	    expr_eval(stab_default, len_text, &length) < 0)
 		return -1;
 
 	if (hexout_start(&hexout, filename) < 0)
@@ -547,7 +542,6 @@ static int prog_feed(void *user_data,
 static int cmd_prog(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	stab_t stab = cproc_stab(cp);
 	FILE *in;
 	struct prog_data prog;
 
@@ -573,8 +567,8 @@ static int cmd_prog(cproc_t cp, char **arg)
 	}
 
 	if (binfile_info(in) & BINFILE_HAS_SYMS) {
-		stab_clear(stab);
-		binfile_syms(in, stab);
+		stab_clear(stab_default);
+		binfile_syms(in, stab_default);
 	}
 
 	fclose(in);
@@ -594,7 +588,6 @@ static int cmd_prog(cproc_t cp, char **arg)
 static int cmd_setbreak(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	stab_t stab = cproc_stab(cp);
 	char *addr_text = get_arg(arg);
 	char *index_text = get_arg(arg);
 	int index = -1;
@@ -605,7 +598,7 @@ static int cmd_setbreak(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab, addr_text, &addr) < 0) {
+	if (expr_eval(stab_default, addr_text, &addr) < 0) {
 		fprintf(stderr, "setbreak: invalid address\n");
 		return -1;
 	}
@@ -662,7 +655,6 @@ static int cmd_delbreak(cproc_t cp, char **arg)
 static int cmd_break(cproc_t cp, char **arg)
 {
 	device_t dev = cproc_device(cp);
-	stab_t stab = cproc_stab(cp);
 	int i;
 
 	printf("%d breakpoints available:\n", dev->max_breakpoints);
@@ -674,7 +666,7 @@ static int cmd_break(cproc_t cp, char **arg)
 			address_t offset;
 
 			printf("    %d. 0x%05x", i, bp->addr);
-			if (!stab_nearest(stab, bp->addr, name,
+			if (!stab_nearest(stab_default, bp->addr, name,
 					  sizeof(name), &offset)) {
 				printf(" (%s", name);
 				if (offset)

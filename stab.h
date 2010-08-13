@@ -25,6 +25,8 @@
 struct stab;
 typedef struct stab *stab_t;
 
+extern stab_t stab_default;
+
 /* Create/destroy a symbol table. The constructor returns NULL if it
  * was unable to allocate memory for the table.
  */

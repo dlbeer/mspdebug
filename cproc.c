@@ -43,7 +43,6 @@ struct cproc {
 	int                     in_reader_loop;
 
 	device_t                device;
-	stab_t                  stab;
 };
 
 static struct cproc_option *find_option(cproc_t cp, const char *name)
@@ -199,8 +198,7 @@ static int cmd_help(cproc_t cp, char **arg)
 	return 0;
 }
 
-static int parse_option(stab_t stab,
-			struct cproc_option *o, const char *word)
+static int parse_option(struct cproc_option *o, const char *word)
 {
 	switch (o->type) {
 	case CPROC_OPTION_BOOL:
@@ -210,7 +208,7 @@ static int parse_option(stab_t stab,
 		break;
 
 	case CPROC_OPTION_NUMERIC:
-		return expr_eval(stab, word, &o->data.numeric);
+		return expr_eval(stab_default, word, &o->data.numeric);
 
 	case CPROC_OPTION_STRING:
 		strncpy(o->data.text, word, sizeof(o->data.text));
@@ -260,7 +258,7 @@ static int cmd_opt(cproc_t cp, char **arg)
 	}
 
 	if (**arg) {
-		if (parse_option(cp->stab, opt, *arg) < 0) {
+		if (parse_option(opt, *arg) < 0) {
 			fprintf(stderr, "opt: can't parse option: %s\n",
 				*arg);
 			return -1;
@@ -324,7 +322,7 @@ static const struct cproc_option built_in_options[] = {
 	}
 };
 
-cproc_t cproc_new(device_t dev, stab_t st)
+cproc_t cproc_new(device_t dev)
 {
 	cproc_t cp = malloc(sizeof(*cp));
 
@@ -334,7 +332,6 @@ cproc_t cproc_new(device_t dev, stab_t st)
 	memset(cp, 0, sizeof(*cp));
 
 	cp->device = dev;
-	cp->stab = st;
 
 	vector_init(&cp->command_list, sizeof(struct cproc_command));
 	vector_init(&cp->option_list, sizeof(struct cproc_option));
@@ -357,18 +354,12 @@ void cproc_destroy(cproc_t cp)
 	cp->device->destroy(cp->device);
 	vector_destroy(&cp->command_list);
 	vector_destroy(&cp->option_list);
-	stab_destroy(cp->stab);
 	free(cp);
 }
 
 device_t cproc_device(cproc_t cp)
 {
 	return cp->device;
-}
-
-stab_t cproc_stab(cproc_t cp)
-{
-	return cp->stab;
 }
 
 int cproc_register_commands(cproc_t cp, const struct cproc_command *cmd,

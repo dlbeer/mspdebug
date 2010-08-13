@@ -46,14 +46,13 @@
 #include "olimex.h"
 #include "rf2500.h"
 
-static void io_prefix(stab_t stab,
-		      const char *prefix, uint16_t pc,
+static void io_prefix(const char *prefix, uint16_t pc,
 		      uint16_t addr, int is_byte)
 {
 	char name[64];
 	address_t offset;
 
-	if (!stab_nearest(stab, pc, name, sizeof(name), &offset)) {
+	if (!stab_nearest(stab_default, pc, name, sizeof(name), &offset)) {
 		printf("%s", name);
 		if (offset)
 			printf("+0x%x", offset);
@@ -62,7 +61,7 @@ static void io_prefix(stab_t stab,
 	}
 
 	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
-	if (!stab_nearest(stab, addr, name, sizeof(name), &offset)) {
+	if (!stab_nearest(stab_default, addr, name, sizeof(name), &offset)) {
 		printf(" (%s", name);
 		if (offset)
 			printf("+0x%x", offset);
@@ -73,9 +72,7 @@ static void io_prefix(stab_t stab,
 static int fetch_io(void *user_data, uint16_t pc,
 		    uint16_t addr, int is_byte, uint16_t *data_ret)
 {
-	stab_t stab = (stab_t)user_data;
-
-	io_prefix(stab, "READ", pc, addr, is_byte);
+	io_prefix("READ", pc, addr, is_byte);
 
 	for (;;) {
 		char text[128];
@@ -97,7 +94,7 @@ static int fetch_io(void *user_data, uint16_t pc,
 		if (!len)
 			return 0;
 
-		if (!expr_eval(stab, text, &data)) {
+		if (!expr_eval(stab_default, text, &data)) {
 			if (data_ret)
 				*data_ret = data;
 			return 0;
@@ -110,9 +107,7 @@ static int fetch_io(void *user_data, uint16_t pc,
 static void store_io(void *user_data, uint16_t pc,
 		     uint16_t addr, int is_byte, uint16_t data)
 {
-	stab_t stab = (stab_t)user_data;
-
-	io_prefix(stab, "WRITE", pc, addr, is_byte);
+	io_prefix("WRITE", pc, addr, is_byte);
 
 	if (is_byte)
 		printf(" => 0x%02x\n", data & 0xff);
@@ -128,7 +123,6 @@ struct cmdline_args {
 	int             want_jtag;
 	int             no_rc;
 	int             vcc_mv;
-	stab_t          stab;
 };
 
 struct driver {
@@ -187,7 +181,7 @@ static device_t driver_open_olimex(const struct cmdline_args *args)
 
 static device_t driver_open_sim(const struct cmdline_args *args)
 {
-	return sim_open(fetch_io, store_io, args->stab);
+	return sim_open(fetch_io, store_io, NULL);
 }
 
 static device_t driver_open_uif(const struct cmdline_args *args)
@@ -414,7 +408,6 @@ cproc_t setup_cproc(struct cmdline_args *args)
 {
 	int i;
 	device_t msp430_dev;
-	stab_t stab;
 	cproc_t cp;
 
 	i = 0;
@@ -427,21 +420,20 @@ cproc_t setup_cproc(struct cmdline_args *args)
 		return NULL;
 	}
 
-	stab = stab_new();
-	if (!stab)
+	stab_default = stab_new();
+	if (!stab_default)
 		return NULL;
-	args->stab = stab;
 
 	msp430_dev = driver_table[i].func(args);
 	if (!msp430_dev) {
-		stab_destroy(stab);
+		stab_destroy(stab_default);
 		return NULL;
 	}
 
-	cp = cproc_new(msp430_dev, stab);
+	cp = cproc_new(msp430_dev);
 	if (!cp) {
 		msp430_dev->destroy(msp430_dev);
-		stab_destroy(stab);
+		stab_destroy(stab_default);
 		return NULL;
 	}
 
@@ -495,6 +487,7 @@ int main(int argc, char **argv)
 	}
 
 	cproc_destroy(cp);
+	stab_destroy(stab_default);
 
 	return ret;
 }

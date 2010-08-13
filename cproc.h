@@ -20,7 +20,6 @@
 #define CPROC_H_
 
 #include "device.h"
-#include "stab.h"
 
 /* Command processor.
  *
@@ -90,12 +89,11 @@ struct cproc_option {
  * has been given. When you destroy a command processor, the device is
  * also destroyed.
  */
-cproc_t cproc_new(device_t dev, stab_t st);
+cproc_t cproc_new(device_t dev);
 void cproc_destroy(cproc_t cp);
 
 /* Fetch the command processor's device and symbol table */
 device_t cproc_device(cproc_t cp);
-stab_t cproc_stab(cproc_t cp);
 
 /* Register commands and options with the command processor. These functions
  * return 0 on success or -1 if an error occurs (failure to allocate memory).

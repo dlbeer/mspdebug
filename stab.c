@@ -28,6 +28,8 @@
 #include "stab.h"
 #include "util.h"
 
+stab_t stab_default;
+
 /************************************************************************
  * B+Tree definitions
  */

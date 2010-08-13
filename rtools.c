@@ -154,7 +154,7 @@ static int isearch_addr(cproc_t cp, const char *term, char **arg,
 		return -1;
 	}
 
-	if (expr_eval(cproc_stab(cp), addr_text, &addr) < 0)
+	if (expr_eval(stab_default, addr_text, &addr) < 0)
 		return -1;
 
 	q->flags |= which;
@@ -397,7 +397,6 @@ static int cmd_isearch(cproc_t cp, char **arg)
 		{"dstmode",     isearch_mode}
 	};
 
-	stab_t stab = cproc_stab(cp);
 	struct isearch_query q;
 	const char *addr_text;
 	const char *len_text;
@@ -412,8 +411,8 @@ static int cmd_isearch(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab, addr_text, &addr) < 0 ||
-	    expr_eval(stab, len_text, &len) < 0)
+	if (expr_eval(stab_default, addr_text, &addr) < 0 ||
+	    expr_eval(stab_default, len_text, &len) < 0)
 		return -1;
 
 	q.flags = 0;
@@ -745,7 +744,7 @@ static int add_symbol_nodes(void *user_data, const char *name,
 }
 
 static int cgraph_init(address_t offset, address_t len, uint8_t *memory,
-		       struct call_graph *graph, stab_t stab)
+		       struct call_graph *graph)
 {
 	vector_init(&graph->edge_to, sizeof(struct cg_edge));
 	vector_init(&graph->edge_from, sizeof(struct cg_edge));
@@ -759,7 +758,7 @@ static int cgraph_init(address_t offset, address_t len, uint8_t *memory,
 	if (add_irq_edges(offset, len, memory, graph) < 0)
 		goto fail;
 
-	if (stab_enum(stab, add_symbol_nodes, graph) < 0)
+	if (stab_enum(stab_default, add_symbol_nodes, graph) < 0)
 		goto fail;
 	if (add_nodes_from_edges(graph) < 0)
 		goto fail;
@@ -780,7 +779,6 @@ static int cgraph_init(address_t offset, address_t len, uint8_t *memory,
 
 static void cgraph_summary(struct call_graph *graph, cproc_t cp)
 {
-	stab_t stab = cproc_stab(cp);
 	int i;
 	int j = 0; /* Edge from index */
 	int k = 0; /* Edge to index */
@@ -812,7 +810,8 @@ static void cgraph_summary(struct call_graph *graph, cproc_t cp)
 			k++;
 		}
 
-		if (stab_nearest(stab, n->offset, name, sizeof(name), &o) ||
+		if (stab_nearest(stab_default, n->offset,
+				 name, sizeof(name), &o) ||
 		    o)
 			name[0] = 0;
 
@@ -824,7 +823,6 @@ static void cgraph_summary(struct call_graph *graph, cproc_t cp)
 static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 			     int addr)
 {
-	stab_t stab = cproc_stab(cp);
 	int i = 0;
 	int j = 0;
 	int k = 0;
@@ -851,7 +849,8 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 	       CG_EDGE_TO(graph, k)->dst < n->offset)
 		k++;
 
-	if (stab_nearest(stab, n->offset, name, sizeof(name), &offset))
+	if (stab_nearest(stab_default, n->offset,
+			 name, sizeof(name), &offset))
 		printf("0x%04x:\n", n->offset);
 	else if (offset)
 		printf("0x%04x %s+0x%x:\n", n->offset, name, offset);
@@ -867,7 +866,8 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 			if (e->src != n->offset)
 				break;
 
-			if (stab_nearest(stab, e->dst, name, sizeof(name),
+			if (stab_nearest(stab_default, e->dst,
+					 name, sizeof(name),
 					 &offset) ||
 			    offset)
 				snprintf(name, sizeof(name), "0x%04x", e->dst);
@@ -888,7 +888,8 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 			if (e->dst != n->offset)
 				break;
 
-			if (stab_nearest(stab, e->src, name, sizeof(name),
+			if (stab_nearest(stab_default, e->src,
+					 name, sizeof(name),
 					 &offset) ||
 			    offset)
 				snprintf(name, sizeof(name), "0x%04x", e->src);
@@ -902,7 +903,6 @@ static void cgraph_func_info(struct call_graph *graph, cproc_t cp,
 
 static int cmd_cgraph(cproc_t cp, char **arg)
 {
-	stab_t stab = cproc_stab(cp);
 	device_t dev = cproc_device(cp);
 	char *offset_text, *len_text, *addr_text;;
 	address_t offset, len, addr;
@@ -920,19 +920,19 @@ static int cmd_cgraph(cproc_t cp, char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab, offset_text, &offset) < 0) {
+	if (expr_eval(stab_default, offset_text, &offset) < 0) {
 		fprintf(stderr, "cgraph: invalid offset: %s\n", offset_text);
 		return -1;
 	}
 	offset &= ~1;
 
-	if (expr_eval(stab, len_text, &len) < 0) {
+	if (expr_eval(stab_default, len_text, &len) < 0) {
 		fprintf(stderr, "cgraph: invalid length: %s\n", len_text);
 		return -1;
 	}
 	len &= ~1;
 
-	if (addr_text && expr_eval(stab, addr_text, &addr) < 0) {
+	if (addr_text && expr_eval(stab_default, addr_text, &addr) < 0) {
 		fprintf(stderr, "cgraph: invalid address: %s\n", addr_text);
 		return -1;
 	}
@@ -952,7 +952,7 @@ static int cmd_cgraph(cproc_t cp, char **arg)
 	}
 
 	/* Produce and display the call graph */
-	if (cgraph_init(offset, len, memory, &graph, cproc_stab(cp)) < 0) {
+	if (cgraph_init(offset, len, memory, &graph) < 0) {
 		fprintf(stderr, "cgraph: couldn't build call graph\n");
 		free(memory);
 		return -1;
