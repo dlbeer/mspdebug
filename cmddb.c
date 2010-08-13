@@ -26,6 +26,7 @@
 #include "rtools.h"
 #include "cproc.h"
 #include "sym.h"
+#include "stdcmd.h"
 
 const struct cmddb_record commands[] = {
 	{

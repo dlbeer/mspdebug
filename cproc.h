@@ -69,9 +69,4 @@ void cproc_reader_loop(cproc_t cp);
 int cproc_process_command(cproc_t cp, char *cmd);
 int cproc_process_file(cproc_t cp, const char *filename);
 
-/* Built-in commands */
-int cmd_help(cproc_t cp, char **arg);
-int cmd_read(cproc_t cp, char **arg);
-int cmd_opt(cproc_t cp, char **arg);
-
 #endif
