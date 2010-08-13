@@ -113,6 +113,9 @@ int open_serial(const char *device, int rate)
 	int fd = open(device, O_RDWR | O_NOCTTY);
 	struct termios attr;
 
+	if (fd < 0)
+		return -1;
+
 	tcgetattr(fd, &attr);
 	cfmakeraw(&attr);
 	cfsetispeed(&attr, rate);
