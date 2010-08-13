@@ -28,6 +28,7 @@
 #include <readline/history.h>
 #endif
 
+#include "opdb.h"
 #include "expr.h"
 #include "cproc.h"
 #include "vector.h"
@@ -36,27 +37,11 @@
 
 struct cproc {
 	struct vector           command_list;
-	struct vector           option_list;
 	int                     lists_modified;
 
 	int                     modify_flags;
 	int                     in_reader_loop;
 };
-
-static struct cproc_option *find_option(cproc_t cp, const char *name)
-{
-	int i;
-
-	for (i = 0; i < cp->option_list.size; i++) {
-		struct cproc_option *opt =
-			VECTOR_PTR(cp->option_list, i, struct cproc_option);
-
-		if (!strcasecmp(opt->name, name))
-			return opt;
-	}
-
-	return NULL;
-}
 
 static struct cproc_command *find_command(cproc_t cp, const char *name)
 {
@@ -89,10 +74,6 @@ static void sort_lists(cproc_t cp)
 	if (cp->command_list.ptr)
 		qsort(cp->command_list.ptr, cp->command_list.size,
 		      cp->command_list.elemsize, namelist_cmp);
-
-	if (cp->option_list.ptr)
-		qsort(cp->option_list.ptr, cp->option_list.size,
-		      cp->option_list.elemsize, namelist_cmp);
 
 	cp->lists_modified = 0;
 }
@@ -136,20 +117,28 @@ static void namelist_print(struct vector *v)
 	}
 }
 
-static const char *type_text(cproc_option_type_t type)
+static const char *type_text(opdb_type_t type)
 {
 	switch (type) {
-	case CPROC_OPTION_BOOL:
+	case OPDB_TYPE_BOOLEAN:
 		return "boolean";
 
-	case CPROC_OPTION_NUMERIC:
+	case OPDB_TYPE_NUMERIC:
 		return "numeric";
 
-	case CPROC_OPTION_STRING:
+	case OPDB_TYPE_STRING:
 		return "text";
 	}
 
 	return "unknown";
+}
+
+static int push_option_name(void *user_data, const struct opdb_key *key,
+			    const union opdb_value *value)
+{
+	struct vector *v = (struct vector *)user_data;
+
+	return vector_push(v, &key->name, 1);
 }
 
 static int cmd_help(cproc_t cp, char **arg)
@@ -158,36 +147,43 @@ static int cmd_help(cproc_t cp, char **arg)
 
 	if (topic) {
 		const struct cproc_command *cmd = find_command(cp, topic);
-		const struct cproc_option *opt = find_option(cp, topic);
+		struct opdb_key key;
 
 		if (cmd) {
 			cproc_printf(cp, "\x1b[1mCOMMAND: %s\x1b[0m\n",
 				     cmd->name);
 			fputs(cmd->help, stdout);
-			if (opt)
-				printf("\n");
+			return 0;
 		}
 
-		if (opt) {
+		if (!opdb_get(topic, &key, NULL)) {
 			cproc_printf(cp, "\x1b[1mOPTION: %s (%s)\x1b[0m\n",
-				     opt->name, type_text(opt->type));
-			fputs(opt->help, stdout);
+				     key.name, type_text(key.type));
+			fputs(key.help, stdout);
+			return 0;
 		}
 
-		if (!(cmd || opt)) {
-			fprintf(stderr, "help: unknown command: %s\n", topic);
-			return -1;
-		}
+		fprintf(stderr, "help: unknown command: %s\n", topic);
+		return -1;
 	} else {
+		struct vector v;
+
+		vector_init(&v, sizeof(const char *));
 		sort_lists(cp);
 
 		printf("Available commands:\n");
 		namelist_print(&cp->command_list);
 		printf("\n");
 
-		printf("Available options:\n");
-		namelist_print(&cp->option_list);
-		printf("\n");
+		if (!opdb_enum(push_option_name, &v)) {
+			printf("Available options:\n");
+			namelist_print(&v);
+			printf("\n");
+		} else {
+			perror("failed to allocate memory");
+		}
+
+		vector_destroy(&v);
 
 		printf("Type \"help <topic>\" for more information.\n");
 		printf("Press Ctrl+D to quit.\n");
@@ -196,59 +192,59 @@ static int cmd_help(cproc_t cp, char **arg)
 	return 0;
 }
 
-static int parse_option(struct cproc_option *o, const char *word)
+static int parse_option(opdb_type_t type, union opdb_value *value,
+			const char *word)
 {
-	switch (o->type) {
-	case CPROC_OPTION_BOOL:
-		o->data.numeric = (isdigit(word[0]) && word[0] > '0') ||
+	switch (type) {
+	case OPDB_TYPE_BOOLEAN:
+		value->numeric = (isdigit(word[0]) && word[0] > '0') ||
 			word[0] == 't' || word[0] == 'y' ||
 			(word[0] == 'o' && word[1] == 'n');
 		break;
 
-	case CPROC_OPTION_NUMERIC:
-		return expr_eval(stab_default, word, &o->data.numeric);
+	case OPDB_TYPE_NUMERIC:
+		return expr_eval(stab_default, word, &value->numeric);
 
-	case CPROC_OPTION_STRING:
-		strncpy(o->data.text, word, sizeof(o->data.text));
-		o->data.text[sizeof(o->data.text) - 1] = 0;
+	case OPDB_TYPE_STRING:
+		strncpy(value->string, word, sizeof(value->string));
+		value->string[sizeof(value->string) - 1] = 0;
 		break;
 	}
 
 	return 0;
 }
 
-static void display_option(const struct cproc_option *o)
+static int display_option(void *user_data, const struct opdb_key *key,
+			  const union opdb_value *value)
 {
-	printf("%32s = ", o->name);
+	printf("%32s = ", key->name);
 
-	switch (o->type) {
-	case CPROC_OPTION_BOOL:
-		printf("%s", o->data.numeric ? "true" : "false");
+	switch (key->type) {
+	case OPDB_TYPE_BOOLEAN:
+		printf("%s", value->boolean ? "true" : "false");
 		break;
 
-	case CPROC_OPTION_NUMERIC:
-		printf("0x%x (%u)", o->data.numeric,
-		       o->data.numeric);
+	case OPDB_TYPE_NUMERIC:
+		printf("0x%x (%u)", value->numeric, value->numeric);
 		break;
 
-	case CPROC_OPTION_STRING:
-		printf("%s", o->data.text);
+	case OPDB_TYPE_STRING:
+		printf("%s", value->string);
 		break;
 	}
 
 	printf("\n");
+	return 0;
 }
 
 static int cmd_opt(cproc_t cp, char **arg)
 {
 	const char *opt_text = get_arg(arg);
-	struct cproc_option *opt = NULL;
-
-	sort_lists(cp);
+	struct opdb_key key;
+	union opdb_value value;
 
 	if (opt_text) {
-		opt = find_option(cp, opt_text);
-		if (!opt) {
+		if (opdb_get(opt_text, &key, &value) < 0) {
 			fprintf(stderr, "opt: no such option: %s\n",
 				opt_text);
 			return -1;
@@ -256,19 +252,17 @@ static int cmd_opt(cproc_t cp, char **arg)
 	}
 
 	if (**arg) {
-		if (parse_option(opt, *arg) < 0) {
+		if (parse_option(key.type, &value, *arg) < 0) {
 			fprintf(stderr, "opt: can't parse option: %s\n",
 				*arg);
 			return -1;
 		}
-	} else if (opt_text) {
-		display_option(opt);
-	} else {
-		int i;
 
-		for (i = 0; i < cp->option_list.size; i++)
-			display_option(VECTOR_PTR(cp->option_list, i,
-						  struct cproc_option));
+		opdb_set(key.name, &value);
+	} else if (opt_text) {
+		display_option(NULL, &key, &value);
+	} else {
+		opdb_enum(display_option, NULL);
 	}
 
 	return 0;
@@ -312,14 +306,6 @@ static const struct cproc_command built_in_commands[] = {
 	}
 };
 
-static const struct cproc_option built_in_options[] = {
-	{
-		.name = "color",
-		.type = CPROC_OPTION_BOOL,
-		.help = "Colorize debugging output.\n"
-	}
-};
-
 cproc_t cproc_new(void)
 {
 	cproc_t cp = malloc(sizeof(*cp));
@@ -330,14 +316,10 @@ cproc_t cproc_new(void)
 	memset(cp, 0, sizeof(*cp));
 
 	vector_init(&cp->command_list, sizeof(struct cproc_command));
-	vector_init(&cp->option_list, sizeof(struct cproc_option));
 
 	if (vector_push(&cp->command_list, &built_in_commands,
-			ARRAY_LEN(built_in_commands)) < 0 ||
-	    vector_push(&cp->option_list, &built_in_options,
-			ARRAY_LEN(built_in_options)) < 0) {
+			ARRAY_LEN(built_in_commands)) < 0) {
 		vector_destroy(&cp->command_list);
-		vector_destroy(&cp->option_list);
 		free(cp);
 		return NULL;
 	}
@@ -348,7 +330,6 @@ cproc_t cproc_new(void)
 void cproc_destroy(cproc_t cp)
 {
 	vector_destroy(&cp->command_list);
-	vector_destroy(&cp->option_list);
 	free(cp);
 }
 
@@ -362,28 +343,16 @@ int cproc_register_commands(cproc_t cp, const struct cproc_command *cmd,
 	return 0;
 }
 
-int cproc_register_options(cproc_t cp, const struct cproc_option *opt,
-			   int count)
-{
-	if (vector_push(&cp->option_list, opt, count) < 0)
-		return -1;
-
-	cp->lists_modified = 1;
-	return 0;
-}
-
 void cproc_printf(cproc_t cp, const char *fmt, ...)
 {
 	char buf[256];
 	va_list ap;
-	int want_color = 0;
 
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	cproc_get_int(cp, "color", &want_color);
-	if (!want_color) {
+	if (!opdb_get_boolean("color")) {
 		char *src = buf;
 		char *dst = buf;
 
@@ -443,38 +412,6 @@ int cproc_prompt_abort(cproc_t cp, int flags)
         }
 
         return 0;
-}
-
-int cproc_get_int(cproc_t cp, const char *name, int *value)
-{
-	struct cproc_option *opt = find_option(cp, name);
-
-	if (!opt)
-		return -1;
-
-	if (opt->type == CPROC_OPTION_NUMERIC ||
-	    opt->type == CPROC_OPTION_BOOL) {
-		*value = opt->data.numeric;
-		return 0;
-	}
-
-	return -1;
-}
-
-int cproc_get_string(cproc_t cp, const char *name, char *value, int max_len)
-{
-	struct cproc_option *opt = find_option(cp, name);
-
-	if (!opt)
-		return -1;
-
-	if (opt->type == CPROC_OPTION_STRING) {
-		strncpy(value, opt->data.text, max_len);
-		value[max_len - 1] = 0;
-		return 0;
-	}
-
-	return -1;
 }
 
 #ifndef USE_READLINE

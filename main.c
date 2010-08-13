@@ -35,6 +35,7 @@
 #include "sym.h"
 #include "devcmd.h"
 #include "expr.h"
+#include "opdb.h"
 
 #include "sim.h"
 #include "bsl.h"
@@ -465,6 +466,7 @@ int main(int argc, char **argv)
 		return -1;
 
 	ctrlc_init();
+	opdb_reset();
 
 	cp = setup_cproc(&args);
 	if (!cp)

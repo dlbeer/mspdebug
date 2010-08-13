@@ -42,31 +42,6 @@ struct cproc_command {
 	const char              *help;
 };
 
-/* Option definitions.
- *
- * Options come in three different types, and can be manipulated with the
- * in-built "set" function.
- *
- * Default values may be specified by filling out the value portion in the
- * option's definition.
- */
-typedef enum {
-	CPROC_OPTION_STRING,
-	CPROC_OPTION_NUMERIC,
-	CPROC_OPTION_BOOL
-} cproc_option_type_t;
-
-struct cproc_option {
-	const char              *name;
-	cproc_option_type_t     type;
-	const char              *help;
-
-	union {
-		char                    text[128];
-		address_t               numeric;
-	}                       data;
-};
-
 /* Commmand processor modification flags.
  *
  * Within the context of a command processor, various data items may be
@@ -95,8 +70,6 @@ void cproc_destroy(cproc_t cp);
  */
 int cproc_register_commands(cproc_t cp, const struct cproc_command *cmd,
 			    int count);
-int cproc_register_options(cproc_t cp, const struct cproc_option *opt,
-			   int count);
 
 /* Print a line of text on the command processor's standard output.
  *
@@ -114,12 +87,6 @@ void cproc_printf(cproc_t cp, const char *fmt, ...);
 void cproc_modify(cproc_t cp, int flags);
 void cproc_unmodify(cproc_t cp, int flags);
 int cproc_prompt_abort(cproc_t cp, int flags);
-
-/* Retrieve option values. These functions return 0 on success or -1 if
- * an error occurs.
- */
-int cproc_get_int(cproc_t cp, const char *opt, int *value);
-int cproc_get_string(cproc_t cp, const char *opt, char *value, int max_len);
 
 /* Run the reader loop */
 void cproc_reader_loop(cproc_t cp);
