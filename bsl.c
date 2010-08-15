@@ -211,9 +211,32 @@ static void bsl_destroy(device_t dev_base)
 	free(dev);
 }
 
+static int bsl_erase(struct bsl_device *dev)
+{
+	/* Constants found from viewing gdbproxy's activities */
+	return bsl_xfer(dev, CMD_ERASE, 0x2500, NULL, 0x0069);
+}
+
 static int bsl_ctl(device_t dev_base, device_ctl_t type)
 {
-	fprintf(stderr, "bsl: CPU control is not implemented\n");
+	struct bsl_device *dev = (struct bsl_device *)dev_base;
+
+	switch (type) {
+	case DEVICE_CTL_ERASE:
+		return bsl_erase(dev);
+
+	case DEVICE_CTL_HALT:
+		/* Ignore halt requests */
+		return 0;
+
+	case DEVICE_CTL_RESET:
+		/* Ignore reset requests */
+		return 0;
+
+	default:
+		fprintf(stderr, "bsl: CPU control is not possible\n");
+	}
+
 	return -1;
 }
 
@@ -237,8 +260,26 @@ static int bsl_setregs(device_t dev_base, const address_t *regs)
 static int bsl_writemem(device_t dev_base,
 			address_t addr, const uint8_t *mem, address_t len)
 {
-	fprintf(stderr, "bsl: memory write is not implemented\n");
-	return -1;
+	struct bsl_device *dev = (struct bsl_device *)dev_base;
+
+	while (len) {
+		int wlen = len > 100 ? 100 : len;
+		int r;
+
+		r = bsl_xfer(dev, CMD_RX_DATA, addr, mem, wlen);
+
+		if( r < 0 ) {
+			fprintf(stderr, "bsl: failed to write to 0x%04x\n",
+				addr);
+			return -1;
+		}
+
+		mem += wlen;
+		len -= wlen;
+		addr += wlen;
+	}
+
+	return 0;
 }
 
 static int bsl_readmem(device_t dev_base,

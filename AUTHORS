@@ -25,3 +25,6 @@ Bessam Abdulrazak (http://pages.usherbrooke.ca/babdulrazak/):
 
 Andres Vahter <andres.vahter@gmail.com>:
 	* Support for MSP430F2234.
+
+Robert Spanton <rspanton@zepler.net>:
+	* Support for FET430UIF bootloader programming.
