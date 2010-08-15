@@ -495,6 +495,14 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 	return gdb_send(data, "OK");
 }
 
+static int gdb_send_supported(struct gdb_data *data)
+{
+	gdb_packet_start(data);
+	gdb_printf(data, "PacketSize=%x", MAX_MEM_XFER * 2);
+	gdb_packet_end(data);
+	return gdb_flush_ack(data);
+}
+
 static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 {
 	switch (buf[0]) {
@@ -514,6 +522,8 @@ static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 	case 'q': /* Query */
 		if (!strncmp(buf, "qRcmd,", 6))
 			return monitor_command(data, buf + 6);
+		if (!strncmp(buf, "qSupported", 10))
+			return gdb_send_supported(data);
 		break;
 
 	case 'm': /* Read memory */

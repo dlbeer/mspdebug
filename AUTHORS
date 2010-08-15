@@ -28,3 +28,4 @@ Andres Vahter <andres.vahter@gmail.com>:
 
 Robert Spanton <rspanton@zepler.net>:
 	* Support for FET430UIF bootloader programming.
+	* GDB protocol improvements.
