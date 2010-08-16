@@ -604,8 +604,7 @@ static device_status_t fet_poll(device_t dev_base)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	/* Without this delay, breakpoints can get lost. */
-	if (usleep(500000) < 0)
+	if (usleep(50000) < 0)
 		return DEVICE_STATUS_INTR;
 
 	if (xfer(dev, C_STATE, NULL, 0, 1, 0) < 0) {
