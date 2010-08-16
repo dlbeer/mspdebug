@@ -56,19 +56,19 @@ static void io_prefix(const char *prefix, uint16_t pc,
 	address_t offset;
 
 	if (!stab_nearest(stab_default, pc, name, sizeof(name), &offset)) {
-		printc("%s", name);
+		printf("%s", name);
 		if (offset)
-			printc("+0x%x", offset);
+			printf("+0x%x", offset);
 	} else {
-		printc("0x%04x", pc);
+		printf("0x%04x", pc);
 	}
 
-	printc(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
+	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
 	if (!stab_nearest(stab_default, addr, name, sizeof(name), &offset)) {
-		printc(" (%s", name);
+		printf(" (%s", name);
 		if (offset)
-			printc("+0x%x", offset);
-		printc(")");
+			printf("+0x%x", offset);
+		printf(")");
 	}
 }
 
@@ -82,10 +82,10 @@ static int fetch_io(void *user_data, uint16_t pc,
 		int len;
 		address_t data;
 
-		printc("? ");
+		printf("? ");
 		fflush(stdout);
 		if (!fgets(text, sizeof(text), stdin)) {
-			printc("\nAborted IO request\n");
+			printf("\nAborted IO request\n");
 			return -1;
 		}
 
@@ -113,9 +113,9 @@ static void store_io(void *user_data, uint16_t pc,
 	io_prefix("WRITE", pc, addr, is_byte);
 
 	if (is_byte)
-		printc(" => 0x%02x\n", data & 0xff);
+		printf(" => 0x%02x\n", data & 0xff);
 	else
-		printc(" => 0x%04x\n", data);
+		printf(" => 0x%04x\n", data);
 }
 
 struct cmdline_args {

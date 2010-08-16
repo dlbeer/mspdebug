@@ -89,7 +89,7 @@ static char *readline(const char *prompt)
 	}
 
 	for (;;) {
-		printc("(mspdebug) ");
+		printf("(mspdebug) ");
 		fflush(stdout);
 
 		if (fgets(buf, LINE_BUF_SIZE, stdin))

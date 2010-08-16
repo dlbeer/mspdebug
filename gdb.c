@@ -32,8 +32,9 @@
 #include "opdb.h"
 #include "gdb.h"
 #include "output.h"
+#include "reader.h"
 
-#define MAX_MEM_XFER    1024
+#define MAX_MEM_XFER    8192
 
 /************************************************************************
  * GDB IO routines
@@ -177,16 +178,6 @@ static void gdb_packet_end(struct gdb_data *data)
 	gdb_printf(data, "#%02x", c);
 }
 
-static int gdb_send_hex(struct gdb_data *data, const char *text)
-{
-	gdb_packet_start(data);
-	while (*text)
-		gdb_printf(data, "%02x", *(text++));
-	gdb_packet_end(data);
-
-	return gdb_flush_ack(data);
-}
-
 static int hexval(int c)
 {
 	if (isdigit(c))
@@ -227,10 +218,37 @@ static int read_registers(struct gdb_data *data)
 	return gdb_flush_ack(data);
 }
 
+struct monitor_buf {
+	char    buf[MAX_MEM_XFER];
+	int     len;
+	int	trunc;
+};
+
+static void monitor_capture(void *user_data, const char *text)
+{
+	struct monitor_buf *mb = (struct monitor_buf *)user_data;
+	int len = strlen(text);
+
+	if (mb->trunc)
+		return;
+
+	if (mb->len + len + 64 > sizeof(mb->buf)) {
+		text = "...<truncated>";
+		len = strlen(text);
+		mb->trunc = 1;
+	}
+
+	memcpy(mb->buf + mb->len, text, len);
+	mb->len += len;
+	mb->buf[mb->len++] = '\n';
+}
+
 static int monitor_command(struct gdb_data *data, char *buf)
 {
 	char cmd[128];
 	int len = 0;
+	int i;
+	struct monitor_buf mbuf;
 
 	while (len + 1 < sizeof(cmd) && *buf && buf[1]) {
 		if (len + 1 >= sizeof(cmd))
@@ -243,17 +261,21 @@ static int monitor_command(struct gdb_data *data, char *buf)
 
 	printc("Monitor command received: %s\n", cmd);
 
-	if (!strcasecmp(cmd, "reset")) {
-		printc("Resetting device\n");
-		if (device_default->ctl(device_default, DEVICE_CTL_RESET) < 0)
-			return gdb_send_hex(data, "Reset failed\n");
-	} else if (!strcasecmp(cmd, "erase")) {
-		printc("Erasing device\n");
-		if (device_default->ctl(device_default, DEVICE_CTL_ERASE) < 0)
-			return gdb_send_hex(data, "Erase failed\n");
-	}
+	mbuf.len = 0;
+	mbuf.trunc = 0;
+	capture_start(monitor_capture, &mbuf);
+	process_command(cmd);
+	capture_end();
 
-	return gdb_send(data, "OK");
+	if (!mbuf.len)
+		return gdb_send(data, "OK");
+
+	gdb_packet_start(data);
+	for (i = 0; i < mbuf.len; i++)
+		gdb_printf(data, "%02x", mbuf.buf[i]);
+	gdb_packet_end(data);
+
+	return gdb_flush_ack(data);
 }
 
 static int write_registers(struct gdb_data *data, char *buf)
