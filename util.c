@@ -249,25 +249,3 @@ void debug_hexdump(const char *label, const uint8_t *data, int len)
 		offset += i;
 	}
 }
-
-int textlen(const char *text)
-{
-	int count = 0;
-
-	for (;;) {
-		if (*text == 27) {
-			while (*text && !isalpha(*text))
-				text++;
-			if (*text)
-				text++;
-		}
-
-		if (!*text)
-			break;
-
-		count++;
-		text++;
-	}
-
-	return count;
-}

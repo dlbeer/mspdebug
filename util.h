@@ -50,9 +50,6 @@ char *get_arg(char **text);
 void debug_hexdump(const char *label,
 		   const uint8_t *data, int len);
 
-/* Get text length, not including ANSI codes */
-int textlen(const char *text);
-
 static inline int ishex(int c)
 {
 	return isdigit(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
