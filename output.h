@@ -26,5 +26,6 @@
  * codes).
  */
 int printc(const char *fmt, ...);
+int printc_err(const char *fmt, ...);
 
 #endif

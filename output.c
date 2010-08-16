@@ -21,33 +21,38 @@
 #include "opdb.h"
 #include "output.h"
 
-static char out_buf[1024];
-static int out_len;
-static int in_code;
+struct outbuf {
+	char	buf[1024];
+	int	len;
+	int	in_code;
+};
 
-static int write_text(const char *buf)
+static struct outbuf stdout_buf;
+static struct outbuf stderr_buf;
+
+static int write_text(struct outbuf *out, const char *buf, FILE *fout)
 {
 	int want_color = opdb_get_boolean("color");
 	int len = 0;
 
 	while (*buf) {
 		if (*buf == 27)
-			in_code = 1;
+			out->in_code = 1;
 
-		if (!in_code)
+		if (!out->in_code)
 			len++;
 
 		if (*buf == '\n') {
-			out_buf[out_len] = 0;
-			puts(out_buf);
-			out_len = 0;
-		} else if ((want_color || !in_code) &&
-			   out_len + 1 < sizeof(out_buf)) {
-			out_buf[out_len++] = *buf;
+			out->buf[out->len] = 0;
+			fprintf(fout, "%s\n", out->buf);
+			out->len = 0;
+		} else if ((want_color || !out->in_code) &&
+			   out->len + 1 < sizeof(out->buf)) {
+			out->buf[out->len++] = *buf;
 		}
 
 		if (isalpha(*buf))
-			in_code = 0;
+			out->in_code = 0;
 
 		buf++;
 	}
@@ -64,5 +69,17 @@ int printc(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return write_text(buf);
+	return write_text(&stdout_buf, buf, stdout);
+}
+
+int printc_err(const char *fmt, ...)
+{
+	char buf[1024];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	return write_text(&stderr_buf, buf, stderr);
 }
