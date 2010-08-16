@@ -32,6 +32,9 @@ struct outbuf {
 static struct outbuf stdout_buf;
 static struct outbuf stderr_buf;
 
+static capture_func_t capture_func;
+static void *capture_data;
+
 static int write_text(struct outbuf *out, const char *buf, FILE *fout)
 {
 	int want_color = opdb_get_boolean("color");
@@ -47,6 +50,8 @@ static int write_text(struct outbuf *out, const char *buf, FILE *fout)
 		if (*buf == '\n') {
 			out->buf[out->len] = 0;
 			fprintf(fout, "%s\n", out->buf);
+			if (capture_func)
+				capture_func(capture_data, out->buf);
 			out->len = 0;
 		} else if ((want_color || !out->in_code) &&
 			   out->len + 1 < sizeof(out->buf)) {
@@ -89,4 +94,15 @@ int printc_err(const char *fmt, ...)
 void pr_error(const char *prefix)
 {
 	printc_err("%s: %s\n", prefix, strerror(errno));
+}
+
+void capture_start(capture_func_t func, void *data)
+{
+	capture_func = func;
+	capture_data = data;
+}
+
+void capture_end(void)
+{
+	capture_func = NULL;
 }

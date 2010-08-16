@@ -30,4 +30,16 @@ int printc_err(const char *fmt, ...);
 
 void pr_error(const char *prefix);
 
+/* Capture output. Capturing is started by calling capture_begin() with
+ * a callback function. The callback is invoked for each line of output
+ * printed to either stdout or stderr (output still goes to
+ * stdout/stderr as well).
+ *
+ * Capture is ended by calling capture_end().
+ */
+typedef void (*capture_func_t)(void *user_data, const char *text);
+
+void capture_start(capture_func_t, void *user_data);
+void capture_end(void);
+
 #endif
