@@ -27,6 +27,7 @@
 #include "expr.h"
 #include "binfile.h"
 #include "util.h"
+#include "output.h"
 #include "vector.h"
 #include "sym.h"
 #include "reader.h"
@@ -38,17 +39,17 @@ int cmd_eval(char **arg)
 	char name[64];
 
 	if (expr_eval(stab_default, *arg, &addr) < 0) {
-		fprintf(stderr, "=: can't parse: %s\n", *arg);
+		printc_err("=: can't parse: %s\n", *arg);
 		return -1;
 	}
 
-	printf("0x%05x", addr);
+	printc("0x%05x", addr);
 	if (!stab_nearest(stab_default, addr, name, sizeof(name), &offset)) {
-		printf(" = %s", name);
+		printc(" = %s", name);
 		if (offset)
-			printf("+0x%x", offset);
+			printc("+0x%x", offset);
 	}
-	printf("\n");
+	printc("\n");
 
 	return 0;
 }
@@ -62,7 +63,7 @@ static int cmd_sym_load_add(int clear, char **arg)
 
 	in = fopen(*arg, "r");
 	if (!in) {
-		fprintf(stderr, "sym: %s: %s\n", *arg, strerror(errno));
+		printc_err("sym: %s: %s\n", *arg, strerror(errno));
 		return -1;
 	}
 
@@ -87,7 +88,7 @@ static int savemap_cb(void *user_data, const char *name, address_t value)
 	FILE *savemap_out = (FILE *)user_data;
 
 	if (fprintf(savemap_out, "%04x t %s\n", value, name) < 0) {
-		perror("sym: can't write to file");
+		pr_error("sym: can't write to file");
 		return -1;
 	}
 
@@ -100,13 +101,13 @@ static int cmd_sym_savemap(char **arg)
 	char *fname = get_arg(arg);
 
 	if (!fname) {
-		fprintf(stderr, "sym: filename required to save map\n");
+		printc_err("sym: filename required to save map\n");
 		return -1;
 	}
 
 	savemap_out = fopen(fname, "w");
 	if (!savemap_out) {
-		fprintf(stderr, "sym: couldn't write to %s: %s\n", fname,
+		printc_err("sym: couldn't write to %s: %s\n", fname,
 			strerror(errno));
 		return -1;
 	}
@@ -117,7 +118,7 @@ static int cmd_sym_savemap(char **arg)
 	}
 
 	if (fclose(savemap_out) < 0) {
-		fprintf(stderr, "sym: error on close: %s\n", strerror(errno));
+		printc_err("sym: error on close: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -127,7 +128,7 @@ static int cmd_sym_savemap(char **arg)
 
 static int print_sym(void *user_data, const char *name, address_t value)
 {
-	printf("0x%04x: %s\n", value, name);
+	printc("0x%04x: %s\n", value, name);
 	return 0;
 }
 
@@ -136,7 +137,7 @@ static int find_sym(void *user_data, const char *name, address_t value)
 	regex_t *find_preg = (regex_t *)user_data;
 
 	if (!regexec(find_preg, name, 0, NULL, 0))
-		printf("0x%04x: %s\n", value, name);
+		printc("0x%04x: %s\n", value, name);
 
 	return 0;
 }
@@ -152,7 +153,7 @@ static int cmd_sym_find(char **arg)
 	}
 
 	if (regcomp(&find_preg, expr, REG_EXTENDED | REG_NOSUB)) {
-		fprintf(stderr, "sym: failed to compile: %s\n", expr);
+		printc_err("sym: failed to compile: %s\n", expr);
 		return -1;
 	}
 
@@ -191,16 +192,16 @@ static int renames_do(struct rename_data *rename, const char *replace)
 			 sizeof(new_name) - len,
 			 "%s%s", replace, r->old_name + r->end);
 
-		printf("%s -> %s\n", r->old_name, new_name);
+		printc("%s -> %s\n", r->old_name, new_name);
 
 		if (stab_get(stab_default, r->old_name, &value) < 0) {
-			fprintf(stderr, "sym: warning: "
+			printc_err("sym: warning: "
 				"symbol missing: %s\n",
 				r->old_name);
 		} else {
 			stab_del(stab_default, r->old_name);
 			if (stab_set(stab_default, new_name, value) < 0) {
-				fprintf(stderr, "sym: warning: "
+				printc_err("sym: warning: "
 					"failed to set new name: %s\n",
 					new_name);
 			}
@@ -209,7 +210,7 @@ static int renames_do(struct rename_data *rename, const char *replace)
 		count++;
 	}
 
-	printf("%d symbols renamed\n", count);
+	printc("%d symbols renamed\n", count);
 	return 0;
 }
 
@@ -241,19 +242,19 @@ static int cmd_sym_rename(char **arg)
 	struct rename_data rename;
 
 	if (!(expr && replace)) {
-		fprintf(stderr, "sym: expected pattern and replacement\n");
+		printc_err("sym: expected pattern and replacement\n");
 		return -1;
 	}
 
 	if (regcomp(&rename.preg, expr, REG_EXTENDED)) {
-		fprintf(stderr, "sym: failed to compile: %s\n", expr);
+		printc_err("sym: failed to compile: %s\n", expr);
 		return -1;
 	}
 
 	vector_init(&rename.list, sizeof(struct rename_record));
 
 	if (stab_enum(stab_default, find_renames, &rename) < 0) {
-		fprintf(stderr, "sym: rename failed\n");
+		printc_err("sym: rename failed\n");
 		regfree(&rename.preg);
 		vector_destroy(&rename.list);
 		return -1;
@@ -274,13 +275,13 @@ static int cmd_sym_del(char **arg)
 	char *name = get_arg(arg);
 
 	if (!name) {
-		fprintf(stderr, "sym: need a name to delete "
+		printc_err("sym: need a name to delete "
 			"symbol table entries\n");
 		return -1;
 	}
 
 	if (stab_del(stab_default, name) < 0) {
-		fprintf(stderr, "sym: can't delete nonexistent symbol: %s\n",
+		printc_err("sym: can't delete nonexistent symbol: %s\n",
 			name);
 		return -1;
 	}
@@ -294,7 +295,7 @@ int cmd_sym(char **arg)
 	char *subcmd = get_arg(arg);
 
 	if (!subcmd) {
-		fprintf(stderr, "sym: need to specify a subcommand "
+		printc_err("sym: need to specify a subcommand "
 			"(try \"help sym\")\n");
 		return -1;
 	}
@@ -313,13 +314,13 @@ int cmd_sym(char **arg)
 		address_t value;
 
 		if (!(name && val_text)) {
-			fprintf(stderr, "sym: need a name and value to set "
+			printc_err("sym: need a name and value to set "
 				"symbol table entries\n");
 			return -1;
 		}
 
 		if (expr_eval(stab_default, val_text, &value) < 0) {
-			fprintf(stderr, "sym: can't parse value: %s\n",
+			printc_err("sym: can't parse value: %s\n",
 				val_text);
 			return -1;
 		}
@@ -344,6 +345,6 @@ int cmd_sym(char **arg)
 	if (!strcasecmp(subcmd, "find"))
 		return cmd_sym_find(arg);
 
-	fprintf(stderr, "sym: unknown subcommand: %s\n", subcmd);
+	printc_err("sym: unknown subcommand: %s\n", subcmd);
 	return -1;
 }

@@ -18,6 +18,8 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
+#include <errno.h>
 #include "opdb.h"
 #include "output.h"
 
@@ -82,4 +84,9 @@ int printc_err(const char *fmt, ...)
 	va_end(ap);
 
 	return write_text(&stderr_buf, buf, stderr);
+}
+
+void pr_error(const char *prefix)
+{
+	printc_err("%s: %s\n", prefix, strerror(errno));
 }

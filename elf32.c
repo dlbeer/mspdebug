@@ -25,6 +25,7 @@
 #include <elf.h>
 #endif
 #include "elf32.h"
+#include "output.h"
 
 #ifndef EM_MSP430
 #define EM_MSP430	0x69
@@ -51,12 +52,12 @@ static int read_ehdr(struct elf32_info *info, FILE *in)
 	/* Read and check the ELF header */
 	rewind(in);
 	if (fread(&info->file_ehdr, sizeof(info->file_ehdr), 1, in) < 0) {
-		perror("elf32: couldn't read ELF header");
+		pr_error("elf32: couldn't read ELF header");
 		return -1;
 	}
 
 	if (memcmp(info->file_ehdr.e_ident, elf32_id, sizeof(elf32_id))) {
-		fprintf(stderr, "elf32: not an ELF32 file\n");
+		printc_err("elf32: not an ELF32 file\n");
 		return -1;
 	}
 
@@ -68,7 +69,7 @@ static int read_phdr(struct elf32_info *info, FILE *in)
 	int i;
 
 	if (info->file_ehdr.e_phnum > MAX_PHDRS) {
-		fprintf(stderr, "elf32: too many program headers: %d\n",
+		printc_err("elf32: too many program headers: %d\n",
 			info->file_ehdr.e_phnum);
 		return -1;
 	}
@@ -77,13 +78,13 @@ static int read_phdr(struct elf32_info *info, FILE *in)
 		if (fseek(in, i * info->file_ehdr.e_phentsize +
 			  info->file_ehdr.e_phoff,
 			  SEEK_SET) < 0) {
-			fprintf(stderr, "elf32: can't seek to phdr %d\n", i);
+			printc_err("elf32: can't seek to phdr %d\n", i);
 			return -1;
 		}
 
 		if (fread(&info->file_phdrs[i],
 			  sizeof(info->file_phdrs[0]), 1, in) < 0) {
-			fprintf(stderr, "elf32: can't read phdr %d: %s\n",
+			printc_err("elf32: can't read phdr %d: %s\n",
 				i, strerror(errno));
 			return -1;
 		}
@@ -97,7 +98,7 @@ static int read_shdr(struct elf32_info *info, FILE *in)
 	int i;
 
 	if (info->file_ehdr.e_shnum > MAX_SHDRS) {
-		fprintf(stderr, "elf32: too many section headers: %d\n",
+		printc_err("elf32: too many section headers: %d\n",
 			info->file_ehdr.e_shnum);
 		return -1;
 	}
@@ -106,13 +107,13 @@ static int read_shdr(struct elf32_info *info, FILE *in)
 		if (fseek(in, i * info->file_ehdr.e_shentsize +
 			  info->file_ehdr.e_shoff,
 			  SEEK_SET) < 0) {
-			fprintf(stderr, "elf32: can't seek to shdr %d\n", i);
+			printc_err("elf32: can't seek to shdr %d\n", i);
 			return -1;
 		}
 
 		if (fread(&info->file_shdrs[i],
 			  sizeof(info->file_shdrs[0]), 1, in) < 0) {
-			fprintf(stderr, "elf32: can't read shdr %d: %s\n",
+			printc_err("elf32: can't read shdr %d: %s\n",
 				i, strerror(errno));
 			return -1;
 		}
@@ -143,7 +144,7 @@ static int feed_section(struct elf32_info *info,
 	uint32_t addr = file_to_phys(info, offset);
 
 	if (fseek(in, offset, SEEK_SET) < 0) {
-		perror("elf32: can't seek to section");
+		pr_error("elf32: can't seek to section");
 		return -1;
 	}
 
@@ -152,7 +153,7 @@ static int feed_section(struct elf32_info *info,
 		int len = fread(buf, 1, ask, in);
 
 		if (len < 0) {
-			perror("elf32: can't read section");
+			pr_error("elf32: can't read section");
 			return -1;
 		}
 
@@ -175,7 +176,7 @@ static int read_all(struct elf32_info *info, FILE *in)
 		return -1;
 
 	if (info->file_ehdr.e_machine != EM_MSP430)
-		fprintf(stderr, "elf32: warning: unknown machine type: 0x%x\n",
+		printc_err("elf32: warning: unknown machine type: 0x%x\n",
 			info->file_ehdr.e_machine);
 
 	if (read_phdr(info, in) < 0)
@@ -240,7 +241,7 @@ static int syms_load_strings(struct elf32_info *info, FILE *in, Elf32_Shdr *s)
 		return 0;
 
 	if (fseek(in, s->sh_offset, SEEK_SET) < 0) {
-		perror("elf32: can't seek to strings");
+		pr_error("elf32: can't seek to strings");
 		return -1;
 	}
 
@@ -248,17 +249,17 @@ static int syms_load_strings(struct elf32_info *info, FILE *in, Elf32_Shdr *s)
 	info->string_tab = malloc(len + 1);
 
 	if (!info->string_tab) {
-		perror("elf32: can't allocate string table memory");
+		pr_error("elf32: can't allocate string table memory");
 		return -1;
 	}
 
 	if (!fread(info->string_tab, 1, info->string_len, in)) {
 		if (ferror(in)) {
-			perror("elf32: error reading strings");
+			pr_error("elf32: error reading strings");
 			return -1;
 		}
 
-		fprintf(stderr, "elf32: eof reading strings\n");
+		printc_err("elf32: eof reading strings\n");
 		return -1;
 	}
 
@@ -275,7 +276,7 @@ static int syms_load_syms(struct elf32_info *info, FILE *in,
 	int len = s->sh_size / sizeof(syms[0]);
 
 	if (fseek(in, s->sh_offset, SEEK_SET) < 0) {
-		perror("elf32: can't seek to symbols");
+		pr_error("elf32: can't seek to symbols");
 		return -1;
 	}
 
@@ -285,12 +286,12 @@ static int syms_load_syms(struct elf32_info *info, FILE *in,
 		int i;
 
 		if (!count) {
-			fprintf(stderr, "elf32: eof reading symbols\n");
+			printc_err("elf32: eof reading symbols\n");
 			return -1;
 		}
 
 		if (count < 0) {
-			perror("elf32: error reading symbols");
+			pr_error("elf32: error reading symbols");
 			return -1;
 		}
 
@@ -300,7 +301,7 @@ static int syms_load_syms(struct elf32_info *info, FILE *in,
 			const char *name = info->string_tab + y->st_name;
 
 			if (y->st_name > info->string_len) {
-				fprintf(stderr, "elf32: symbol out of "
+				printc_err("elf32: symbol out of "
 					"bounds\n");
 				return -1;
 			}
@@ -331,12 +332,12 @@ int elf32_syms(FILE *in, stab_t stab)
 
 	s = find_shdr(&info, SHT_SYMTAB);
 	if (!s) {
-		fprintf(stderr, "elf32: no symbol table\n");
+		printc_err("elf32: no symbol table\n");
 		return -1;
 	}
 
 	if (s->sh_link <= 0 || s->sh_link >= info.file_ehdr.e_shnum) {
-		fprintf(stderr, "elf32: no string table\n");
+		printc_err("elf32: no string table\n");
 		return -1;
 	}
 

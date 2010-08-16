@@ -20,6 +20,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "ihex.h"
+#include "output.h"
 
 int ihex_check(FILE *in)
 {
@@ -46,7 +47,7 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 	cksum = ~(cksum - 1) & 0xff;
 
 	if (data[nbytes - 1] != cksum) {
-		fprintf(stderr, "ihex: invalid checksum: %02x "
+		printc_err("ihex: invalid checksum: %02x "
 			"(calculated %02x)\n", data[nbytes - 1], cksum);
 		return -1;
 	}
@@ -66,7 +67,7 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 
 	case 2:
 		if (data_len != 2) {
-			fprintf(stderr, "ihex: invalid 02 record\n");
+			printc_err("ihex: invalid 02 record\n");
 			return -1;
 		}
 
@@ -76,7 +77,7 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 
 	case 4:
 		if (data_len != 2) {
-			fprintf(stderr, "ihex: invalid 04 record\n");
+			printc_err("ihex: invalid 04 record\n");
 			return -1;
 		}
 
@@ -85,7 +86,7 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 		break;
 
 	default:
-		fprintf(stderr, "warning: ihex: unknown record type: "
+		printc_err("warning: ihex: unknown record type: "
 			"0x%02x\n", type);
 		break;
 	}
@@ -108,7 +109,7 @@ int ihex_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 
 		lno++;
 		if (buf[0] != ':') {
-			fprintf(stderr, "ihex: line %d: invalid start "
+			printc_err("ihex: line %d: invalid start "
 				"marker\n", lno);
 			continue;
 		}
@@ -129,7 +130,7 @@ int ihex_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 		/* Handle the line */
 		if (feed_line(in, data, nbytes, cb, user_data,
 			      &segment_offset) < 0) {
-			fprintf(stderr, "ihex: error on line %d\n", lno);
+			printc_err("ihex: error on line %d\n", lno);
 			return -1;
 		}
 	}

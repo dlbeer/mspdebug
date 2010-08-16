@@ -56,12 +56,12 @@ int prompt_abort(int flags)
                 return 0;
 
         for (;;) {
-                printf("Symbols have not been saved since modification. "
+                printc("Symbols have not been saved since modification. "
                        "Continue (y/n)? ");
                 fflush(stdout);
 
                 if (!fgets(buf, sizeof(buf), stdin)) {
-                        printf("\n");
+                        printc("\n");
                         return 1;
                 }
 
@@ -70,7 +70,7 @@ int prompt_abort(int flags)
                 if (toupper(buf[0]) == 'N')
                         return 1;
 
-                printf("Please answer \"y\" or \"n\".\n");
+                printc("Please answer \"y\" or \"n\".\n");
         }
 
         return 0;
@@ -84,12 +84,12 @@ static char *readline(const char *prompt)
 	char *buf = malloc(LINE_BUF_SIZE);
 
 	if (!buf) {
-		perror("readline: can't allocate memory");
+		pr_error("readline: can't allocate memory");
 		return NULL;
 	}
 
 	for (;;) {
-		printf("(mspdebug) ");
+		printc("(mspdebug) ");
 		fflush(stdout);
 
 		if (fgets(buf, LINE_BUF_SIZE, stdin))
@@ -98,7 +98,7 @@ static char *readline(const char *prompt)
 		if (feof(stdin))
 			break;
 
-		printf("\n");
+		printc("\n");
 	}
 
 	free(buf);
@@ -132,7 +132,7 @@ static int do_command(char *arg, int interactive)
 			return ret;
 		}
 
-		fprintf(stderr, "unknown command: %s (try \"help\")\n",
+		printc_err("unknown command: %s (try \"help\")\n",
 			cmd_text);
 		return -1;
 	}
@@ -146,9 +146,9 @@ void reader_loop(void)
 
 	in_reader_loop = 1;
 
-	printf("\n");
+	printc("\n");
 	cmd_help(NULL);
-	printf("\n");
+	printc("\n");
 
 	do {
 		for (;;) {
@@ -163,7 +163,7 @@ void reader_loop(void)
 		}
 	} while (prompt_abort(MODIFY_SYMS));
 
-	printf("\n");
+	printc("\n");
 	in_reader_loop = old;
 }
 
@@ -180,7 +180,7 @@ int process_file(const char *filename)
 
 	in = fopen(filename, "r");
 	if (!in) {
-		fprintf(stderr, "read: can't open %s: %s\n",
+		printc_err("read: can't open %s: %s\n",
 			filename, strerror(errno));
 		return -1;
 	}
@@ -197,7 +197,7 @@ int process_file(const char *filename)
 			continue;
 
 		if (do_command(cmd, 0) < 0) {
-			fprintf(stderr, "read: error processing %s (line %d)\n",
+			printc_err("read: error processing %s (line %d)\n",
 				filename, line_no);
 			fclose(in);
 			return -1;

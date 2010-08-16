@@ -56,7 +56,7 @@ static void namelist_print(struct vector *v)
 	for (i = 0; i < rows; i++) {
 		int j;
 
-		printf("    ");
+		printc("    ");
 		for (j = 0; j < cols; j++) {
 			int k = j * rows + i;
 			const char *text;
@@ -65,12 +65,12 @@ static void namelist_print(struct vector *v)
 				break;
 
 			text = VECTOR_AT(*v, k, const char *);
-			printf("%s", text);
+			printc("%s", text);
 			for (k = strlen(text); k < max_len; k++)
-				printf(" ");
+				printc(" ");
 		}
 
-		printf("\n");
+		printc("\n");
 	}
 }
 
@@ -121,7 +121,7 @@ int cmd_help(char **arg)
 			return 0;
 		}
 
-		fprintf(stderr, "help: unknown command: %s\n", topic);
+		printc_err("help: unknown command: %s\n", topic);
 		return -1;
 	} else {
 		struct vector v;
@@ -129,27 +129,27 @@ int cmd_help(char **arg)
 		vector_init(&v, sizeof(const char *));
 
 		if (!cmddb_enum(push_command_name, &v)) {
-			printf("Available commands:\n");
+			printc("Available commands:\n");
 			namelist_print(&v);
-			printf("\n");
+			printc("\n");
 		} else {
-			perror("help: can't allocate memory for command list");
+			pr_error("help: can't allocate memory for command list");
 		}
 
 		vector_realloc(&v, 0);
 
 		if (!opdb_enum(push_option_name, &v)) {
-			printf("Available options:\n");
+			printc("Available options:\n");
 			namelist_print(&v);
-			printf("\n");
+			printc("\n");
 		} else {
-			perror("help: can't allocate memory for option list");
+			pr_error("help: can't allocate memory for option list");
 		}
 
 		vector_destroy(&v);
 
-		printf("Type \"help <topic>\" for more information.\n");
-		printf("Press Ctrl+D to quit.\n");
+		printc("Type \"help <topic>\" for more information.\n");
+		printc("Press Ctrl+D to quit.\n");
 	}
 
 	return 0;
@@ -180,23 +180,23 @@ static int parse_option(opdb_type_t type, union opdb_value *value,
 static int display_option(void *user_data, const struct opdb_key *key,
 			  const union opdb_value *value)
 {
-	printf("%32s = ", key->name);
+	printc("%32s = ", key->name);
 
 	switch (key->type) {
 	case OPDB_TYPE_BOOLEAN:
-		printf("%s", value->boolean ? "true" : "false");
+		printc("%s", value->boolean ? "true" : "false");
 		break;
 
 	case OPDB_TYPE_NUMERIC:
-		printf("0x%x (%u)", value->numeric, value->numeric);
+		printc("0x%x (%u)", value->numeric, value->numeric);
 		break;
 
 	case OPDB_TYPE_STRING:
-		printf("%s", value->string);
+		printc("%s", value->string);
 		break;
 	}
 
-	printf("\n");
+	printc("\n");
 	return 0;
 }
 
@@ -208,7 +208,7 @@ int cmd_opt(char **arg)
 
 	if (opt_text) {
 		if (opdb_get(opt_text, &key, &value) < 0) {
-			fprintf(stderr, "opt: no such option: %s\n",
+			printc_err("opt: no such option: %s\n",
 				opt_text);
 			return -1;
 		}
@@ -216,7 +216,7 @@ int cmd_opt(char **arg)
 
 	if (**arg) {
 		if (parse_option(key.type, &value, *arg) < 0) {
-			fprintf(stderr, "opt: can't parse option: %s\n",
+			printc_err("opt: can't parse option: %s\n",
 				*arg);
 			return -1;
 		}
@@ -236,7 +236,7 @@ int cmd_read(char **arg)
 	char *filename = get_arg(arg);
 
 	if (!filename) {
-		fprintf(stderr, "read: filename must be specified\n");
+		printc_err("read: filename must be specified\n");
 		return -1;
 	}
 

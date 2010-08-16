@@ -30,6 +30,7 @@
 #include <assert.h>
 
 #include "util.h"
+#include "output.h"
 
 static volatile int ctrlc_flag;
 
@@ -237,14 +238,14 @@ void debug_hexdump(const char *label, const uint8_t *data, int len)
 {
 	int offset = 0;
 
-	printf("%s [0x%x bytes]\n", label, len);
+	printc("%s [0x%x bytes]\n", label, len);
 	while (offset < len) {
 		int i;
 
-		printf("    ");
+		printc("    ");
 		for (i = 0; i < 16 && offset + i < len; i++)
-			printf("%02x ", data[offset + i]);
-		printf("\n");
+			printc("%02x ", data[offset + i]);
+		printc("\n");
 
 		offset += i;
 	}

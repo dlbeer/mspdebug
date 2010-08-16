@@ -22,6 +22,7 @@
 #include <string.h>
 #include <errno.h>
 #include "btree.h"
+#include "output.h"
 
 #define MAX_HEIGHT 16
 
@@ -152,8 +153,8 @@ static struct btree_page *allocate_page(btree_t bt, int height)
 
 	p = malloc(size);
 	if (!p) {
-		fprintf(stderr, "btree: couldn't allocate page: %s\n",
-			strerror(errno));
+		printc_err("btree: couldn't allocate page: %s\n",
+			   strerror(errno));
 		return NULL;
 	}
 
@@ -427,14 +428,14 @@ btree_t btree_alloc(const struct btree_def *def)
 	btree_t bt;
 
 	if (def->branches < 2 || (def->branches & 1)) {
-		fprintf(stderr, "btree: invalid branch count: %d\n",
+		printc_err("btree: invalid branch count: %d\n",
 			def->branches);
 		return NULL;
 	}
 
 	bt = malloc(sizeof(*bt));
 	if (!bt) {
-		fprintf(stderr, "btree: couldn't allocate tree: %s\n",
+		printc_err("btree: couldn't allocate tree: %s\n",
 			strerror(errno));
 		return NULL;
 	}
@@ -445,7 +446,7 @@ btree_t btree_alloc(const struct btree_def *def)
 
 	bt->root = allocate_page(bt, 0);
 	if (!bt->root) {
-		fprintf(stderr, "btree: couldn't allocate root node: %s\n",
+		printc_err("btree: couldn't allocate root node: %s\n",
 			strerror(errno));
 		free(bt);
 		return NULL;
@@ -505,7 +506,7 @@ int btree_put(btree_t bt, const void *key, const void *data)
 	/* Special case: cursor overwrite */
 	if (!key) {
 		if (bt->slot[0] < 0) {
-			fprintf(stderr, "btree: put at invalid cursor\n");
+			printc_err("btree: put at invalid cursor\n");
 			return -1;
 		}
 
@@ -542,7 +543,7 @@ int btree_put(btree_t bt, const void *key, const void *data)
 	 */
 	if (h > bt->root->height) {
 		if (h >= MAX_HEIGHT) {
-			fprintf(stderr, "btree: maximum height exceeded\n");
+			printc_err("btree: maximum height exceeded\n");
 			goto fail;
 		}
 

@@ -37,6 +37,7 @@
 #include "expr.h"
 #include "opdb.h"
 #include "reader.h"
+#include "output.h"
 
 #include "sim.h"
 #include "bsl.h"
@@ -55,19 +56,19 @@ static void io_prefix(const char *prefix, uint16_t pc,
 	address_t offset;
 
 	if (!stab_nearest(stab_default, pc, name, sizeof(name), &offset)) {
-		printf("%s", name);
+		printc("%s", name);
 		if (offset)
-			printf("+0x%x", offset);
+			printc("+0x%x", offset);
 	} else {
-		printf("0x%04x", pc);
+		printc("0x%04x", pc);
 	}
 
-	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
+	printc(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
 	if (!stab_nearest(stab_default, addr, name, sizeof(name), &offset)) {
-		printf(" (%s", name);
+		printc(" (%s", name);
 		if (offset)
-			printf("+0x%x", offset);
-		printf(")");
+			printc("+0x%x", offset);
+		printc(")");
 	}
 }
 
@@ -81,10 +82,10 @@ static int fetch_io(void *user_data, uint16_t pc,
 		int len;
 		address_t data;
 
-		printf("? ");
+		printc("? ");
 		fflush(stdout);
 		if (!fgets(text, sizeof(text), stdin)) {
-			printf("\nAborted IO request\n");
+			printc("\nAborted IO request\n");
 			return -1;
 		}
 
@@ -112,9 +113,9 @@ static void store_io(void *user_data, uint16_t pc,
 	io_prefix("WRITE", pc, addr, is_byte);
 
 	if (is_byte)
-		printf(" => 0x%02x\n", data & 0xff);
+		printc(" => 0x%02x\n", data & 0xff);
 	else
-		printf(" => 0x%04x\n", data);
+		printc(" => 0x%04x\n", data);
 }
 
 struct cmdline_args {
@@ -155,7 +156,7 @@ static device_t driver_open_rf2500(const struct cmdline_args *args)
 	transport_t trans;
 
 	if (args->serial_device) {
-		fprintf(stderr, "This driver does not support tty devices.\n");
+		printc_err("This driver does not support tty devices.\n");
 		return NULL;
 	}
 
@@ -191,8 +192,8 @@ static device_t driver_open_uif(const struct cmdline_args *args)
 	transport_t trans;
 
 	if (!args->serial_device) {
-		fprintf(stderr,	"This driver does not support USB access. "
-			"Specify a tty device using -d.\n");
+		printc_err("This driver does not support USB access. "
+			   "Specify a tty device using -d.\n");
 		return NULL;
 	}
 
@@ -206,8 +207,8 @@ static device_t driver_open_uif(const struct cmdline_args *args)
 static device_t driver_open_uif_bsl(const struct cmdline_args *args)
 {
 	if (!args->serial_device) {
-		fprintf(stderr,	"This driver does not support USB access. "
-			"Specify a tty device using -d.\n");
+		printc_err("This driver does not support USB access. "
+			   "Specify a tty device using -d.\n");
 		return NULL;
 	}
 
@@ -246,8 +247,7 @@ static void usage(const char *progname)
 {
 	int i;
 
-	fprintf(stderr,
-"Usage: %s [options] <driver> [command ...]\n"
+	printc_err("Usage: %s [options] <driver> [command ...]\n"
 "\n"
 "    -d device\n"
 "        Connect via the given tty device, rather than USB.\n"
@@ -275,11 +275,11 @@ static void usage(const char *progname)
 "command reader is started.\n\n",
 		progname);
 
-	printf("Available drivers are:\n");
+	printc("Available drivers are:\n");
 	for (i = 0; i < ARRAY_LEN(driver_table); i++) {
 		const struct driver *drv = &driver_table[i];
 
-		printf("    %s\n        %s\n", drv->name, drv->help);
+		printc("    %s\n        %s\n", drv->name, drv->help);
 	}
 }
 
@@ -315,16 +315,16 @@ static int list_devices(void)
 
 	vector_init(&v, sizeof(const char *));
 	if (fet_db_enum(add_fet_device, &v) < 0) {
-		perror("couldn't allocate memory");
+		pr_error("couldn't allocate memory");
 		vector_destroy(&v);
 		return -1;
 	}
 
 	qsort(v.ptr, v.size, v.elemsize, cmp_char_ptr);
 
-	printf("Devices supported by FET driver:\n");
+	printc("Devices supported by FET driver:\n");
 	for (i = 0; i < v.size; i++)
-		printf("    %s\n", VECTOR_AT(v, i, const char *));
+		printc("    %s\n", VECTOR_AT(v, i, const char *));
 
 	vector_destroy(&v);
 	return 0;
@@ -384,18 +384,18 @@ static int parse_cmdline_args(int argc, char **argv,
 			break;
 
 		case '?':
-			fprintf(stderr, "Try --help for usage information.\n");
+			printc_err("Try --help for usage information.\n");
 			return -1;
 		}
 
 	if (args->usb_device && args->serial_device) {
-		fprintf(stderr, "You can't simultaneously specify a serial and "
+		printc_err("You can't simultaneously specify a serial and "
 			"a USB device.\n");
 		return -1;
 	}
 
 	if (optind >= argc) {
-		fprintf(stderr, "You need to specify a driver. Try --help for "
+		printc_err("You need to specify a driver. Try --help for "
 			"a list.\n");
 		return -1;
 	}
@@ -415,7 +415,7 @@ int setup_driver(struct cmdline_args *args)
 	       strcasecmp(driver_table[i].name, args->driver_name))
 		i++;
 	if (i >= ARRAY_LEN(driver_table)) {
-		fprintf(stderr, "Unknown driver: %s. Try --help for a list.\n",
+		printc_err("Unknown driver: %s. Try --help for a list.\n",
 			args->driver_name);
 		return -1;
 	}

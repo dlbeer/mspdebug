@@ -20,6 +20,7 @@
 #include <string.h>
 #include "usbutil.h"
 #include "util.h"
+#include "output.h"
 
 static const char *device_help(const struct usb_device *dev)
 {
@@ -49,12 +50,12 @@ void usbutil_list(void)
 		const struct usb_device *dev;
 		int busnum = atoi(bus->dirname);
 
-		printf("Devices on bus %03d:\n", busnum);
+		printc("Devices on bus %03d:\n", busnum);
 
 		for (dev = bus->devices; dev; dev = dev->next) {
 			int devnum = atoi(dev->filename);
 
-			printf("    %03d:%03d %04x:%04x %s\n",
+			printc("    %03d:%03d %04x:%04x %s\n",
 			       busnum, devnum,
 			       dev->descriptor.idVendor,
 			       dev->descriptor.idProduct,
@@ -76,7 +77,7 @@ struct usb_device *usbutil_find_by_id(int vendor, int product)
 				return dev;
 	}
 
-	fprintf(stderr, "usbutil: unable to find a device matching "
+	printc_err("usbutil: unable to find a device matching "
 		"%04x:%04x\n", vendor, product);
 
 	return NULL;
@@ -98,7 +99,7 @@ struct usb_device *usbutil_find_by_loc(const char *loc)
 	dev_text = strtok(NULL, ":\t\r\n");
 
 	if (!(bus_text && dev_text)) {
-		fprintf(stderr, "usbutil: location must be specified as "
+		printc_err("usbutil: location must be specified as "
 			"<bus>:<device>\n");
 		return NULL;
 	}
@@ -121,7 +122,7 @@ struct usb_device *usbutil_find_by_loc(const char *loc)
 		}
 	}
 
-	fprintf(stderr, "usbutil: unable to find %03d:%03d\n",
+	printc_err("usbutil: unable to find %03d:%03d\n",
 		target_bus, target_dev);
 	return NULL;
 }

@@ -57,18 +57,18 @@ static int isearch_opcode(const char *term, char **arg,
 	int opc;
 
 	if (q->flags & ISEARCH_OPCODE) {
-		fprintf(stderr, "isearch: opcode already specified\n");
+		printc_err("isearch: opcode already specified\n");
 		return -1;
 	}
 
 	if (!opname) {
-		fprintf(stderr, "isearch: opcode name expected\n");
+		printc_err("isearch: opcode name expected\n");
 		return -1;
 	}
 
 	opc = dis_opcode_from_name(opname);
 	if (opc < 0) {
-		fprintf(stderr, "isearch: unknown opcode: %s\n", opname);
+		printc_err("isearch: unknown opcode: %s\n", opname);
 		return -1;
 	}
 	q->insn.op = opc;
@@ -81,7 +81,7 @@ static int isearch_bw(const char *term, char **arg,
 		      struct isearch_query *q)
 {
 	if (q->flags & ISEARCH_DSIZE) {
-		fprintf(stderr, "isearch: operand size already specified\n");
+		printc_err("isearch: operand size already specified\n");
 		return -1;
 	}
 
@@ -107,7 +107,7 @@ static int isearch_type(const char *term, char **arg,
 			struct isearch_query *q)
 {
 	if (q->flags & ISEARCH_TYPE) {
-		fprintf(stderr, "isearch: instruction type already "
+		printc_err("isearch: instruction type already "
 			"specified\n");
 		return -1;
 	}
@@ -144,13 +144,13 @@ static int isearch_addr(const char *term, char **arg,
 	address_t addr;
 
 	if (q->flags & which) {
-		fprintf(stderr, "isearch: address already specified\n");
+		printc_err("isearch: address already specified\n");
 		return -1;
 	}
 
 	addr_text = get_arg(arg);
 	if (!addr_text) {
-		fprintf(stderr, "isearch: address expected\n");
+		printc_err("isearch: address expected\n");
 		return -1;
 	}
 
@@ -175,19 +175,19 @@ static int isearch_reg(const char *term, char **arg,
 	int reg;
 
 	if (q->flags & which) {
-		fprintf(stderr, "isearch: register already specified\n");
+		printc_err("isearch: register already specified\n");
 		return -1;
 	}
 
 	reg_text = get_arg(arg);
 	if (!reg_text) {
-		fprintf(stderr, "isearch: register expected\n");
+		printc_err("isearch: register expected\n");
 		return -1;
 	}
 
 	reg = dis_reg_from_name(reg_text);
 	if (reg < 0) {
-		fprintf(stderr, "isearch: unknown register: %s\n",
+		printc_err("isearch: unknown register: %s\n",
 			reg_text);
 		return -1;
 	}
@@ -210,13 +210,13 @@ static int isearch_mode(const char *term, char **arg,
 	int what;
 
 	if (q->flags & which) {
-		fprintf(stderr, "isearch: mode already specified\n");
+		printc_err("isearch: mode already specified\n");
 		return -1;
 	}
 
 	what_text = get_arg(arg);
 	if (!what_text) {
-		fprintf(stderr, "isearch: mode must be specified\n");
+		printc_err("isearch: mode must be specified\n");
 		return -1;
 	}
 
@@ -250,7 +250,7 @@ static int isearch_mode(const char *term, char **arg,
 		break;
 
 	default:
-		fprintf(stderr, "isearch: unknown address mode: %s\n",
+		printc_err("isearch: unknown address mode: %s\n",
 			what_text);
 		return -1;
 	}
@@ -348,13 +348,13 @@ static int do_isearch(address_t addr, address_t len,
 
 	mbuf = malloc(len);
 	if (!mbuf) {
-		fprintf(stderr, "isearch: couldn't allocate memory: %s\n",
+		printc_err("isearch: couldn't allocate memory: %s\n",
 			strerror(errno));
 		return -1;
 	}
 
 	if (device_default->readmem(device_default, addr, mbuf, len) < 0) {
-		fprintf(stderr, "isearch: couldn't read device memory\n");
+		printc_err("isearch: couldn't read device memory\n");
 		free(mbuf);
 		return -1;
 	}
@@ -405,7 +405,7 @@ int cmd_isearch(char **arg)
 	len_text = get_arg(arg);
 
 	if (!(addr_text && len_text)) {
-		fprintf(stderr, "isearch: address and length expected\n");
+		printc_err("isearch: address and length expected\n");
 		return -1;
 	}
 
@@ -430,7 +430,7 @@ int cmd_isearch(char **arg)
 	}
 
 	if (!q.flags) {
-		fprintf(stderr, "isearch: no query terms given "
+		printc_err("isearch: no query terms given "
 			"(perhaps you mean \"dis\"?)\n");
 		return -1;
 	}
@@ -812,7 +812,7 @@ static void cgraph_summary(struct call_graph *graph)
 		    o)
 			name[0] = 0;
 
-		printf("0x%04x [%3d ==> %3d] %s\n",
+		printc("0x%04x [%3d ==> %3d] %s\n",
 		       n->offset, to_count, from_count, name);
 	}
 }
@@ -831,7 +831,7 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 		i++;
 	if (i >= graph->node_list.size ||
 	    CG_NODE(graph, i)->offset > addr) {
-		printf("No information for address 0x%04x\n", addr);
+		printc("No information for address 0x%04x\n", addr);
 		return;
 	}
 
@@ -847,15 +847,15 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 
 	if (stab_nearest(stab_default, n->offset,
 			 name, sizeof(name), &offset))
-		printf("0x%04x:\n", n->offset);
+		printc("0x%04x:\n", n->offset);
 	else if (offset)
-		printf("0x%04x %s+0x%x:\n", n->offset, name, offset);
+		printc("0x%04x %s+0x%x:\n", n->offset, name, offset);
 	else
-		printf("0x%04x %s:\n", n->offset, name);
+		printc("0x%04x %s:\n", n->offset, name);
 
 	if (j < graph->edge_from.size &&
 	    CG_EDGE_FROM(graph, j)->src == n->offset) {
-		printf("    Callees:\n");
+		printc("    Callees:\n");
 		while (j < graph->edge_from.size) {
 			struct cg_edge *e = CG_EDGE_FROM(graph, j);
 
@@ -867,17 +867,17 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 					 &offset) ||
 			    offset)
 				snprintf(name, sizeof(name), "0x%04x", e->dst);
-			printf("        %s%s\n",
+			printc("        %s%s\n",
 			       e->is_tail_call ? "*" : "", name);
 
 			j++;
 		}
-		printf("\n");
+		printc("\n");
 	}
 
 	if (k < graph->edge_to.size &&
 	    CG_EDGE_TO(graph, k)->dst == n->offset) {
-		printf("    Callers:\n");
+		printc("    Callers:\n");
 		while (k < graph->edge_to.size) {
 			struct cg_edge *e = CG_EDGE_TO(graph, k);
 
@@ -889,7 +889,7 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 					 &offset) ||
 			    offset)
 				snprintf(name, sizeof(name), "0x%04x", e->src);
-			printf("        %s%s\n",
+			printc("        %s%s\n",
 			       e->is_tail_call ? "*" : "", name);
 
 			k++;
@@ -910,45 +910,45 @@ int cmd_cgraph(char **arg)
 	addr_text = get_arg(arg);
 
 	if (!(offset_text && len_text)) {
-		fprintf(stderr, "cgraph: offset and length must be "
+		printc_err("cgraph: offset and length must be "
 			"specified\n");
 		return -1;
 	}
 
 	if (expr_eval(stab_default, offset_text, &offset) < 0) {
-		fprintf(stderr, "cgraph: invalid offset: %s\n", offset_text);
+		printc_err("cgraph: invalid offset: %s\n", offset_text);
 		return -1;
 	}
 	offset &= ~1;
 
 	if (expr_eval(stab_default, len_text, &len) < 0) {
-		fprintf(stderr, "cgraph: invalid length: %s\n", len_text);
+		printc_err("cgraph: invalid length: %s\n", len_text);
 		return -1;
 	}
 	len &= ~1;
 
 	if (addr_text && expr_eval(stab_default, addr_text, &addr) < 0) {
-		fprintf(stderr, "cgraph: invalid address: %s\n", addr_text);
+		printc_err("cgraph: invalid address: %s\n", addr_text);
 		return -1;
 	}
 
 	/* Grab the memory to be analysed */
 	memory = malloc(len);
 	if (!memory) {
-		fprintf(stderr, "cgraph: couldn't allocate memory: %s\n",
+		printc_err("cgraph: couldn't allocate memory: %s\n",
 			strerror(errno));
 		return -1;
 	}
 
 	if (device_default->readmem(device_default, offset, memory, len) < 0) {
-		fprintf(stderr, "cgraph: couldn't fetch memory\n");
+		printc_err("cgraph: couldn't fetch memory\n");
 		free(memory);
 		return -1;
 	}
 
 	/* Produce and display the call graph */
 	if (cgraph_init(offset, len, memory, &graph) < 0) {
-		fprintf(stderr, "cgraph: couldn't build call graph\n");
+		printc_err("cgraph: couldn't build call graph\n");
 		free(memory);
 		return -1;
 	}

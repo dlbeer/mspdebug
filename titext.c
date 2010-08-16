@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include "titext.h"
 #include "util.h"
+#include "output.h"
 
 static int is_address_line(const char *text)
 {
@@ -95,13 +96,13 @@ static int process_data_line(address_t address, const char *buf,
 			} else if (c >= 'a' && c <= 'f') {
 				x = c - 'a' + 10;
 			} else  {
-				fprintf(stderr, "titext: unexpected "
+				printc_err("titext: unexpected "
 					"character: %c\n", c);
 				return -1;
 			}
 
 			if (vc >= 2) {
-				fprintf(stderr, "titext: too many digits "
+				printc_err("titext: too many digits "
 					"in hex value\n");
 				return -1;
 			}
@@ -123,7 +124,7 @@ static int process_data_line(address_t address, const char *buf,
 	return data_len;
 
  too_long:
-	fprintf(stderr, "titext: too many data bytes\n");
+	printc_err("titext: too many data bytes\n");
 	return -1;
 }
 
@@ -143,7 +144,7 @@ int titext_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 			int count = process_data_line(address, buf,
 						      cb, user_data);
 			if (count < 0) {
-				fprintf(stderr, "titext: data error on line "
+				printc_err("titext: data error on line "
 					"%d\n", lno);
 				return -1;
 			}

@@ -27,6 +27,7 @@
 #include "btree.h"
 #include "stab.h"
 #include "util.h"
+#include "output.h"
 
 stab_t stab_default;
 
@@ -147,7 +148,7 @@ int stab_set(stab_t st, const char *name, int value)
 	addr_key_init(&akey, addr, name);
 	if (btree_put(st->addr, &akey, NULL) < 0 ||
 	    btree_put(st->sym, &skey, &addr) < 0) {
-		fprintf(stderr, "stab: can't set %s = 0x%04x\n", name, addr);
+		printc_err("stab: can't set %s = 0x%04x\n", name, addr);
 		return -1;
 	}
 
@@ -227,20 +228,20 @@ stab_t stab_new(void)
 	stab_t st = malloc(sizeof(*st));
 
 	if (!st) {
-		perror("stab: failed to allocate memory\n");
+		pr_error("stab: failed to allocate memory\n");
 		return NULL;
 	}
 
 	st->sym = btree_alloc(&sym_table_def);
 	if (!st->sym) {
-		fprintf(stderr, "stab: failed to allocate symbol table\n");
+		printc_err("stab: failed to allocate symbol table\n");
 		free(st);
 		return NULL;
 	}
 
 	st->addr = btree_alloc(&addr_table_def);
 	if (!st->addr) {
-		fprintf(stderr, "stab: failed to allocate address table\n");
+		printc_err("stab: failed to allocate address table\n");
 		btree_free(st->sym);
 		free(st);
 		return NULL;

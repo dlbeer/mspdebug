@@ -59,18 +59,18 @@ int cmd_md(char **arg)
 	address_t length = 0x40;
 
 	if (!off_text) {
-		fprintf(stderr, "md: offset must be specified\n");
+		printc_err("md: offset must be specified\n");
 		return -1;
 	}
 
 	if (expr_eval(stab_default, off_text, &offset) < 0) {
-		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
+		printc_err("md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
 		if (expr_eval(stab_default, len_text, &length) < 0) {
-			fprintf(stderr, "md: can't parse length: %s\n",
+			printc_err("md: can't parse length: %s\n",
 				len_text);
 			return -1;
 		}
@@ -103,18 +103,18 @@ int cmd_mw(char **arg)
 	uint8_t buf[1024];
 
 	if (!off_text) {
-		fprintf(stderr, "md: offset must be specified\n");
+		printc_err("md: offset must be specified\n");
 		return -1;
 	}
 
 	if (expr_eval(stab_default, off_text, &offset) < 0) {
-		fprintf(stderr, "md: can't parse offset: %s\n", off_text);
+		printc_err("md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	while ((byte_text = get_arg(arg))) {
 		if (length >= sizeof(buf)) {
-			fprintf(stderr, "md: maximum length exceeded\n");
+			printc_err("md: maximum length exceeded\n");
 			return -1;
 		}
 
@@ -140,7 +140,7 @@ int cmd_erase(char **arg)
 	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0)
 		return -1;
 
-	printf("Erasing...\n");
+	printc("Erasing...\n");
 	return device_default->ctl(device_default, DEVICE_CTL_ERASE);
 }
 
@@ -167,7 +167,7 @@ int cmd_run(char **arg)
 	address_t regs[DEVICE_NUM_REGS];
 
 	if (device_default->getregs(device_default, regs) < 0) {
-		fprintf(stderr, "warning: device: can't fetch registers\n");
+		printc_err("warning: device: can't fetch registers\n");
 	} else {
 		int i;
 
@@ -181,25 +181,25 @@ int cmd_run(char **arg)
 		}
 
 		if (i < device_default->max_breakpoints) {
-			printf("Stepping over breakpoint #%d at 0x%04x\n",
+			printc("Stepping over breakpoint #%d at 0x%04x\n",
 			       i, regs[0]);
 			device_default->ctl(device_default, DEVICE_CTL_STEP);
 		}
 	}
 
 	if (device_default->ctl(device_default, DEVICE_CTL_RUN) < 0) {
-		fprintf(stderr, "run: failed to start CPU\n");
+		printc_err("run: failed to start CPU\n");
 		return -1;
 	}
 
-	printf("Running. Press Ctrl+C to interrupt...\n");
+	printc("Running. Press Ctrl+C to interrupt...\n");
 
 	do {
 		status = device_default->poll(device_default);
 	} while (status == DEVICE_STATUS_RUNNING);
 
 	if (status == DEVICE_STATUS_INTR)
-		printf("\n");
+		printc("\n");
 
 	if (status == DEVICE_STATUS_ERROR)
 		return -1;
@@ -219,18 +219,18 @@ int cmd_set(char **arg)
 	address_t regs[DEVICE_NUM_REGS];
 
 	if (!(reg_text && val_text)) {
-		fprintf(stderr, "set: must specify a register and a value\n");
+		printc_err("set: must specify a register and a value\n");
 		return -1;
 	}
 
 	reg = dis_reg_from_name(reg_text);
 	if (reg < 0) {
-		fprintf(stderr, "set: unknown register: %s\n", reg_text);
+		printc_err("set: unknown register: %s\n", reg_text);
 		return -1;
 	}
 
 	if (expr_eval(stab_default, val_text, &value) < 0) {
-		fprintf(stderr, "set: can't parse value: %s\n", val_text);
+		printc_err("set: can't parse value: %s\n", val_text);
 		return -1;
 	}
 
@@ -253,18 +253,18 @@ int cmd_dis(char **arg)
 	uint8_t *buf;
 
 	if (!off_text) {
-		fprintf(stderr, "dis: offset must be specified\n");
+		printc_err("dis: offset must be specified\n");
 		return -1;
 	}
 
 	if (expr_eval(stab_default, off_text, &offset) < 0) {
-		fprintf(stderr, "dis: can't parse offset: %s\n", off_text);
+		printc_err("dis: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
 		if (expr_eval(stab_default, len_text, &length) < 0) {
-			fprintf(stderr, "dis: can't parse length: %s\n",
+			printc_err("dis: can't parse length: %s\n",
 				len_text);
 			return -1;
 		}
@@ -274,7 +274,7 @@ int cmd_dis(char **arg)
 
 	buf = malloc(length);
 	if (!buf) {
-		perror("dis: couldn't allocate memory");
+		pr_error("dis: couldn't allocate memory");
 		return -1;
 	}
 
@@ -302,7 +302,7 @@ static int hexout_start(struct hexout_data *hexout, const char *filename)
 {
 	hexout->file = fopen(filename, "w");
 	if (!hexout->file) {
-		perror("hexout: couldn't open output file");
+		pr_error("hexout: couldn't open output file");
 		return -1;
 	}
 
@@ -337,7 +337,7 @@ static int hexout_write(FILE *out, int len, uint16_t addr, int type,
 	return 0;
 
 fail:
-	perror("hexout: can't write HEX data");
+	pr_error("hexout: can't write HEX data");
 	return -1;
 }
 
@@ -403,7 +403,7 @@ int cmd_hexout(char **arg)
 	struct hexout_data hexout;
 
 	if (!(off_text && len_text && *filename)) {
-		fprintf(stderr, "hexout: need offset, length and filename\n");
+		printc_err("hexout: need offset, length and filename\n");
 		return -1;
 	}
 
@@ -421,10 +421,10 @@ int cmd_hexout(char **arg)
 		if (count > sizeof(buf))
 			count = sizeof(buf);
 
-		printf("Reading %d bytes from 0x%04x...\n", count, off);
+		printc("Reading %d bytes from 0x%04x...\n", count, off);
 		if (device_default->readmem(device_default,
 					    off, buf, count) < 0) {
-			perror("hexout: can't read memory");
+			pr_error("hexout: can't read memory");
 			goto fail;
 		}
 
@@ -438,7 +438,7 @@ int cmd_hexout(char **arg)
 	if (hexout_flush(&hexout) < 0)
 		goto fail;
 	if (fclose(hexout.file) < 0) {
-		perror("hexout: error on close");
+		pr_error("hexout: error on close");
 		return -1;
 	}
 
@@ -467,14 +467,14 @@ static int prog_flush(struct prog_data *prog)
 			wlen = 0x999a - prog->addr;
 
 		if (!prog->have_erased) {
-			printf("Erasing...\n");
+			printc("Erasing...\n");
 			if (device_default->ctl(device_default,
 						DEVICE_CTL_ERASE) < 0)
 				return -1;
 			prog->have_erased = 1;
 		}
 
-		printf("Writing %3d bytes to %04x...\n", wlen, prog->addr);
+		printc("Writing %3d bytes to %04x...\n", wlen, prog->addr);
 		if (device_default->writemem(device_default, prog->addr,
 					     prog->buf, wlen) < 0)
 		        return -1;
@@ -533,7 +533,7 @@ int cmd_prog(char **arg)
 
 	in = fopen(*arg, "r");
 	if (!in) {
-		fprintf(stderr, "prog: %s: %s\n", *arg, strerror(errno));
+		printc_err("prog: %s: %s\n", *arg, strerror(errno));
 		return -1;
 	}
 
@@ -560,7 +560,7 @@ int cmd_prog(char **arg)
 		return -1;
 
 	if (device_default->ctl(device_default, DEVICE_CTL_RESET) < 0) {
-		fprintf(stderr, "prog: failed to reset after programming\n");
+		printc_err("prog: failed to reset after programming\n");
 		return -1;
 	}
 
@@ -576,12 +576,12 @@ int cmd_setbreak(char **arg)
 	address_t addr;
 
 	if (!addr_text) {
-		fprintf(stderr, "setbreak: address required\n");
+		printc_err("setbreak: address required\n");
 		return -1;
 	}
 
 	if (expr_eval(stab_default, addr_text, &addr) < 0) {
-		fprintf(stderr, "setbreak: invalid address\n");
+		printc_err("setbreak: invalid address\n");
 		return -1;
 	}
 
@@ -589,7 +589,7 @@ int cmd_setbreak(char **arg)
 		index = atoi(index_text);
 
 		if (index < 0 || index >= device_default->max_breakpoints) {
-			fprintf(stderr, "setbreak: invalid breakpoint "
+			printc_err("setbreak: invalid breakpoint "
 				"slot: %d\n", index);
 			return -1;
 		}
@@ -597,12 +597,12 @@ int cmd_setbreak(char **arg)
 
 	index = device_setbrk(device_default, index, 1, addr);
 	if (index < 0) {
-		fprintf(stderr, "setbreak: all breakpoint slots are "
+		printc_err("setbreak: all breakpoint slots are "
 			"occupied\n");
 		return -1;
 	}
 
-	printf("Set breakpoint %d\n", index);
+	printc("Set breakpoint %d\n", index);
 	return 0;
 }
 
@@ -615,17 +615,17 @@ int cmd_delbreak(char **arg)
 		int index = atoi(index_text);
 
 		if (index < 0 || index >= device_default->max_breakpoints) {
-			fprintf(stderr, "delbreak: invalid breakpoint "
+			printc_err("delbreak: invalid breakpoint "
 				"slot: %d\n", index);
 			return -1;
 		}
 
-		printf("Clearing breakpoint %d\n", index);
+		printc("Clearing breakpoint %d\n", index);
 		device_setbrk(device_default, index, 0, 0);
 	} else {
 		int i;
 
-		printf("Clearing all breakpoints...\n");
+		printc("Clearing all breakpoints...\n");
 		for (i = 0; i < device_default->max_breakpoints; i++)
 			device_setbrk(device_default, i, 0, 0);
 	}
@@ -637,7 +637,7 @@ int cmd_break(char **arg)
 {
 	int i;
 
-	printf("%d breakpoints available:\n", device_default->max_breakpoints);
+	printc("%d breakpoints available:\n", device_default->max_breakpoints);
 	for (i = 0; i < device_default->max_breakpoints; i++) {
 		const struct device_breakpoint *bp =
 			&device_default->breakpoints[i];
@@ -646,15 +646,15 @@ int cmd_break(char **arg)
 			char name[128];
 			address_t offset;
 
-			printf("    %d. 0x%05x", i, bp->addr);
+			printc("    %d. 0x%05x", i, bp->addr);
 			if (!stab_nearest(stab_default, bp->addr, name,
 					  sizeof(name), &offset)) {
-				printf(" (%s", name);
+				printc(" (%s", name);
 				if (offset)
-					printf("+0x%x", offset);
-				printf(")");
+					printc("+0x%x", offset);
+				printc(")");
 			}
-			printf("\n");
+			printc("\n");
 		}
 	}
 

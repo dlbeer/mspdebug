@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include "srec.h"
 #include "util.h"
+#include "output.h"
 
 int srec_check(FILE *in)
 {
@@ -69,13 +70,13 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 		lno++;
 
 		if (buf[0] != 'S') {
-			fprintf(stderr, "srec: garbage on line %d\n", lno);
+			printc_err("srec: garbage on line %d\n", lno);
 			return -1;
 		}
 
 		for (i = 2; ishex(buf[i]) && ishex(buf[i + 1]); i += 2) {
 			if (count >= sizeof(bytes)) {
-				fprintf(stderr, "srec: too many bytes on "
+				printc_err("srec: too many bytes on "
 					"line %d\n", lno);
 				return -1;
 			}
@@ -86,7 +87,7 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 
 		while (buf[i]) {
 			if (!isspace(buf[i])) {
-				fprintf(stderr, "srec: trailing garbage on "
+				printc_err("srec: trailing garbage on "
 					"line %d\n", lno);
 				return -1;
 			}
@@ -95,13 +96,13 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 		}
 
 		if (count < 2) {
-			fprintf(stderr, "srec: too few bytes on line %d\n",
+			printc_err("srec: too few bytes on line %d\n",
 				lno);
 			return -1;
 		}
 
 		if (bytes[0] + 1 != count) {
-			fprintf(stderr, "srec: byte count mismatch on "
+			printc_err("srec: byte count mismatch on "
 				"line %d\n", lno);
 			return -1;
 		}
@@ -110,7 +111,7 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 			cksum += bytes[i];
 		cksum = ~cksum;
 		if (cksum != bytes[count - 1]) {
-			fprintf(stderr, "srec: checksum error on line %d "
+			printc_err("srec: checksum error on line %d "
 				"(calc = 0x%02x, read = 0x%02x)\n",
 				lno, cksum, bytes[count - 1]);
 			return -1;
@@ -124,20 +125,20 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 				addr = (addr << 8) | bytes[i + 1];
 
 			if (count < addrbytes + 2) {
-				fprintf(stderr, "srec: too few address bytes "
+				printc_err("srec: too few address bytes "
 					"on line %d\n", lno);
 				return -1;
 			}
 
 			if (addr > 0xffff) {
-				fprintf(stderr, "srec: address out of range "
+				printc_err("srec: address out of range "
 					"on line %d: 0x%x\n", lno, addr);
 				return -1;
 			}
 
 			if (cb(user_data, addr, bytes + addrbytes + 1,
 			       count - 2 - addrbytes) < 0) {
-				fprintf(stderr, "srec: error on line %d\n",
+				printc_err("srec: error on line %d\n",
 					lno);
 				return -1;
 			}

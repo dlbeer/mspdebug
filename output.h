@@ -28,4 +28,6 @@
 int printc(const char *fmt, ...);
 int printc_err(const char *fmt, ...);
 
+void pr_error(const char *prefix);
+
 #endif

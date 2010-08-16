@@ -21,6 +21,7 @@
 #include <errno.h>
 #include "coff.h"
 #include "util.h"
+#include "output.h"
 
 struct coff_header {
 	uint16_t        version;
@@ -101,26 +102,26 @@ static int read_block(FILE *in, int offset, int size, void *buf)
 	int len;
 
 	if (size < 0) {
-		fprintf(stderr, "coff: invalid size: %d\n", size);
+		printc_err("coff: invalid size: %d\n", size);
 		return -1;
 	}
 
 	if (fseek(in, offset, SEEK_SET) < 0) {
-		fprintf(stderr, "coff: can't seek to offset %d: %s\n",
+		printc_err("coff: can't seek to offset %d: %s\n",
 			offset, strerror(errno));
 		return -1;
 	}
 
 	len = fread(buf, 1, size, in);
 	if (len < 0) {
-		fprintf(stderr, "coff: can't read %d bytes from "
+		printc_err("coff: can't read %d bytes from "
 			"offset %d: %s\n",
 			size, offset, strerror(errno));
 		return -1;
 	}
 
 	if (len < size) {
-		fprintf(stderr, "coff: can't read %d bytes from "
+		printc_err("coff: can't read %d bytes from "
 			"offset %d: short read\n",
 			size, offset);
 		return -1;
@@ -146,7 +147,7 @@ static int read_header(FILE *in, struct coff_header *hdr)
 	uint8_t hdr_data[FILE_HEADER_SIZE];
 
 	if (read_block(in, 0, FILE_HEADER_SIZE, hdr_data) < 0) {
-		fprintf(stderr, "coff: failed to extract COFF header\n");
+		printc_err("coff: failed to extract COFF header\n");
 		return -1;
 	}
 
@@ -178,13 +179,13 @@ static int read_sechdrs(FILE *in, const struct coff_header *hdr,
 
 	table = malloc(alloc_size);
 	if (!table) {
-		perror("coff: can't allocate memory for section headers");
+		pr_error("coff: can't allocate memory for section headers");
 		return -1;
 	}
 
 	if (read_block(in, hdr->opt_bytes + FILE_HEADER_SIZE,
 		       SHDR_SIZE * hdr->sec_count, table) < 0) {
-		fprintf(stderr, "coff: can't read section headers\n");
+		printc_err("coff: can't read section headers\n");
 		free(table);
 		return -1;
 	}
@@ -204,13 +205,13 @@ static int load_section(FILE *in, uint32_t addr, uint32_t offset,
 
 	section = malloc(size);
 	if (!section) {
-		fprintf(stderr, "coff: couldn't allocate memory for "
+		printc_err("coff: couldn't allocate memory for "
 			"section at 0x%x: %s\n", offset, strerror(errno));
 		return -1;
 	}
 
 	if (read_block(in, offset, size, section) < 0) {
-		fprintf(stderr, "coff: couldn't read section at 0x%x\n",
+		printc_err("coff: couldn't read section at 0x%x\n",
 			offset);
 		free(section);
 		return -1;
@@ -250,7 +251,7 @@ int coff_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 
 			if (load_section(in, addr, offset, size,
 					 cb, user_data) < 0) {
-				fprintf(stderr, "coff: error while loading "
+				printc_err("coff: error while loading "
 					"section %d\n", i);
 				ret = -1;
 				break;
@@ -274,7 +275,7 @@ static int read_strtab(FILE *in, const struct coff_header *hdr,
 	int strtab_start = hdr->stab_count * STAB_ENTRY_SIZE + hdr->stab_start;
 
 	if (fseek(in, 0, SEEK_END) < 0) {
-		fprintf(stderr, "coff: can't seek to end\n");
+		printc_err("coff: can't seek to end\n");
 		return -1;
 	}
 
@@ -282,7 +283,7 @@ static int read_strtab(FILE *in, const struct coff_header *hdr,
 	strtab_len = file_size - strtab_start;
 
 	if (strtab_len < 0) {
-		fprintf(stderr, "coff: invalid string table size\n");
+		printc_err("coff: invalid string table size\n");
 		return -1;
 	}
 
@@ -294,12 +295,12 @@ static int read_strtab(FILE *in, const struct coff_header *hdr,
 	alloc_size = strtab_len + 1;
 	strtab = malloc(alloc_size);
 	if (!strtab) {
-		perror("coff: can't allocate memory for string table");
+		pr_error("coff: can't allocate memory for string table");
 		return -1;
 	}
 
 	if (read_block(in, strtab_start, strtab_len, strtab) < 0) {
-		fprintf(stderr, "coff: failed to read string table\n");
+		printc_err("coff: failed to read string table\n");
 		free(strtab);
 		return -1;
 	}
@@ -322,13 +323,13 @@ static int read_symtab(FILE *in, const struct coff_header *hdr,
 
 	table = malloc(alloc_size);
 	if (!table) {
-		perror("coff: failed to allocate memory for symbol table");
+		pr_error("coff: failed to allocate memory for symbol table");
 		return -1;
 	}
 
 	if (read_block(in, hdr->stab_start,
 		       STAB_ENTRY_SIZE * hdr->stab_count, table) < 0) {
-		fprintf(stderr, "coff: failed to read symbol table\n");
+		printc_err("coff: failed to read symbol table\n");
 		free(table);
 		return -1;
 	}
@@ -379,7 +380,7 @@ int coff_syms(FILE *in, stab_t stab)
 
 		if ((storage_class == C_EXT || storage_class == C_LABEL) &&
 		    stab_set(stab, name, value) < 0) {
-			fprintf(stderr, "coff: failed to insert symbol\n");
+			printc_err("coff: failed to insert symbol\n");
 			ret = -1;
 			break;
 		}

@@ -24,6 +24,7 @@
 #include "olimex.h"
 #include "util.h"
 #include "usbutil.h"
+#include "output.h"
 
 struct olimex_transport {
 	struct transport        base;
@@ -70,31 +71,31 @@ static int open_interface(struct olimex_transport *tr,
 	char drName[256];
 #endif
 
-	printf(__FILE__": Trying to open interface %d on %s\n",
+	printc(__FILE__": Trying to open interface %d on %s\n",
 	       ino, dev->filename);
 
 	tr->int_number = ino;
 
 	tr->handle = usb_open(dev);
 	if (!tr->handle) {
-		perror(__FILE__": can't open device");
+		pr_error(__FILE__": can't open device");
 		return -1;
 	}
 
 #if !(defined(__APPLE__) || defined(WIN32))
 	drv = usb_get_driver_np(tr->handle, tr->int_number, drName,
 				sizeof(drName));
-	printf(__FILE__" : driver %d\n", drv);
+	printc(__FILE__" : driver %d\n", drv);
 	if (drv >= 0) {
 		if (usb_detach_kernel_driver_np(tr->handle,
 						tr->int_number) < 0)
-			perror(__FILE__": warning: can't detach "
+			pr_error(__FILE__": warning: can't detach "
 			       "kernel driver");
 	}
 #endif
 
 	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
-		perror(__FILE__": can't claim interface");
+		pr_error(__FILE__": can't claim interface");
 		usb_close(tr->handle);
 		return -1;
 	}
@@ -102,14 +103,14 @@ static int open_interface(struct olimex_transport *tr,
 	int ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
 				  CP210X_IFC_ENABLE, 0x1, 0, NULL, 0, 300);
 #ifdef DEBUG_OLIMEX
-	printf(__FILE__": %s : Sending control message ret %d\n",
+	printc(__FILE__": %s : Sending control message ret %d\n",
 	       __FUNCTION__, ret);
 #endif
 	/* Set the baud rate to 500000 bps */
 	ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
 			      CP210X_SET_BAUDDIV, 0x7, 0, NULL, 0, 300);
 #ifdef DEBUG_OLIMEX
-	printf(__FILE__": %s : Sending control message ret %d\n",
+	printc(__FILE__": %s : Sending control message ret %d\n",
 	       __FUNCTION__, ret);
 #endif
 	/* Set the modem control settings.
@@ -118,7 +119,7 @@ static int open_interface(struct olimex_transport *tr,
 	ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
 			      CP210X_SET_MHS, 0x303, 0, NULL, 0, 300);
 #ifdef DEBUG_OLIMEX
-	printf(__FILE__": %s : Sending control message ret %d\n",
+	printc(__FILE__": %s : Sending control message ret %d\n",
 	       __FUNCTION__, ret);
 #endif
 
@@ -155,7 +156,7 @@ static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 		sent = usb_bulk_write(tr->handle, USB_FET_OUT_EP,
 				      (char *)data, len, TIMEOUT);
 		if (sent < 0) {
-			perror(__FILE__": can't send data");
+			pr_error(__FILE__": can't send data");
 			return -1;
 		}
 
@@ -171,18 +172,18 @@ static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 	int rlen;
 
 #ifdef DEBUG_OLIMEX
-	printf(__FILE__": %s : read max %d\n", __FUNCTION__, max_len);
+	printc(__FILE__": %s : read max %d\n", __FUNCTION__, max_len);
 #endif
 
 	rlen = usb_bulk_read(tr->handle, USB_FET_IN_EP, (char *)databuf,
 			     max_len, TIMEOUT);
 
 #ifdef DEBUG_OLIMEX
-	printf(__FILE__": %s : read %d\n", __FUNCTION__, rlen);
+	printc(__FILE__": %s : read %d\n", __FUNCTION__, rlen);
 #endif
 
 	if (rlen < 0) {
-		perror(__FILE__": can't receive data");
+		pr_error(__FILE__": can't receive data");
 		return -1;
 	}
 
@@ -209,7 +210,7 @@ transport_t olimex_open(const char *devpath)
 	char buf[64];
 
 	if (!tr) {
-		perror(__FILE__": can't allocate memory");
+		pr_error(__FILE__": can't allocate memory");
 		return NULL;
 	}
 
@@ -232,7 +233,7 @@ transport_t olimex_open(const char *devpath)
 	}
 
 	if (open_device(tr, dev) < 0) {
-		fprintf(stderr, __FILE__ ": failed to open Olimex device\n");
+		printc_err(__FILE__ ": failed to open Olimex device\n");
 		return NULL;
 	}
 

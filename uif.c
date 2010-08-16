@@ -27,6 +27,7 @@
 
 #include "uif.h"
 #include "util.h"
+#include "output.h"
 
 #ifdef __APPLE__
 #define B460800 460800
@@ -48,7 +49,7 @@ static int serial_send(transport_t tr_base, const uint8_t *data, int len)
 #endif
 
 	if (write_all(tr->serial_fd, data, len) < 0) {
-		perror("uif: write error");
+		pr_error("uif: write error");
 		return -1;
 	}
 
@@ -62,7 +63,7 @@ static int serial_recv(transport_t tr_base, uint8_t *data, int max_len)
 
 	r = read_with_timeout(tr->serial_fd, data, max_len);
 	if (r < 0) {
-		perror("uif: read error");
+		pr_error("uif: read error");
 		return -1;
 	}
 
@@ -85,7 +86,7 @@ transport_t uif_open(const char *device, int is_olimex)
 	struct uif_transport *tr = malloc(sizeof(*tr));
 
 	if (!tr) {
-		perror("uif: couldn't allocate memory");
+		pr_error("uif: couldn't allocate memory");
 		return NULL;
 	}
 
@@ -93,11 +94,11 @@ transport_t uif_open(const char *device, int is_olimex)
 	tr->base.recv = serial_recv;
 	tr->base.destroy = serial_destroy;
 
-	printf("Trying to open UIF on %s...\n", device);
+	printc("Trying to open UIF on %s...\n", device);
 
 	tr->serial_fd = open_serial(device, is_olimex ? B500000 : B460800);
 	if (tr->serial_fd < 0) {
-		fprintf(stderr, "uif: can't open serial device: %s: %s\n",
+		printc_err("uif: can't open serial device: %s: %s\n",
 			device, strerror(errno));
 		free(tr);
 		return NULL;

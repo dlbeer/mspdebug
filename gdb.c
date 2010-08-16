@@ -31,6 +31,7 @@
 #include "util.h"
 #include "opdb.h"
 #include "gdb.h"
+#include "output.h"
 
 #define MAX_MEM_XFER    1024
 
@@ -78,7 +79,7 @@ static int gdb_read(struct gdb_data *data, int blocking)
 
 	if (select(data->sock + 1, &r, NULL, NULL,
 		   blocking ? NULL : &to) < 0) {
-		perror("gdb: select");
+		pr_error("gdb: select");
 		return -1;
 	}
 
@@ -89,12 +90,12 @@ static int gdb_read(struct gdb_data *data, int blocking)
 
 	if (len < 0) {
 		data->error = errno;
-		perror("gdb: recv");
+		pr_error("gdb: recv");
 		return -1;
 	}
 
 	if (!len) {
-		printf("Connection closed\n");
+		printc("Connection closed\n");
 		return -1;
 	}
 
@@ -129,7 +130,7 @@ static int gdb_flush(struct gdb_data *data)
 {
 	if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
 		data->error = errno;
-		perror("gdb: flush");
+		pr_error("gdb: flush");
 		return -1;
 	}
 
@@ -144,11 +145,11 @@ static int gdb_flush_ack(struct gdb_data *data)
 	do {
 		data->outbuf[data->outlen] = 0;
 #ifdef DEBUG_GDB
-		printf("-> %s\n", data->outbuf);
+		printc("-> %s\n", data->outbuf);
 #endif
 		if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
 			data->error = errno;
-			perror("gdb: flush_ack");
+			pr_error("gdb: flush_ack");
 			return -1;
 		}
 
@@ -215,7 +216,7 @@ static int read_registers(struct gdb_data *data)
 	address_t regs[DEVICE_NUM_REGS];
 	int i;
 
-	printf("Reading registers\n");
+	printc("Reading registers\n");
 	if (device_default->getregs(device_default, regs) < 0)
 		return gdb_send(data, "E00");
 
@@ -240,14 +241,14 @@ static int monitor_command(struct gdb_data *data, char *buf)
 	}
 	cmd[len] = 0;
 
-	printf("Monitor command received: %s\n", cmd);
+	printc("Monitor command received: %s\n", cmd);
 
 	if (!strcasecmp(cmd, "reset")) {
-		printf("Resetting device\n");
+		printc("Resetting device\n");
 		if (device_default->ctl(device_default, DEVICE_CTL_RESET) < 0)
 			return gdb_send_hex(data, "Reset failed\n");
 	} else if (!strcasecmp(cmd, "erase")) {
-		printf("Erasing device\n");
+		printc("Erasing device\n");
 		if (device_default->ctl(device_default, DEVICE_CTL_ERASE) < 0)
 			return gdb_send_hex(data, "Erase failed\n");
 	}
@@ -263,7 +264,7 @@ static int write_registers(struct gdb_data *data, char *buf)
 	if (strlen(buf) < DEVICE_NUM_REGS * 4)
 		return gdb_send(data, "E00");
 
-	printf("Writing registers\n");
+	printc("Writing registers\n");
 	for (i = 0; i < DEVICE_NUM_REGS; i++) {
 		regs[i] = (hexval(buf[2]) << 12) |
 			(hexval(buf[3]) << 8) |
@@ -286,7 +287,7 @@ static int read_memory(struct gdb_data *data, char *text)
 	int i;
 
 	if (!length_text) {
-		fprintf(stderr, "gdb: malformed memory read request\n");
+		printc_err("gdb: malformed memory read request\n");
 		return gdb_send(data, "E00");
 	}
 
@@ -298,7 +299,7 @@ static int read_memory(struct gdb_data *data, char *text)
 	if (length > sizeof(buf))
 		length = sizeof(buf);
 
-	printf("Reading %d bytes from 0x%04x\n", length, addr);
+	printc("Reading %d bytes from 0x%04x\n", length, addr);
 
 	if (device_default->readmem(device_default, addr, buf, length) < 0)
 		return gdb_send(data, "E00");
@@ -320,7 +321,7 @@ static int write_memory(struct gdb_data *data, char *text)
 	int buflen = 0;
 
 	if (!(data_text && length_text)) {
-		fprintf(stderr, "gdb: malformed memory write request\n");
+		printc_err("gdb: malformed memory write request\n");
 		return gdb_send(data, "E00");
 	}
 
@@ -337,11 +338,11 @@ static int write_memory(struct gdb_data *data, char *text)
 	}
 
 	if (buflen != length) {
-		fprintf(stderr, "gdb: length mismatch\n");
+		printc_err("gdb: length mismatch\n");
 		return gdb_send(data, "E00");
 	}
 
-	printf("Writing %d bytes to 0x%04x\n", buflen, addr);
+	printc("Writing %d bytes to 0x%04x\n", buflen, addr);
 
 	if (device_default->writemem(device_default, addr, buf, buflen) < 0)
 		return gdb_send(data, "E00");
@@ -394,7 +395,7 @@ static int run_final_status(struct gdb_data *data)
 
 static int single_step(struct gdb_data *data, char *buf)
 {
-	printf("Single stepping\n");
+	printc("Single stepping\n");
 
 	if (run_set_pc(data, buf) < 0 ||
 	    device_default->ctl(device_default, DEVICE_CTL_STEP) < 0)
@@ -405,7 +406,7 @@ static int single_step(struct gdb_data *data, char *buf)
 
 static int run(struct gdb_data *data, char *buf)
 {
-	printf("Running\n");
+	printc("Running\n");
 
 	if (run_set_pc(data, buf) < 0 ||
 	    device_default->ctl(device_default, DEVICE_CTL_RUN) < 0)
@@ -418,7 +419,7 @@ static int run(struct gdb_data *data, char *buf)
 			return gdb_send(data, "E00");
 
 		if (status == DEVICE_STATUS_HALTED) {
-			printf("Target halted\n");
+			printc("Target halted\n");
 			goto out;
 		}
 
@@ -432,7 +433,7 @@ static int run(struct gdb_data *data, char *buf)
 				return -1;
 
 			if (c == 3) {
-				printf("Interrupted by gdb\n");
+				printc("Interrupted by gdb\n");
 				goto out;
 			}
 		}
@@ -458,21 +459,21 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 
 	/* Make sure there's a type argument */
 	if (!parts[0]) {
-		fprintf(stderr, "gdb: breakpoint requested with no type\n");
+		printc_err("gdb: breakpoint requested with no type\n");
 		return gdb_send(data, "E00");
 	}
 
 	/* We only support breakpoints */
 	type = atoi(parts[0]);
 	if (type < 0 || type > 1) {
-		fprintf(stderr, "gdb: unsupported breakpoint type: %s\n",
+		printc_err("gdb: unsupported breakpoint type: %s\n",
 			parts[0]);
 		return gdb_send(data, "");
 	}
 
 	/* There needs to be an address specified */
 	if (!parts[1]) {
-		fprintf(stderr, "gdb: breakpoint address missing\n");
+		printc_err("gdb: breakpoint address missing\n");
 		return gdb_send(data, "E00");
 	}
 
@@ -481,15 +482,15 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 
 	if (enable) {
 		if (device_setbrk(device_default, -1, 1, addr) < 0) {
-			fprintf(stderr, "gdb: can't add breakpoint at "
+			printc_err("gdb: can't add breakpoint at "
 				"0x%04x\n", addr);
 			return gdb_send(data, "E00");
 		}
 
-		printf("Breakpoint set at 0x%04x\n", addr);
+		printc("Breakpoint set at 0x%04x\n", addr);
 	} else {
 		device_setbrk(device_default, -1, 0, addr);
-		printf("Breakpoint cleared at 0x%04x\n", addr);
+		printc("Breakpoint cleared at 0x%04x\n", addr);
 	}
 
 	return gdb_send(data, "OK");
@@ -583,13 +584,13 @@ static void gdb_reader_loop(struct gdb_data *data)
 		cksum_recv = (cksum_recv << 4) | hexval(c);
 
 #ifdef DEBUG_GDB
-		printf("<- $%s#%02x\n", buf, cksum_recv);
+		printc("<- $%s#%02x\n", buf, cksum_recv);
 #endif
 
 		if (cksum_recv != cksum_calc) {
-			fprintf(stderr, "gdb: bad checksum (calc = 0x%02x, "
+			printc_err("gdb: bad checksum (calc = 0x%02x, "
 				"recv = 0x%02x)\n", cksum_calc, cksum_recv);
-			fprintf(stderr, "gdb: packet data was: %s\n", buf);
+			printc_err("gdb: packet data was: %s\n", buf);
 			gdb_printf(data, "-");
 			if (gdb_flush(data) < 0)
 				return;
@@ -618,42 +619,42 @@ static int gdb_server(int port)
 
 	sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {
-		perror("gdb: can't create socket");
+		pr_error("gdb: can't create socket");
 		return -1;
 	}
 
 	arg = 1;
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) < 0)
-		perror("gdb: warning: can't reuse socket address");
+		pr_error("gdb: warning: can't reuse socket address");
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		fprintf(stderr, "gdb: can't bind to port %d: %s\n",
+		printc_err("gdb: can't bind to port %d: %s\n",
 			port, strerror(errno));
 		close(sock);
 		return -1;
 	}
 
 	if (listen(sock, 1) < 0) {
-		perror("gdb: can't listen on socket");
+		pr_error("gdb: can't listen on socket");
 		close(sock);
 		return -1;
 	}
 
-	printf("Bound to port %d. Now waiting for connection...\n", port);
+	printc("Bound to port %d. Now waiting for connection...\n", port);
 
 	len = sizeof(addr);
 	client = accept(sock, (struct sockaddr *)&addr, &len);
 	if (client < 0) {
-		perror("gdb: failed to accept connection");
+		pr_error("gdb: failed to accept connection");
 		close(sock);
 		return -1;
 	}
 
 	close(sock);
-	printf("Client connected from %s:%d\n",
+	printc("Client connected from %s:%d\n",
 	       inet_ntoa(addr.sin_addr), htons(addr.sin_port));
 
 	data.sock = client;
@@ -663,7 +664,7 @@ static int gdb_server(int port)
 	data.outlen = 0;
 
 	/* Put the hardware breakpoint setting into a known state. */
-	printf("Clearing all breakpoints...\n");
+	printc("Clearing all breakpoints...\n");
 	for (i = 0; i < device_default->max_breakpoints; i++)
 		device_setbrk(device_default, i, 0, 0);
 
@@ -681,7 +682,7 @@ int cmd_gdb(char **arg)
 		port = atoi(port_text);
 
 	if (port <= 0 || port > 65535) {
-		fprintf(stderr, "gdb: invalid port: %d\n", port);
+		printc_err("gdb: invalid port: %d\n", port);
 		return -1;
 	}
 

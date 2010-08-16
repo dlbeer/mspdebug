@@ -23,6 +23,7 @@
 #include "rf2500.h"
 #include "util.h"
 #include "usbutil.h"
+#include "output.h"
 
 struct rf2500_transport {
 	struct transport        base;
@@ -56,24 +57,24 @@ struct rf2500_transport {
 static int open_interface(struct rf2500_transport *tr,
 			  struct usb_device *dev, int ino)
 {
-	printf("Trying to open interface %d on %s\n", ino, dev->filename);
+	printc("Trying to open interface %d on %s\n", ino, dev->filename);
 
 	tr->int_number = ino;
 
 	tr->handle = usb_open(dev);
 	if (!tr->handle) {
-		perror("rf2500: can't open device");
+		pr_error("rf2500: can't open device");
 		return -1;
 	}
 
 #if !(defined(__APPLE__) || defined(WIN32))
 	if (usb_detach_kernel_driver_np(tr->handle, tr->int_number) < 0)
-		perror("rf2500: warning: can't "
+		pr_error("rf2500: warning: can't "
 			"detach kernel driver");
 #endif
 
 	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
-		perror("rf2500: can't claim interface");
+		pr_error("rf2500: can't claim interface");
 		usb_close(tr->handle);
 		return -1;
 	}
@@ -126,7 +127,7 @@ static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 #endif
 		if (usb_bulk_write(tr->handle, USB_FET_OUT_EP,
 			(char *)pbuf, txlen, 10000) < 0) {
-			perror("rf2500: can't send data");
+			pr_error("rf2500: can't send data");
 			return -1;
 		}
 
@@ -146,7 +147,7 @@ static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 		if (usb_bulk_read(tr->handle, USB_FET_IN_EP,
 				(char *)tr->buf, sizeof(tr->buf),
 				10000) < 0) {
-			perror("rf2500: can't receive data");
+			pr_error("rf2500: can't receive data");
 			return -1;
 		}
 
@@ -185,7 +186,7 @@ transport_t rf2500_open(const char *devpath)
 	char buf[64];
 
 	if (!tr) {
-		perror("rf2500: can't allocate memory");
+		pr_error("rf2500: can't allocate memory");
 		return NULL;
 	}
 
@@ -208,7 +209,7 @@ transport_t rf2500_open(const char *devpath)
 	}
 
 	if (open_device(tr, dev) < 0) {
-		fprintf(stderr, "rf2500: failed to open RF2500 device\n");
+		printc_err("rf2500: failed to open RF2500 device\n");
 		return NULL;
 	}
 

@@ -24,6 +24,7 @@
 #include "titext.h"
 #include "srec.h"
 #include "coff.h"
+#include "output.h"
 
 struct file_format {
 	int (*check)(FILE *in);
@@ -94,12 +95,12 @@ int binfile_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 	const struct file_format *fmt = identify(in);
 
 	if (!fmt) {
-		fprintf(stderr, "binfile: unknown file format\n");
+		printc_err("binfile: unknown file format\n");
 		return -1;
 	}
 
 	if (!fmt->extract) {
-		fprintf(stderr, "binfile: this format contains no code\n");
+		printc_err("binfile: this format contains no code\n");
 		return -1;
 	}
 
@@ -111,12 +112,12 @@ int binfile_syms(FILE *in, stab_t stab)
 	const struct file_format *fmt = identify(in);
 
 	if (!fmt) {
-		fprintf(stderr, "binfile: unknown file format\n");
+		printc_err("binfile: unknown file format\n");
 		return -1;
 	}
 
 	if (!fmt->syms) {
-		fprintf(stderr, "binfile: this format contains no symbols\n");
+		printc_err("binfile: this format contains no symbols\n");
 		return -1;
 	}
 
