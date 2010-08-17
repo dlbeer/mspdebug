@@ -155,8 +155,11 @@ Start a GDB remote stub, optionally specifying a TCP port to listen on.
 If no port is given, the default port is 2000.
 
 MSPDebug will wait for a connection on this port, and then act as a
-GDB remote stub until GDB disconnects. The basic GDB protocol is
-supported, plus the monitor commands "erase" and "reset".
+GDB remote stub until GDB disconnects.
+
+GDB's "monitor" command can be used to issue MSPDebug commands via the
+GDB interface. Supplied commands are executed non-interactively, and
+the output is sent back to be displayed in GDB.
 .IP "\fBhelp\fR [\fIcommand\fR]"
 Show a brief listing of available commands. If an argument is
 specified, show the syntax for the given command. The help text shown
