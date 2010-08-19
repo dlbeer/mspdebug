@@ -18,6 +18,7 @@
 CC = gcc
 INSTALL = /usr/bin/install
 PREFIX ?= /usr/local
+LDFLAGS ?= -s
 
 ifdef WITHOUT_READLINE
 	READLINE_CFLAGS =
@@ -48,7 +49,7 @@ clean:
 install: mspdebug mspdebug.man
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man1
-	$(INSTALL) -m 0755 -s mspdebug $(DESTDIR)$(PREFIX)/bin/mspdebug
+	$(INSTALL) -m 0755 mspdebug $(DESTDIR)$(PREFIX)/bin/mspdebug
 	$(INSTALL) -m 0644 mspdebug.man $(DESTDIR)$(PREFIX)/share/man/man1/mspdebug.1
 
 .SUFFIXES: .c .o
