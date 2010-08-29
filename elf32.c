@@ -36,7 +36,7 @@ static const uint8_t elf32_id[] = {
 };
 
 #define MAX_PHDRS	32
-#define MAX_SHDRS	32
+#define MAX_SHDRS	128
 
 struct elf32_info {
 	Elf32_Ehdr              file_ehdr;
