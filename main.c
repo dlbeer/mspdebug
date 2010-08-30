@@ -449,7 +449,6 @@ int main(int argc, char **argv)
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		return -1;
 
-	ctrlc_init();
 	opdb_reset();
 
 	if (setup_driver(&args) < 0)
@@ -467,6 +466,7 @@ int main(int argc, char **argv)
 			}
 		}
 	} else {
+		ctrlc_init();
 		reader_loop();
 	}
 
