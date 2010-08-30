@@ -94,7 +94,8 @@ transport_t uif_open(const char *device, int is_olimex)
 	tr->base.recv = serial_recv;
 	tr->base.destroy = serial_destroy;
 
-	printc("Trying to open UIF on %s...\n", device);
+	printc("Trying to open %s on %s...\n",
+		is_olimex ? "Olimex" : "UIF", device);
 
 	tr->serial_fd = open_serial(device, is_olimex ? B500000 : B460800);
 	if (tr->serial_fd < 0) {
