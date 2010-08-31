@@ -130,12 +130,6 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 				return -1;
 			}
 
-			if (addr > 0xffff) {
-				printc_err("srec: address out of range "
-					"on line %d: 0x%x\n", lno, addr);
-				return -1;
-			}
-
 			if (cb(user_data, addr, bytes + addrbytes + 1,
 			       count - 2 - addrbytes) < 0) {
 				printc_err("srec: error on line %d\n",
