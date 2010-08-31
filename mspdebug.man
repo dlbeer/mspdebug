@@ -24,12 +24,14 @@ On startup, MSPDebug will look for a file called .mspdebug in the user's
 home directory. If it exists, commands will be read and executed from this
 file before executing any other commands or starting the interactive
 reader.
-.SH OPTIONS
+.SH COMMAND-LINE OPTIONS
 Command-line options accepted by MSPDebug are described below. If
 commands are specified on the end of the command-line, then they are
 executed after connecting to the device, and the interactive prompt is
 not started. See the section labelled \fBCOMMANDS\fR for more
 information.
+.IP "\-q"
+Start in quiet mode. See the "quiet" option described below.
 .IP "\-v \fIvoltage\fR"
 Set the programming voltage. The voltage should be specified as an integer
 in millivolts. It defaults to 3000 (3.0 V).
@@ -56,6 +58,8 @@ MSPDebug as one of the given type during initialization. This overrides
 the device ID returned by the FET.
 .IP "\-\-usb\-list"
 List available USB devices and exit.
+.IP "\-\-version"
+Show program version and copyright information.
 .SH DRIVERS
 A driver name must be specified on the command line for MSPDebug to
 connect to. Valid driver names are listed here.
@@ -373,6 +377,10 @@ If true, MSPDebug will colorize debugging output.
 Automatically restart the GDB server after disconnection. If this
 option is set, then the GDB server keeps running until an error occurs,
 or the user interrupts with Ctrl+C.
+.IP "\fBquiet\fR (boolean)"
+If set, MSPDebug will supress most of its debug-related output. This option
+defaults to false, but can be set true on start-up using the \fB-q\fR
+command-line option.
 .SH BUGS
 If you find any bugs, you should report them to the author at
 daniel@tortek.co.nz. It would help if you could include a transcript

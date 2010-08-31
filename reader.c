@@ -34,6 +34,7 @@
 #include "cmddb.h"
 #include "stdcmd.h"
 #include "reader.h"
+#include "opdb.h"
 
 static int modify_flags;
 static int in_reader_loop;
@@ -146,9 +147,11 @@ void reader_loop(void)
 
 	in_reader_loop = 1;
 
-	printc("\n");
-	cmd_help(NULL);
-	printc("\n");
+	if (!opdb_get_boolean("quiet")) {
+		printc("\n");
+		cmd_help(NULL);
+		printc("\n");
+	}
 
 	do {
 		for (;;) {

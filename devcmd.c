@@ -471,10 +471,12 @@ static int prog_flush(struct prog_data *prog)
 			if (device_default->ctl(device_default,
 						DEVICE_CTL_ERASE) < 0)
 				return -1;
+
+			printc("Programming...\n");
 			prog->have_erased = 1;
 		}
 
-		printc("Writing %3d bytes to %04x...\n", wlen, prog->addr);
+		printc_dbg("Writing %3d bytes to %04x...\n", wlen, prog->addr);
 		if (device_default->writemem(device_default, prog->addr,
 					     prog->buf, wlen) < 0)
 		        return -1;

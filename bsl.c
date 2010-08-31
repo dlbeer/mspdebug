@@ -396,9 +396,9 @@ device_t bsl_open(const char *device)
 		goto fail;
 	}
 
-	printc("Device ID: 0x%02x%02x\n",
+	printc_dbg("Device ID: 0x%02x%02x\n",
 	       dev->reply_buf[4], dev->reply_buf[5]);
-	printc("BSL version is %x.%02x\n", dev->reply_buf[14],
+	printc_dbg("BSL version is %x.%02x\n", dev->reply_buf[14],
 	       dev->reply_buf[15]);
 
 	return (device_t)dev;

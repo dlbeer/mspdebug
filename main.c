@@ -243,12 +243,24 @@ static const struct driver driver_table[] = {
 	}
 };
 
+static void version(void)
+{
+	printc(
+"MSPDebug version 0.10 - debugging tool for MSP430 MCUs\n"
+"Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
+"This is free software; see the source for copying conditions.  There is NO\n"
+"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
+"PURPOSE.\n");
+}
+
 static void usage(const char *progname)
 {
 	int i;
 
 	printc_err("Usage: %s [options] <driver> [command ...]\n"
 "\n"
+"    -q\n"
+"        Start in quiet mode.\n"
 "    -d device\n"
 "        Connect via the given tty device, rather than USB.\n"
 "    -U bus:dev\n"
@@ -267,6 +279,8 @@ static void usage(const char *progname)
 "        Override the device ID returned by the FET.\n"
 "    --usb-list\n"
 "        Show a list of available USB devices.\n"
+"    --version\n"
+"        Show copyright and version information.\n"
 "\n"
 "Most drivers connect by default via USB, unless told otherwise via the\n"
 "-d option. By default, the first USB device found is opened.\n"
@@ -339,12 +353,23 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"fet-list",            0, 0, 'L'},
 		{"fet-force-id",        1, 0, 'F'},
 		{"usb-list",            0, 0, 'I'},
+		{"version",             0, 0, 'V'},
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "d:jv:nU:",
+	while ((opt = getopt_long(argc, argv, "d:jv:nU:q",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
+		case 'q':
+			{
+				const static union opdb_value v = {
+					.boolean = 1
+				};
+
+				opdb_set("quiet", &v);
+			}
+			break;
+
 		case 'I':
 			usb_init();
 			usb_find_busses();
@@ -369,6 +394,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case 'H':
 			usage(argv[0]);
+			exit(0);
+
+		case 'V':
+			version();
 			exit(0);
 
 		case 'v':
@@ -438,18 +467,11 @@ int main(int argc, char **argv)
 	struct cmdline_args args = {0};
 	int ret = 0;
 
-	puts(
-"MSPDebug version 0.10 - debugging tool for MSP430 MCUs\n"
-"Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
-"This is free software; see the source for copying conditions.  There is NO\n"
-"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
-"PURPOSE.\n");
+	opdb_reset();
 
 	args.vcc_mv = 3000;
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		return -1;
-
-	opdb_reset();
 
 	if (setup_driver(&args) < 0)
 		return -1;

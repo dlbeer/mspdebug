@@ -39,6 +39,14 @@ const static struct opdb_key keys[] = {
 		.defval = {
 			.boolean = 0
 		}
+	},
+	{
+		.name = "quiet",
+		.type = OPDB_TYPE_BOOLEAN,
+		.help = "Supress debugging output\n",
+		.defval = {
+			.boolean = 0
+		}
 	}
 };
 

@@ -598,6 +598,6 @@ device_t sim_open(sim_fetch_func_t fetch_func,
 	dev->running = 0;
 	dev->current_insn = 0;
 
-	printc("Simulation started, 0x%x bytes of RAM\n", MEM_SIZE);
+	printc_dbg("Simulation started, 0x%x bytes of RAM\n", MEM_SIZE);
 	return (device_t)dev;
 }

@@ -477,9 +477,9 @@ static int xfer(struct fet_device *dev,
 
 static void show_dev_info(const char *name, const struct fet_device *dev)
 {
-	printc("Device: %s\n", name);
-	printc("Code memory starts at 0x%04x\n", dev->code_start);
-	printc("Number of breakpoints: %d\n", dev->base.max_breakpoints);
+	printc_dbg("Device: %s\n", name);
+	printc_dbg("Code memory starts at 0x%04x\n", dev->code_start);
+	printc_dbg("Number of breakpoints: %d\n", dev->base.max_breakpoints);
 }
 
 static int identify_old(struct fet_device *dev)
@@ -519,7 +519,7 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 		return -1;
 	}
 
-	printc("Device ID: 0x%02x%02x\n",
+	printc_dbg("Device ID: 0x%02x%02x\n",
 	       dev->fet_reply.data[0], dev->fet_reply.data[1]);
 
 	if (force_id)
@@ -812,7 +812,7 @@ static int do_configure(struct fet_device *dev)
 	if (dev->proto_flags & FET_PROTO_SPYBIWIRE) {
 		if (!xfer(dev, C_CONFIGURE, NULL, 0,
 			  2, FET_CONFIG_PROTOCOL, 1)) {
-			printc("Configured for Spy-Bi-Wire\n");
+			printc_dbg("Configured for Spy-Bi-Wire\n");
 			return 0;
 		}
 
@@ -822,7 +822,7 @@ static int do_configure(struct fet_device *dev)
 
 	if (!xfer(dev, C_CONFIGURE, NULL, 0,
 		  2, FET_CONFIG_PROTOCOL, 2)) {
-		printc("Configured for JTAG (2)\n");
+		printc_dbg("Configured for JTAG (2)\n");
 		return 0;
 	}
 
@@ -831,7 +831,7 @@ static int do_configure(struct fet_device *dev)
 
 	if (!xfer(dev, C_CONFIGURE, NULL, 0,
 		  2, FET_CONFIG_PROTOCOL, 0)) {
-		printc("Configured for JTAG (0)\n");
+		printc_dbg("Configured for JTAG (0)\n");
 		return 0;
 	}
 
@@ -871,14 +871,14 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		usleep(5000);
 	}
 
-	printc("Initializing FET...\n");
+	printc_dbg("Initializing FET...\n");
 	if (xfer(dev, C_INITIALIZE, NULL, 0, 0) < 0) {
 		printc_err("fet: open failed\n");
 		goto fail;
 	}
 
 	dev->version = dev->fet_reply.argv[0];
-	printc("FET protocol version is %d\n", dev->version);
+	printc_dbg("FET protocol version is %d\n", dev->version);
 
 	if (xfer(dev, 0x27, NULL, 0, 1, 4) < 0) {
 		printc_err("fet: init failed\n");
@@ -892,7 +892,7 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 	if (xfer(dev, C_VCC, NULL, 0, 1, vcc_mv) < 0)
 		printc_err("warning: fet: set VCC failed\n");
 	else
-		printc("Set Vcc: %d mV\n", vcc_mv);
+		printc_dbg("Set Vcc: %d mV\n", vcc_mv);
 
 	/* Identify the chip */
 	if (do_identify(dev, force_id) < 0) {
