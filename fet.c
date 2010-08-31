@@ -477,7 +477,7 @@ static int xfer(struct fet_device *dev,
 
 static void show_dev_info(const char *name, const struct fet_device *dev)
 {
-	printc_dbg("Device: %s\n", name);
+	printc("Device: %s\n", name);
 	printc_dbg("Code memory starts at 0x%04x\n", dev->code_start);
 	printc_dbg("Number of breakpoints: %d\n", dev->base.max_breakpoints);
 }
