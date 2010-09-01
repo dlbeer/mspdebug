@@ -47,6 +47,8 @@ Specify a particular USB device to connect to. Without this option,
 the first device of the appropriate type is opened.
 .IP "\-n"
 Do not process the startup file (~/.mspdebug).
+.IP "\-r"
+Do not reset the device on startup.
 .IP "\-\-help"
 Display a brief help message and exit.
 .IP "\-\-fet\-list"

@@ -888,6 +888,13 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 	if (do_configure(dev) < 0)
 		goto fail;
 
+	/* Reset first, if requested */
+	if (!(proto_flags & FET_PROTO_NORESET)) {
+		printc_dbg("Sending initial reset...\n");
+		if (xfer(dev, C_RESET, NULL, 0, 3, FET_RESET_ALL, 0, 0) < 0)
+			printc_err("warning: fet: initial reset failed\n");
+	}
+
 	/* set VCC */
 	if (xfer(dev, C_VCC, NULL, 0, 1, vcc_mv) < 0)
 		printc_err("warning: fet: set VCC failed\n");

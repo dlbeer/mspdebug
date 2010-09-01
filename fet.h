@@ -26,6 +26,7 @@
 #define FET_PROTO_SPYBIWIRE	0x01
 #define FET_PROTO_RF2500	0x02
 #define FET_PROTO_OLIMEX        0x04
+#define FET_PROTO_NORESET       0x08
 
 device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		  const char *force_id);

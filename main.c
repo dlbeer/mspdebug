@@ -124,6 +124,7 @@ struct cmdline_args {
 	const char      *usb_device;
 	const char      *fet_force_id;
 	int             want_jtag;
+	int		no_reset;
 	int             no_rc;
 	int             vcc_mv;
 };
@@ -141,6 +142,8 @@ static device_t driver_open_fet(const struct cmdline_args *args,
 
 	if (!args->want_jtag)
 		flags |= FET_PROTO_SPYBIWIRE;
+	if (args->no_reset)
+		flags |= FET_PROTO_NORESET;
 
 	dev = fet_open(trans, flags, args->vcc_mv, args->fet_force_id);
 	if (!dev) {
@@ -271,6 +274,8 @@ static void usage(const char *progname)
 "        Set the supply voltage, in millivolts.\n"
 "    -n\n"
 "        Do not read ~/.mspdebug on startup.\n"
+"    -r\n"
+"        Do not reset the device on startup.\n"
 "    --help\n"
 "        Show this help text.\n"
 "    --fet-list\n"
@@ -357,7 +362,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "d:jv:nU:q",
+	while ((opt = getopt_long(argc, argv, "d:jv:nU:qr",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
 		case 'q':
@@ -410,6 +415,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case 'n':
 			args->no_rc = 1;
+			break;
+
+		case 'r':
+			args->no_reset = 1;
 			break;
 
 		case '?':
