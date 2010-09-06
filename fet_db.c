@@ -785,12 +785,18 @@ const struct fet_db_record *fet_db_find_by_msg28(uint8_t *data, int len)
 
 		if (r->msg28_data[0] == data[0] &&
 		    r->msg28_data[1] == data[1]) {
+			const static int coefficients[FET_DB_MSG28_LEN] = {
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 0, 0, 1, 1, 1, 1,
+				10, 1
+			};
+
 			int score = 0;
 			int j;
 
 			for (j = 0; j < len; j++)
 				if (r->msg28_data[j] == data[j])
-					score++;
+					score += coefficients[j];
 
 			if (best < 0 || score > best_score) {
 				best = i;
