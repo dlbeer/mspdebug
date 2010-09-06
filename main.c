@@ -274,7 +274,7 @@ static void usage(const char *progname)
 "        Set the supply voltage, in millivolts.\n"
 "    -n\n"
 "        Do not read ~/.mspdebug on startup.\n"
-"    -r\n"
+"    --no-reset\n"
 "        Do not reset the device on startup.\n"
 "    --help\n"
 "        Show this help text.\n"
@@ -359,10 +359,11 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"fet-force-id",        1, 0, 'F'},
 		{"usb-list",            0, 0, 'I'},
 		{"version",             0, 0, 'V'},
+		{"no-reset",            0, 0, 'R'},
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "d:jv:nU:qr",
+	while ((opt = getopt_long(argc, argv, "d:jv:nU:q",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
 		case 'q':
@@ -417,7 +418,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			args->no_rc = 1;
 			break;
 
-		case 'r':
+		case 'R':
 			args->no_reset = 1;
 			break;
 
