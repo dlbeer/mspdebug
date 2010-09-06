@@ -462,10 +462,6 @@ static int prog_flush(struct prog_data *prog)
 	while (prog->len) {
 		int wlen = prog->len;
 
-		/* Writing across this address seems to cause a hang */
-		if (prog->addr < 0x999a && wlen + prog->addr > 0x999a)
-			wlen = 0x999a - prog->addr;
-
 		if (!prog->have_erased) {
 			printc("Erasing...\n");
 			if (device_default->ctl(device_default,
