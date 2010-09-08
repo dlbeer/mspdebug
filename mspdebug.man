@@ -390,10 +390,6 @@ of an MSPDebug session illustrating the program, as well as any
 relevant binaries or other files. Below, known bugs in the current
 version of MSPDebug are described.
 
-Memory addresses above 0x10000 (in devices with more than 64k of
-memory) are not accessible. All other memory in these devices is
-accessible as normal.
-
 When using the GDB remote stub in simulation and an IO read request
 occurs, any request to interrupt from GDB will not be acknowledged
 until the IO request is either completed or aborted.
