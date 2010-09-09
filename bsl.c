@@ -269,7 +269,7 @@ static int bsl_writemem(device_t dev_base,
 
 		r = bsl_xfer(dev, CMD_RX_DATA, addr, mem, wlen);
 
-		if( r < 0 ) {
+		if (r < 0) {
 			printc_err("bsl: failed to write to 0x%04x\n",
 				addr);
 			return -1;
