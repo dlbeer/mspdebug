@@ -191,6 +191,8 @@ they are specified with other options.
 Match only byte operations.
 .IP "\fBword\fR"
 Match only word operations.
+.IP "\fBaword\fR"
+Match only address-word (20-bit) operations.
 .IP "\fBjump\fR"
 Match only jump instructions (conditional and unconditional jumps, but
 not instructions such as BR which load the program counter explicitly).
