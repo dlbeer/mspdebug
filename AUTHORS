@@ -32,3 +32,6 @@ Robert Spanton <rspanton@zepler.net>:
 
 Stephen Kench <stephen@pmssystems.com>
 	* Support for MSP430F47197.
+
+Sören Höckner <soeren.hoeckner@gmx.de>:
+	* Testing and debugging of flash memory word-alignment bug.

@@ -29,6 +29,7 @@
 #include "reader.h"
 #include "output_util.h"
 #include "util.h"
+#include "prog.h"
 #include "dis.h"
 
 int cmd_regs(char **arg)
@@ -450,75 +451,10 @@ fail:
 	return -1;
 }
 
-struct prog_data {
-	uint8_t         buf[128];
-	address_t       addr;
-	int             len;
-	int             have_erased;
-};
-
-static int prog_flush(struct prog_data *prog)
+static int cmd_prog_feed(void *user_data, address_t addr,
+			 const uint8_t *data, int len)
 {
-	while (prog->len) {
-		int wlen = prog->len;
-
-		if (!prog->have_erased) {
-			printc("Erasing...\n");
-			if (device_default->ctl(device_default,
-						DEVICE_CTL_ERASE) < 0)
-				return -1;
-
-			printc("Programming...\n");
-			prog->have_erased = 1;
-		}
-
-		printc_dbg("Writing %3d bytes to %04x...\n", wlen, prog->addr);
-		if (device_default->writemem(device_default, prog->addr,
-					     prog->buf, wlen) < 0)
-		        return -1;
-
-		memmove(prog->buf, prog->buf + wlen, prog->len - wlen);
-		prog->len -= wlen;
-		prog->addr += wlen;
-	}
-
-        return 0;
-}
-
-static int prog_feed(void *user_data,
-		     address_t addr, const uint8_t *data, int len)
-{
-	struct prog_data *prog = (struct prog_data *)user_data;
-
-	/* Flush if this section is discontiguous */
-	if (prog->len && prog->addr + prog->len != addr &&
-	    prog_flush(prog) < 0)
-		return -1;
-
-	if (!prog->len)
-		prog->addr = addr;
-
-	/* Add the buffer in piece by piece, flushing when it gets
-	 * full.
-	 */
-	while (len) {
-		int count = sizeof(prog->buf) - prog->len;
-
-		if (count > len)
-			count = len;
-
-		if (!count) {
-			if (prog_flush(prog) < 0)
-				return -1;
-		} else {
-			memcpy(prog->buf + prog->len, data, count);
-			prog->len += count;
-			data += count;
-			len -= count;
-		}
-	}
-
-	return 0;
+	return prog_feed((struct prog_data *)user_data, addr, data, len);
 }
 
 int cmd_prog(char **arg)
@@ -540,9 +476,9 @@ int cmd_prog(char **arg)
 		return -1;
 	}
 
-	memset(&prog, 0, sizeof(prog));
+	prog_init(&prog, PROG_WANT_ERASE);
 
-	if (binfile_extract(in, prog_feed, &prog) < 0) {
+	if (binfile_extract(in, cmd_prog_feed, &prog) < 0) {
 		fclose(in);
 		return -1;
 	}

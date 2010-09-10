@@ -28,6 +28,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "device.h"
+#include "prog.h"
 #include "util.h"
 #include "opdb.h"
 #include "gdb.h"
@@ -341,6 +342,7 @@ static int write_memory(struct gdb_data *data, char *text)
 	address_t length, addr;
 	uint8_t buf[MAX_MEM_XFER];
 	int buflen = 0;
+	struct prog_data prog;
 
 	if (!(data_text && length_text)) {
 		printc_err("gdb: malformed memory write request\n");
@@ -364,9 +366,9 @@ static int write_memory(struct gdb_data *data, char *text)
 		return gdb_send(data, "E00");
 	}
 
-	printc("Writing %d bytes to 0x%04x\n", buflen, addr);
-
-	if (device_default->writemem(device_default, addr, buf, buflen) < 0)
+	prog_init(&prog, 0);
+	if (prog_feed(&prog, addr, buf, buflen) < 0 ||
+	    prog_flush(&prog) < 0)
 		return gdb_send(data, "E00");
 
 	return gdb_send(data, "OK");
