@@ -63,6 +63,8 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 		return cb(user_data, address, payload, data_len);
 
 	case 1:
+	case 3:
+		/* These can be safely ignored */
 		break;
 
 	case 2:
