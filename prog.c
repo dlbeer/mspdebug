@@ -41,15 +41,6 @@ int prog_flush(struct prog_data *prog)
 		prog->have_erased = 1;
 	}
 
-	/* If writing an odd number of bytes to flash memory, add a
-	 * trailing pad byte.
-	 */
-	if (prog->addr + prog->len >= device_default->code_start &&
-	    (prog->len & 1)) {
-		printc_dbg("prog: adding trailing pad byte\n");
-		prog->buf[prog->len++] = 0xff;
-	}
-
 	printc_dbg("Writing %3d bytes to %04x...\n", prog->len, prog->addr);
 	if (device_default->writemem(device_default, prog->addr,
 				     prog->buf, prog->len) < 0)
@@ -68,18 +59,8 @@ int prog_feed(struct prog_data *prog, address_t addr,
 	    prog_flush(prog) < 0)
 		return -1;
 
-	if (!prog->len) {
-		/* If starting at an odd address, add a leading pad byte. */
-		if (prog->addr + len >= device_default->code_start &&
-		    (addr & 1)) {
-			printc_dbg("prog: adding initial pad byte\n");
-			prog->addr = addr - 1;
-			prog->len = 1;
-			prog->buf[0] = 0xff;
-		} else {
-			prog->addr = addr;
-		}
-	}
+	if (!prog->len)
+		prog->addr = addr;
 
 	/* Add the buffer in piece by piece, flushing when it gets
 	 * full.

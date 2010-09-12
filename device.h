@@ -54,12 +54,6 @@ struct device_breakpoint {
 };
 
 struct device {
-	/* Start of code memory. Required to distinguish between flash
-	 * writes (which may require alignment) and RAM writes (which
-	 * don't).
-	 */
-	address_t code_start;
-
 	/* Breakpoint table. This should not be modified directly.
 	 * Instead, you should use the device_setbrk() helper function. This
 	 * will set the appropriate flags and ensure that the breakpoint is

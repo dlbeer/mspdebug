@@ -43,6 +43,8 @@ struct fet_device {
 	int                             version;
 
 	/* Device-specific information */
+	address_t			code_start;
+
 	uint8_t                         fet_buf[65538];
 	int                             fet_len;
 
@@ -476,7 +478,7 @@ static int xfer(struct fet_device *dev,
 static void show_dev_info(const char *name, const struct fet_device *dev)
 {
 	printc("Device: %s\n", name);
-	printc_dbg("Code memory starts at 0x%04x\n", dev->base.code_start);
+	printc_dbg("Code memory starts at 0x%04x\n", dev->code_start);
 	printc_dbg("Number of breakpoints: %d\n", dev->base.max_breakpoints);
 }
 
@@ -495,7 +497,7 @@ static int identify_old(struct fet_device *dev)
 	memcpy(idtext, dev->fet_reply.data + 4, 32);
 	idtext[32] = 0;
 
-	dev->base.code_start = LE_WORD(dev->fet_reply.data, 0x24);
+	dev->code_start = LE_WORD(dev->fet_reply.data, 0x24);
 	dev->base.max_breakpoints = LE_WORD(dev->fet_reply.data, 0x2a);
 
 	show_dev_info(idtext, dev);
@@ -533,7 +535,7 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 		return -1;
 	}
 
-	dev->base.code_start = LE_WORD(r->msg29_data, 0);
+	dev->code_start = LE_WORD(r->msg29_data, 0);
 	dev->base.max_breakpoints = LE_WORD(r->msg29_data, 0x14);
 
 	show_dev_info(r->name, dev);
@@ -590,7 +592,7 @@ static int do_erase(struct fet_device *dev)
 	}
 
 	if (xfer(dev, C_ERASE, NULL, 0, 3, FET_ERASE_MAIN,
-		 dev->base.code_start, 0) < 0) {
+		 dev->code_start, 0) < 0) {
 		printc_err("fet: erase command failed\n");
 		return -1;
 	}

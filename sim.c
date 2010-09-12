@@ -27,7 +27,6 @@
 #include "sim.h"
 
 #define MEM_SIZE	65536
-#define MEM_CODE_START  0x8000
 #define MEM_IO_END      0x200
 
 struct sim_device {
@@ -580,7 +579,6 @@ device_t sim_open(sim_fetch_func_t fetch_func,
 
 	memset(dev, 0, sizeof(*dev));
 
-	dev->base.code_start = MEM_CODE_START;
 	dev->base.max_breakpoints = DEVICE_MAX_BREAKPOINTS;
 	dev->base.destroy = sim_destroy;
 	dev->base.readmem = sim_readmem;
