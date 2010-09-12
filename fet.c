@@ -705,12 +705,55 @@ static void fet_destroy(device_t dev_base)
 	free(dev);
 }
 
+static int read_byte(struct fet_device *dev, address_t addr, uint8_t *out)
+{
+	address_t base = addr & ~1;
+
+	if (xfer(dev, C_READMEMORY, NULL, 0, 2, base, 2) < 0) {
+		printc_err("fet: failed to read byte from 0x%04x\n", addr);
+		return -1;
+	}
+
+	*out = dev->fet_reply.data[addr & 1];
+	return 0;
+}
+
+static int write_byte(struct fet_device *dev, address_t addr, uint8_t value)
+{
+	uint8_t buf[2];
+	address_t base = addr & ~1;
+
+	if (xfer(dev, C_READMEMORY, NULL, 0, 2, base, 2) < 0) {
+		printc_err("fet: failed to read byte from 0x%04x\n", addr);
+		return -1;
+	}
+
+	buf[0] = dev->fet_reply.data[0];
+	buf[1] = dev->fet_reply.data[1];
+	buf[addr & 1] = value;
+
+	if (xfer(dev, C_WRITEMEMORY, buf, 2, 1, base) < 0) {
+		printc_err("fet: failed to write byte from 0x%04x\n", addr);
+		return -1;
+	}
+
+	return 0;
+}
+
 int fet_readmem(device_t dev_base, address_t addr, uint8_t *buffer,
 		address_t count)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	while (count) {
+	if (addr & 1) {
+		if (read_byte(dev, addr, buffer) < 0)
+			return -1;
+		addr++;
+		buffer++;
+		count--;
+	}
+
+	while (count > 1) {
 		int plen = count > 128 ? 128 : count;
 
 		if (xfer(dev, C_READMEMORY, NULL, 0, 2, addr, plen) < 0) {
@@ -731,6 +774,9 @@ int fet_readmem(device_t dev_base, address_t addr, uint8_t *buffer,
 		addr += plen;
 	}
 
+	if (count && read_byte(dev, addr, buffer) < 0)
+		return -1;
+
 	return 0;
 }
 
@@ -739,7 +785,15 @@ int fet_writemem(device_t dev_base, address_t addr,
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	while (count) {
+	if (addr & 1) {
+		if (write_byte(dev, addr, *buffer) < 0)
+			return -1;
+		addr++;
+		buffer++;
+		count--;
+	}
+
+	while (count > 1) {
 		int plen = count > 128 ? 128 : count;
 		int ret;
 
@@ -755,6 +809,9 @@ int fet_writemem(device_t dev_base, address_t addr,
 		count -= plen;
 		addr += plen;
 	}
+
+	if (count && write_byte(dev, addr, *buffer) < 0)
+		return -1;
 
 	return 0;
 }
