@@ -457,7 +457,7 @@ static int cmd_prog_feed(void *user_data, address_t addr,
 	return prog_feed((struct prog_data *)user_data, addr, data, len);
 }
 
-int cmd_prog(char **arg)
+static int do_cmd_prog(char **arg, int prog_flags)
 {
 	FILE *in;
 	struct prog_data prog;
@@ -476,14 +476,14 @@ int cmd_prog(char **arg)
 		return -1;
 	}
 
-	prog_init(&prog, PROG_WANT_ERASE);
+	prog_init(&prog, prog_flags);
 
 	if (binfile_extract(in, cmd_prog_feed, &prog) < 0) {
 		fclose(in);
 		return -1;
 	}
 
-	if (binfile_info(in) & BINFILE_HAS_SYMS) {
+	if (prog_flags && (binfile_info(in) & BINFILE_HAS_SYMS)) {
 		stab_clear(stab_default);
 		binfile_syms(in, stab_default);
 	}
@@ -500,6 +500,16 @@ int cmd_prog(char **arg)
 
 	unmark_modified(MODIFY_SYMS);
 	return 0;
+}
+
+int cmd_prog(char **arg)
+{
+	return do_cmd_prog(arg, PROG_WANT_ERASE);
+}
+
+int cmd_load(char **arg)
+{
+	return do_cmd_prog(arg, 0);
 }
 
 int cmd_setbreak(char **arg)

@@ -90,6 +90,14 @@ const struct cmddb_record commands[] = {
 "    This command also loads symbols from the file, if available.\n"
 	},
 	{
+		.name = "load",
+		.func = cmd_load,
+		.help =
+"load <filename>\n"
+"    Flash the data contained in a binary file. Does not load symbols\n"
+"    or erase the device.\n"
+	},
+	{
 		.name = "md",
 		.func = cmd_md,
 		.help =

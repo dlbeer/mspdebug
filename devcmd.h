@@ -30,6 +30,7 @@ int cmd_set(char **arg);
 int cmd_dis(char **arg);
 int cmd_hexout(char **arg);
 int cmd_prog(char **arg);
+int cmd_load(char **arg);
 int cmd_setbreak(char **arg);
 int cmd_delbreak(char **arg);
 int cmd_break(char **arg);

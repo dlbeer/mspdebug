@@ -246,6 +246,12 @@ Register-indirect mode with auto-increment.
 .IP "\fB#\fR"
 Immediate mode.
 .RE
+.IP "\fBload\fR \fIfilename\fR"
+Program the device under test using the binary file supplied. This
+command is like \fBprog\fR, but it does not load symbols or erase
+the device before programming.
+
+The CPU is reset and halted before and after programming.
 .IP "\fBmd\fR \fIaddress\fR [\fIlength\fR]"
 Read the specified section of device memory and display it as a
 canonical\-style hexdump. Both arguments may be address expressions. If
@@ -275,12 +281,12 @@ With just an option name as its argument, it displays the current value
 of that option.
 .IP "\fBprog\fR \fIfilename\fR"
 Erase and reprogram the device under test using the binary file
-supplied. The file format will be auto-detected and may be either
-Intel HEX or ELF32.
+supplied. The file format will be auto-detected and may be any of
+the supported file formats.
 
-In the case of an ELF32 file, symbols will be automatically loaded
-from the file into the symbol table (discarding any existing symbols),
-if they are present.
+In the case of a file containing symbols, symbols will be automatically
+loaded from the file into the symbol table (discarding any existing
+symbols), if they are present.
 
 The CPU is reset and halted before and after programming.
 .IP "\fBread\fR \fIfilename\fR"
