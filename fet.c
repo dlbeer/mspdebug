@@ -758,6 +758,8 @@ int fet_readmem(device_t dev_base, address_t addr, uint8_t *buffer,
 	while (count > 1) {
 		int plen = count > 128 ? 128 : count;
 
+		plen &= ~0x1;
+
 		if (xfer(dev, C_READMEMORY, NULL, 0, 2, addr, plen) < 0) {
 			printc_err("fet: failed to read "
 				"from 0x%04x\n", addr);
@@ -798,6 +800,8 @@ int fet_writemem(device_t dev_base, address_t addr,
 	while (count > 1) {
 		int plen = count > 128 ? 128 : count;
 		int ret;
+
+		plen &= ~0x1;
 
 		ret = xfer(dev, C_WRITEMEMORY, buffer, plen, 1, addr);
 
