@@ -34,6 +34,7 @@
 #include "output.h"
 
 #define MAX_PARAMS		16
+#define BLOCK_SIZE              64
 
 struct fet_device {
 	struct device                   base;
@@ -756,7 +757,7 @@ int fet_readmem(device_t dev_base, address_t addr, uint8_t *buffer,
 	}
 
 	while (count > 1) {
-		int plen = count > 128 ? 128 : count;
+		int plen = count > BLOCK_SIZE ? BLOCK_SIZE : count;
 
 		plen &= ~0x1;
 
@@ -798,7 +799,7 @@ int fet_writemem(device_t dev_base, address_t addr,
 	}
 
 	while (count > 1) {
-		int plen = count > 128 ? 128 : count;
+		int plen = count > BLOCK_SIZE ? BLOCK_SIZE : count;
 		int ret;
 
 		plen &= ~0x1;
