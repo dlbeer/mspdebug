@@ -63,21 +63,22 @@ static uint16_t crc_ccitt(const uint8_t *data, int len) {
 
 static void crc_selftest(void) {
 	/* These test vectors are from page 30 of TI doc SLAU319A */
-	uint16_t crc_expected = 0x5590, crc_actual = crc_ccitt("\x52\x02", 2);
+	uint16_t crc_expected = 0x5590;
+        uint16_t crc_actual = crc_ccitt((uint8_t *)"\x52\x02", 2);
 	if (crc_expected != crc_actual) {
 		printc_err("flash_bsl: CRC malfunction (expected 0x%04x got 0x%04x)\n",
 			crc_expected, crc_actual);
 	}
 
 	crc_expected = 0x121d;
-	crc_actual = crc_ccitt("\x3a\x04\x01", 3);
+	crc_actual = crc_ccitt((uint8_t *)"\x3a\x04\x01", 3);
 	if (crc_expected != crc_actual) {
 		printc_err("flash_bsl: CRC malfunction (expected 0x%04x got 0x%04x)\n",
 			crc_expected, crc_actual);
 	}
 
 	crc_expected = 0x528b;
-	crc_actual = crc_ccitt("\x1a", 1);
+	crc_actual = crc_ccitt((uint8_t *)"\x1a", 1);
 	if (crc_expected != crc_actual) {
 		printc_err("flash_bsl: CRC malfunction (expected 0x%04x got 0x%04x)\n",
 			crc_expected, crc_actual);
