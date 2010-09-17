@@ -33,7 +33,9 @@ typedef uint32_t address_t;
 
 /* Various utility functions for IO */
 int open_serial(const char *device, int rate);
+int open_serial_even_parity(const char *device, int rate);
 int read_with_timeout(int fd, uint8_t *data, int len);
+int read_all_with_timeout(int fd, uint8_t *data, int len);
 int write_all(int fd, const uint8_t *data, int len);
 
 /* Check and catch ^C from the user */

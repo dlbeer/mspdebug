@@ -91,6 +91,61 @@ int read_with_timeout(int fd, uint8_t *data, int max_len)
 	return r;
 }
 
+/*
+ * read_all_with_timeout
+ * read all requested data, or die trying.
+ *
+ * Arguments:
+ * fd: file descriptor from which to read
+ * data: buffer where data will be put
+ * len: total size of data to read
+ *
+ * Return Value:
+ * Zero on success. -1 on failure.
+ */
+int read_all_with_timeout(int fd, uint8_t *data, int len)
+{
+	int r, n_read;
+
+	/* loop until all required data has been read (or we time out) */
+	while (len > 0) {
+		struct timeval tv = {
+			.tv_sec = 5,
+			.tv_usec = 0
+		};
+
+		/* wait (with timeout) for data to become available */
+		fd_set set;
+
+		FD_ZERO(&set);
+		FD_SET(fd, &set);
+
+		r = select(fd + 1, &set, NULL, NULL, &tv);
+
+		if (r > 0) {
+			/* select( ) succeeded */
+			n_read = read(fd, data, len);
+			if (n_read <= 0) {
+				/* read failed */
+				return -1;
+			} else {
+				data += n_read;
+				len -= n_read;
+			}
+		} else if (!r) {
+			/* select( ) succeeded but timed out */
+			errno = ETIMEDOUT;
+			return -1;
+		} else if (errno != EINTR) {
+			/* select( ) failed */
+			return -1;
+		}
+
+	};
+
+	return 0;
+}
+
 int write_all(int fd, const uint8_t *data, int len)
 {
 	while (len) {
@@ -109,7 +164,7 @@ int write_all(int fd, const uint8_t *data, int len)
 	return 0;
 }
 
-int open_serial(const char *device, int rate)
+static int open_serial_and_set_cflags(const char *device, int rate, tcflag_t set)
 {
 	int fd = open(device, O_RDWR | O_NOCTTY);
 	struct termios attr;
@@ -121,12 +176,24 @@ int open_serial(const char *device, int rate)
 	cfmakeraw(&attr);
 	cfsetispeed(&attr, rate);
 	cfsetospeed(&attr, rate);
+	attr.c_cflag |= set;
 
 	if (tcsetattr(fd, TCSAFLUSH, &attr) < 0)
 		return -1;
 
 	return fd;
+
 }
+
+int open_serial(const char *device, int rate)
+{
+	return open_serial_and_set_cflags(device, rate, 0);
+}
+
+int open_serial_even_parity(const char *device, int rate) {
+	return open_serial_and_set_cflags(device, rate, PARENB);
+}
+
 
 char *get_arg(char **text)
 {

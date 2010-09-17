@@ -1,5 +1,6 @@
 # MSPDebug - debugging tool for the eZ430
 # Copyright (C) 2009, 2010 Daniel Beer
+# Copyright (C) 2010 Andrew Armenia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -58,7 +59,7 @@ mspdebug: main.o fet.o rf2500.o dis.o uif.o olimex.o ihex.o elf32.o stab.o \
           util.o bsl.o sim.o symmap.o gdb.o btree.o rtools.o sym.o devcmd.o \
 	  reader.o vector.o output_util.o expr.o fet_error.o binfile.o \
 	  fet_db.o usbutil.o titext.o srec.o device.o coff.o opdb.o output.o \
-	  cmddb.o stdcmd.o prog.o
+	  cmddb.o stdcmd.o prog.o flash_bsl.o
 	$(CC) $(LDFLAGS) $(MACPORTS_LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
 
 .c.o:

@@ -44,6 +44,7 @@
 #include "fet.h"
 #include "vector.h"
 #include "fet_db.h"
+#include "flash_bsl.h"
 
 #include "uif.h"
 #include "olimex.h"
@@ -127,6 +128,7 @@ struct cmdline_args {
 	int		no_reset;
 	int             no_rc;
 	int             vcc_mv;
+	int 			long_password;
 };
 
 struct driver {
@@ -218,6 +220,17 @@ static device_t driver_open_uif_bsl(const struct cmdline_args *args)
 	return bsl_open(args->serial_device);
 }
 
+static device_t driver_open_flash_bsl(const struct cmdline_args *args)
+{
+	if (!args->serial_device) {
+		printc_err("This driver does not support USB access. "
+			   "Specify a tty device using -d.\n");
+		return NULL;
+	}
+
+	return flash_bsl_open(args->serial_device, args->long_password);
+}
+
 static const struct driver driver_table[] = {
 	{
 		.name = "rf2500",
@@ -243,6 +256,11 @@ static const struct driver driver_table[] = {
 		.name = "uif-bsl",
 		.help = "TI FET430UIF bootloader.",
 		.func = driver_open_uif_bsl
+	},
+	{
+		.name = "flash-bsl",
+		.help = "TI generic FLASH bootloader via RS-232",
+		.func = driver_open_flash_bsl
 	}
 };
 
@@ -360,6 +378,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"usb-list",            0, 0, 'I'},
 		{"version",             0, 0, 'V'},
 		{"no-reset",            0, 0, 'R'},
+		{"long-password",       0, 0, 'P'},
 		{NULL, 0, 0, 0}
 	};
 
@@ -420,6 +439,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case 'R':
 			args->no_reset = 1;
+			break;
+
+		case 'P':
+			args->long_password = 1;
 			break;
 
 		case '?':
