@@ -259,7 +259,7 @@ static const struct driver driver_table[] = {
 	},
 	{
 		.name = "flash-bsl",
-		.help = "TI generic FLASH bootloader via RS-232",
+		.help = "TI generic flash-based bootloader via RS-232",
 		.func = driver_open_flash_bsl
 	}
 };
@@ -294,6 +294,8 @@ static void usage(const char *progname)
 "        Do not read ~/.mspdebug on startup.\n"
 "    --no-reset\n"
 "        Do not reset the device on startup.\n"
+"    --long-password\n"
+"        Send 32-byte IVT as BSL password (flash-bsl only)\n"
 "    --help\n"
 "        Show this help text.\n"
 "    --fet-list\n"
