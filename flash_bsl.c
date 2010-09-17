@@ -104,7 +104,9 @@ static int flash_bsl_send(struct flash_bsl_device *dev, const uint8_t *data, int
 	uint8_t cmd_buf[MAX_PACKET + 5];
 	uint8_t response;
 
+#if defined(FLASH_BSL_VERBOSE)
         debug_hexdump("flash_bsl: sending", data, len);
+#endif
 
 	crc = crc_ccitt(data, len);
 
@@ -192,7 +194,9 @@ static int flash_bsl_recv(struct flash_bsl_device *dev,
 	recv_len <<= 8;
 	recv_len |= header[1];
 
-        printc_err("flash_bsl: incoming message length %d\n", recv_len);
+#if defined(FLASH_BSL_VERBOSE)
+        printc_dbg("flash_bsl: incoming message length %d\n", recv_len);
+#endif
 
 	if (recv_len > buf_len) {
 		printc_err("flash_bsl: insufficient buffer to receive data\n");
@@ -220,7 +224,9 @@ static int flash_bsl_recv(struct flash_bsl_device *dev,
 		return -1;
 	}
 
+#if defined(FLASH_BSL_VERBOSE)
         debug_hexdump("received message", recv_buf, recv_len);
+#endif
 
         usleep(10000);
 	return recv_len;
@@ -348,7 +354,9 @@ static int flash_bsl_erase(struct flash_bsl_device *dev)
 		printc_err("flash_bsl_erase: erase failed\n");
 		return -1;
 	} else {
-		printc_err("flash_bsl_erase: success\n");
+#if defined(FLASH_BSL_VERBOSE)
+		printc_dbg("flash_bsl_erase: success\n");
+#endif
 	}
 
 	return 0;
@@ -378,7 +386,9 @@ static int flash_bsl_unlock(struct flash_bsl_device *dev)
 
 	/* send password (which is now erased FLASH) */
 	if (dev->long_password) {
-		printc_err("flash_bsl_unlock: using long password?\n");
+#if defined(FLASH_BSL_VERBOSE)
+		printc_dbg("flash_bsl_unlock: using long password\n");
+#endif
 	}
 
 	if (flash_bsl_send(dev, rx_password_cmd, dev->long_password ? 33 : 17) < 0) {
@@ -424,7 +434,7 @@ static int flash_bsl_ctl(device_t dev_base, device_ctl_t type)
 		return 0;
 
 	default:
-		printc_err("bsl: CPU control is not possible\n");
+		printc_err("flash_bsl: CPU control is not possible\n");
 	}
 
 	return -1;
@@ -656,24 +666,6 @@ device_t flash_bsl_open(const char *device, int long_password)
 
 	debug_hexdump("BSL version", tx_bsl_version_response,
             sizeof(tx_bsl_version_response));
-
-#if 0
-	/* Show chip info */
-	if (bsl_xfer(dev, CMD_TX_DATA, 0xff0, NULL, 0x10) < 0) {
-		printc_err("bsl: failed to read chip info\n");
-		goto fail;
-	}
-
-	if (dev->reply_len < 0x16) {
-		printc_err("bsl: missing chip info\n");
-		goto fail;
-	}
-
-	printc_dbg("Device ID: 0x%02x%02x\n",
-	       dev->reply_buf[4], dev->reply_buf[5]);
-	printc_dbg("BSL version is %x.%02x\n", dev->reply_buf[14],
-	       dev->reply_buf[15]);
-#endif
 
 	return (device_t)dev;
 
