@@ -49,6 +49,9 @@ the first device of the appropriate type is opened.
 Do not process the startup file (~/.mspdebug).
 .IP "\--no-reset"
 Do not reset the device on startup.
+.IP "\--long-password"
+When using the flash-bsl driver, send a 32-byte BSL password instead
+of the standard 16-byte password.
 .IP "\-\-help"
 Display a brief help message and exit.
 .IP "\-\-fet\-list"
@@ -109,6 +112,18 @@ currently not implemented, for lack of ability to test it. If implemented,
 this would allow firmware updates to FET430UIF devices.
 
 USB connection is not supported for this driver.
+.IP "\fBflash-bsl\fR"
+Connect to the built-in bootloader in MSP430 devices with flash bootloader
+memory. (Devices with ROM bootloaders require another driver.) Currently,
+this driver must mass-erase the device in order to gain access. Read,
+write, and erase operations are supported.
+
+USB connection is not supported for this driver. Connection is via serial
+port, and bootloader entry is accomplished via the RTS and DTR lines.
+Connect RTS to the device's TEST pin and DTR to the device's RST pin.
+Use an appropriate serial level-shifter to make the connection, if necessary.
+If connecting to a device with non-multiplexed JTAG pins, connect RTS to
+the device's TCK pin via an inverter.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
