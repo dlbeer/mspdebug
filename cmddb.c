@@ -226,7 +226,14 @@ const struct cmddb_record commands[] = {
 "cgraph <address> <length> [function]\n"
 "    Analyse the range given and produce a call graph. Displays a summary\n"
 "    of all functions if no function address is given.\n"
-	}
+	},
+	{
+		.name = "locka",
+		.func = cmd_locka,
+		.help =
+"locka [set|clear]\n"
+"    Show or change the status of the LOCKA flash write-protect bit.\n"
+	},
 };
 
 int cmddb_get(const char *name, struct cmddb_record *ret)

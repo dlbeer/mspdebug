@@ -34,5 +34,6 @@ int cmd_load(char **arg);
 int cmd_setbreak(char **arg);
 int cmd_delbreak(char **arg);
 int cmd_break(char **arg);
+int cmd_locka(char **arg);
 
 #endif
