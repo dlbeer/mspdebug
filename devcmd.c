@@ -670,9 +670,16 @@ int cmd_locka(char **arg)
 
 		regval[0] |= FCTL3_LOCKA;
 		regval[1] = FWKEY;
+
 		if (device_default->writemem(device_default, FCTL3,
 					     regval, 2) < 0) {
 			printc_err("locka: can't write FCTL3 register\n");
+			return -1;
+		}
+
+		if (device_default->readmem(device_default, FCTL3,
+					    regval, 2) < 0) {
+			printc_err("locka: can't read FCTL3 register\n");
 			return -1;
 		}
 	}
