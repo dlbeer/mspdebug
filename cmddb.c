@@ -124,8 +124,10 @@ const struct cmddb_record commands[] = {
 		.name = "erase",
 		.func = cmd_erase,
 		.help =
-"erase\n"
-"    Erase the device under test.\n"
+"erase [all|segment] [address]\n"
+"    Erase the device under test. With no arguments, erases all of main\n"
+"    memory. Specify arguments to perform a mass erase, or to erase\n"
+"    individual segments.\n"
 	},
 	{
 		.name = "step",

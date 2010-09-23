@@ -138,11 +138,38 @@ int cmd_reset(char **arg)
 
 int cmd_erase(char **arg)
 {
+	const char *type_text = get_arg(arg);
+	const char *seg_text = get_arg(arg);
+	device_erase_type_t type = DEVICE_ERASE_MAIN;
+	address_t segment = 0;
+
+	if (seg_text && expr_eval(stab_default, seg_text, &segment) < 0) {
+		printc_err("erase: invalid expression: %s\n", seg_text);
+		return -1;
+	}
+
+	if (type_text) {
+		if (!strcasecmp(type_text, "all")) {
+			type = DEVICE_ERASE_ALL;
+		} else if (!strcasecmp(type_text, "segment")) {
+			type = DEVICE_ERASE_SEGMENT;
+			if (!seg_text) {
+				printc_err("erase: expected segment "
+					   "address\n");
+				return -1;
+			}
+		} else {
+			printc_err("erase: unknown erase type: %s\n",
+				    type_text);
+			return -1;
+		}
+	}
+
 	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0)
 		return -1;
 
 	printc("Erasing...\n");
-	return device_default->erase(device_default, DEVICE_ERASE_MAIN, 0);
+	return device_default->erase(device_default, type, segment);
 }
 
 int cmd_step(char **arg)

@@ -168,9 +168,14 @@ length (64 bytes) is disassembled and shown.
 
 If symbols are available, then all addresses used as operands are
 translated into \fIsymbol\fR+\fIoffset\fR form.
-.IP "\fBerase\fR"
-Erase the device under test. All code memory is erased (but not
-information or boot memory).
+.IP "\fBerase\fR [\fIall\fR|\fIsegment\fR] [\fIaddress\fR]"
+Erase the device under test. With no arguments, all code memory is erased
+(but not information or boot memory). With the argument "all", a mass
+erase is performed (the results may depend on the state of the LOCKA
+bit in the flash memory controller).
+
+Specify "segment" and a memory address to erase an individual flash
+segment.
 .IP "\fBgdb\fR [\fIport\fR]"
 Start a GDB remote stub, optionally specifying a TCP port to listen on.
 If no port is given, the default port is 2000.

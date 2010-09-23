@@ -530,7 +530,7 @@ static int sim_erase(device_t dev_base, device_erase_type_t type,
 		break;
 
 	case DEVICE_ERASE_ALL:
-		memset(dev->memory + 0x1000, 0xff, 256);
+		memset(dev->memory, 0xff, MEM_SIZE);
 		break;
 
 	case DEVICE_ERASE_SEGMENT:
