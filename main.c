@@ -128,7 +128,7 @@ struct cmdline_args {
 	int		no_reset;
 	int             no_rc;
 	int             vcc_mv;
-	int 			long_password;
+	int		long_password;
 };
 
 struct driver {

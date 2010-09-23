@@ -114,7 +114,7 @@ this would allow firmware updates to FET430UIF devices.
 USB connection is not supported for this driver.
 .IP "\fBflash-bsl\fR"
 Connect to the built-in bootloader in MSP430 devices with flash bootloader
-memory. (Devices with ROM bootloaders require another driver.) Currently,
+memory. Devices with ROM bootloaders require another driver. Currently,
 this driver must mass-erase the device in order to gain access. Read,
 write, and erase operations are supported.
 

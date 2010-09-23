@@ -35,3 +35,6 @@ Stephen Kench <stephen@pmssystems.com>
 
 Sören Höckner <soeren.hoeckner@gmx.de>:
 	* Testing and debugging of flash memory word-alignment bug.
+
+Andrew Armenia <andrew@asquaredlabs.com>:
+	* flash-bsl driver.
