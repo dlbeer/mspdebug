@@ -579,6 +579,7 @@ static int fet_erase(device_t dev_base, device_erase_type_t type,
 		     address_t addr)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
+	int fet_erase_type = FET_ERASE_MAIN;
 
 	if (type != DEVICE_ERASE_MAIN) {
 		printc_err("fet: only main erase is supported\n");
@@ -600,8 +601,27 @@ static int fet_erase(device_t dev_base, device_erase_type_t type,
 		return -1;
 	}
 
-	if (xfer(dev, C_ERASE, NULL, 0, 3, FET_ERASE_MAIN,
-		 dev->code_start, 0) < 0) {
+	switch (type) {
+	case DEVICE_ERASE_MAIN:
+		fet_erase_type = FET_ERASE_MAIN;
+		addr = dev->code_start;
+		break;
+
+	case DEVICE_ERASE_SEGMENT:
+		fet_erase_type = FET_ERASE_SEGMENT;
+		addr = dev->code_start;
+		break;
+
+	case DEVICE_ERASE_ALL:
+		fet_erase_type = FET_ERASE_ALL;
+		break;
+
+	default:
+		printc_err("fet: unsupported erase type\n");
+		return -1;
+	}
+
+	if (xfer(dev, C_ERASE, NULL, 0, 3, type, addr, 0) < 0) {
 		printc_err("fet: erase command failed\n");
 		return -1;
 	}
