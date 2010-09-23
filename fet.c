@@ -575,8 +575,16 @@ static int do_run(struct fet_device *dev, int type)
 	return 0;
 }
 
-static int do_erase(struct fet_device *dev)
+static int fet_erase(device_t dev_base, device_erase_type_t type,
+		     address_t addr)
 {
+	struct fet_device *dev = (struct fet_device *)dev_base;
+
+	if (type != DEVICE_ERASE_MAIN) {
+		printc_err("fet: only main erase is supported\n");
+		return -1;
+	}
+
 	if (xfer(dev, C_RESET, NULL, 0, 3, FET_RESET_ALL, 0, 0) < 0) {
 		printc_err("fet: reset before erase failed\n");
 		return -1;
@@ -686,9 +694,6 @@ static int fet_ctl(device_t dev_base, device_ctl_t action)
 				break;
 		}
 		break;
-
-	case DEVICE_CTL_ERASE:
-		return do_erase(dev);
 	}
 
 	return 0;
@@ -921,6 +926,7 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 	dev->base.setregs = fet_setregs;
 	dev->base.ctl = fet_ctl;
 	dev->base.poll = fet_poll;
+	dev->base.erase = fet_erase;
 
 	dev->transport = transport;
 	dev->proto_flags = proto_flags;

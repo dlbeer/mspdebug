@@ -142,7 +142,7 @@ int cmd_erase(char **arg)
 		return -1;
 
 	printc("Erasing...\n");
-	return device_default->ctl(device_default, DEVICE_CTL_ERASE);
+	return device_default->erase(device_default, DEVICE_ERASE_MAIN, 0);
 }
 
 int cmd_step(char **arg)

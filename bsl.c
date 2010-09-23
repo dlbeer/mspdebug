@@ -212,20 +212,9 @@ static void bsl_destroy(device_t dev_base)
 	free(dev);
 }
 
-static int bsl_erase(struct bsl_device *dev)
-{
-	/* Constants found from viewing gdbproxy's activities */
-	return bsl_xfer(dev, CMD_ERASE, 0x2500, NULL, 0x0069);
-}
-
 static int bsl_ctl(device_t dev_base, device_ctl_t type)
 {
-	struct bsl_device *dev = (struct bsl_device *)dev_base;
-
 	switch (type) {
-	case DEVICE_CTL_ERASE:
-		return bsl_erase(dev);
-
 	case DEVICE_CTL_HALT:
 		/* Ignore halt requests */
 		return 0;
@@ -315,6 +304,20 @@ static int bsl_readmem(device_t dev_base,
 	return 0;
 }
 
+static int bsl_erase(device_t dev_base, device_erase_type_t type,
+		     address_t addr)
+{
+	struct bsl_device *dev = (struct bsl_device *)dev_base;
+
+	if (type != DEVICE_ERASE_MAIN) {
+		printc_err("bsl: only main erase is supported\n");
+		return -1;
+	}
+
+	/* Constants found from viewing gdbproxy's activities */
+	return bsl_xfer(dev, CMD_ERASE, 0x2500, NULL, 0x0069);
+}
+
 static int enter_via_fet(struct bsl_device *dev)
 {
 	uint8_t buf[16];
@@ -367,6 +370,7 @@ device_t bsl_open(const char *device)
 	dev->base.destroy = bsl_destroy;
 	dev->base.readmem = bsl_readmem;
 	dev->base.writemem = bsl_writemem;
+	dev->base.erase = bsl_erase;
 	dev->base.getregs = bsl_getregs;
 	dev->base.setregs = bsl_setregs;
 	dev->base.ctl = bsl_ctl;

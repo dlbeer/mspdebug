@@ -31,8 +31,7 @@ typedef enum {
 	DEVICE_CTL_RESET,
 	DEVICE_CTL_RUN,
 	DEVICE_CTL_HALT,
-	DEVICE_CTL_STEP,
-	DEVICE_CTL_ERASE
+	DEVICE_CTL_STEP
 } device_ctl_t;
 
 typedef enum {
@@ -41,6 +40,12 @@ typedef enum {
 	DEVICE_STATUS_INTR,
 	DEVICE_STATUS_ERROR
 } device_status_t;
+
+typedef enum {
+	DEVICE_ERASE_ALL,
+	DEVICE_ERASE_MAIN,
+	DEVICE_ERASE_SEGMENT
+} device_erase_type_t;
 
 #define DEVICE_NUM_REGS		16
 #define DEVICE_MAX_BREAKPOINTS  32
@@ -70,6 +75,10 @@ struct device {
 		       uint8_t *mem, address_t len);
 	int (*writemem)(device_t dev, address_t addr,
 			const uint8_t *mem, address_t len);
+
+	/* Erase memory */
+	int (*erase)(device_t dev, device_erase_type_t type,
+		     address_t address);
 
 	/* Read/write registers */
 	int (*getregs)(device_t dev, address_t *regs);
