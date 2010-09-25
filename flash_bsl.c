@@ -278,7 +278,7 @@ static int flash_bsl_readmem(device_t dev_base,
 	uint16_t read_size;
 	int ret;
 
-	if (addr > 0xfffff || addr + len > 0xfffff) {
+	if (addr > 0xfffff || addr + len > 0x100000) {
 		printc_err("flash_bsl: read exceeds possible range\n");
 		return -1;
 	}
@@ -466,7 +466,7 @@ static int flash_bsl_writemem(device_t dev_base,
 	uint16_t write_size;
 	int n_recv;
 
-	if (addr > 0xfffff || addr + len > 0xfffff) {
+	if (addr > 0xfffff || addr + len > 0x100000) {
 		printc_err("flash_bsl: write exceeds possible range\n");
 		return -1;
 	}

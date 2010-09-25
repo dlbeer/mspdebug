@@ -263,6 +263,11 @@ static int bsl_writemem(device_t dev_base,
 {
 	struct bsl_device *dev = (struct bsl_device *)dev_base;
 
+	if (addr >= 0x10000 || len > 0x10000 || addr + len > 0x10000) {
+		printc_err("bsl: memory write out of range\n");
+		return -1;
+	}
+
 	while (len) {
 		int wlen = len > 100 ? 100 : len;
 		int r;
@@ -288,7 +293,7 @@ static int bsl_readmem(device_t dev_base,
 {
 	struct bsl_device *dev = (struct bsl_device *)dev_base;
 
-        if ((addr | len | (addr + len)) & 0xffff0000) {
+	if (addr >= 0x10000 || len > 0x10000 || addr + len > 0x10000) {
 		printc_err("bsl: memory read out of range\n");
 		return -1;
 	}
