@@ -47,8 +47,6 @@ Specify a particular USB device to connect to. Without this option,
 the first device of the appropriate type is opened.
 .IP "\-n"
 Do not process the startup file (~/.mspdebug).
-.IP "\--no-reset"
-Do not reset the device on startup.
 .IP "\--long-password"
 When using the flash-bsl driver, send a 32-byte BSL password instead
 of the standard 16-byte password.

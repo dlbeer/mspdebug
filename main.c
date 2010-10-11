@@ -125,7 +125,6 @@ struct cmdline_args {
 	const char      *usb_device;
 	const char      *fet_force_id;
 	int             want_jtag;
-	int		no_reset;
 	int             no_rc;
 	int             vcc_mv;
 	int		long_password;
@@ -144,8 +143,6 @@ static device_t driver_open_fet(const struct cmdline_args *args,
 
 	if (!args->want_jtag)
 		flags |= FET_PROTO_SPYBIWIRE;
-	if (args->no_reset)
-		flags |= FET_PROTO_NORESET;
 
 	dev = fet_open(trans, flags, args->vcc_mv, args->fet_force_id);
 	if (!dev) {
@@ -292,8 +289,6 @@ static void usage(const char *progname)
 "        Set the supply voltage, in millivolts.\n"
 "    -n\n"
 "        Do not read ~/.mspdebug on startup.\n"
-"    --no-reset\n"
-"        Do not reset the device on startup.\n"
 "    --long-password\n"
 "        Send 32-byte IVT as BSL password (flash-bsl only)\n"
 "    --help\n"
@@ -379,7 +374,6 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"fet-force-id",        1, 0, 'F'},
 		{"usb-list",            0, 0, 'I'},
 		{"version",             0, 0, 'V'},
-		{"no-reset",            0, 0, 'R'},
 		{"long-password",       0, 0, 'P'},
 		{NULL, 0, 0, 0}
 	};
@@ -437,10 +431,6 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case 'n':
 			args->no_rc = 1;
-			break;
-
-		case 'R':
-			args->no_reset = 1;
 			break;
 
 		case 'P':
