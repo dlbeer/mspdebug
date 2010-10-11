@@ -36,9 +36,12 @@
 #include "reader.h"
 #include "opdb.h"
 
+#define MAX_READER_LINE		1024
+
 static int modify_flags;
 static int in_reader_loop;
 static int want_exit;
+static char repeat_buf[MAX_READER_LINE];
 
 void mark_modified(int flags)
 {
@@ -147,6 +150,15 @@ void reader_exit(void)
 	want_exit = 1;
 }
 
+void reader_set_repeat(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(repeat_buf, sizeof(repeat_buf), fmt, ap);
+	va_end(ap);
+}
+
 void reader_loop(void)
 {
 	int old = in_reader_loop;
@@ -164,15 +176,27 @@ void reader_loop(void)
 
 		for (;;) {
 			char *buf = readline("(mspdebug) ");
+			char tmpbuf[MAX_READER_LINE];
 
 			if (!buf) {
 				printc("\n");
 				break;
 			}
 
-			add_history(buf);
-			do_command(buf, 1);
+			/* Copy into our local buffer and free */
+			strncpy(tmpbuf, buf, sizeof(tmpbuf));
+			tmpbuf[sizeof(tmpbuf) - 1] = 0;
 			free(buf);
+			buf = tmpbuf;
+
+			if (*buf) {
+				add_history(buf);
+				repeat_buf[0] = 0;
+			} else {
+				memcpy(tmpbuf, repeat_buf, sizeof(tmpbuf));
+			}
+
+			do_command(buf, 1);
 
 			if (want_exit)
 				break;

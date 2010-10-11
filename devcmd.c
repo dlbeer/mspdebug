@@ -79,6 +79,8 @@ int cmd_md(char **arg)
 		length = 0x10000 - offset;
 	}
 
+	reader_set_repeat("md 0x%x 0x%x", offset + length, length);
+
 	while (length) {
 		uint8_t buf[128];
 		int blen = length > sizeof(buf) ? sizeof(buf) : length;
@@ -189,6 +191,7 @@ int cmd_step(char **arg)
 		if (device_default->ctl(device_default, DEVICE_CTL_STEP) < 0)
 			return -1;
 
+	reader_set_repeat("step");
 	return cmd_regs(NULL);
 }
 
@@ -315,6 +318,7 @@ int cmd_dis(char **arg)
 		return -1;
 	}
 
+	reader_set_repeat("dis 0x%x 0x%x", offset + length, length);
 	disassemble(offset, buf, length);
 	free(buf);
 	return 0;

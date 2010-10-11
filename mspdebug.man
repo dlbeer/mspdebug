@@ -131,6 +131,11 @@ Commands take arguments separated by spaces. Any text string enclosed
 in double-quotation marks is considered to be a single argument, even
 if it contains space characters. Within a quoted string, the usual
 C-style backslash substitutions can be used.
+
+Commands can be specified by giving the first few characters of the
+command name, provided that the prefix is unambiguous. Some commands
+support automatic repeat. For these commands, pressing enter at the
+reader prompt without typing anything will cause repeat execution.
 .IP "\fB=\fR \fIexpression\fR"
 Evaluate an address expression and show both its value, and the result
 when the value is looked up in reverse in the current symbol
@@ -166,6 +171,9 @@ length (64 bytes) is disassembled and shown.
 
 If symbols are available, then all addresses used as operands are
 translated into \fIsymbol\fR+\fIoffset\fR form.
+
+This command supports repeat execution. If repeated, it continues to
+disassemble another block of memory following that last printed.
 .IP "\fBerase\fR [\fBall\fR|\fBsegment\fR] [\fIaddress\fR]"
 Erase the device under test. With no arguments, all code memory is erased
 (but not information or boot memory). With the argument "all", a mass
@@ -293,6 +301,9 @@ The output is split into three columns. The first column shows the
 starting address for the line. The second column lists the hexadecimal
 values of the bytes. The final column shows the ASCII characters
 corresponding to printable bytes, and . for non-printing characters.
+
+This command supports repeat execution. If repeated, it continues to
+print another block of memory following that last printed.
 .IP "\fBmw\fR \fIaddress\fR \fIbytes\fR ..."
 Write a sequence of bytes at the given memory address. The address given
 may be an address expression. Bytes values are two-digit hexadecimal
@@ -354,7 +365,8 @@ register values are displayed, as well as a disassembly of the
 instructions at the address selected by the program counter.
 
 An optional count can be specified to step multiple times. If no
-argument is given, the CPU steps once.
+argument is given, the CPU steps once. This command supports repeat
+execution.
 .IP "\fBsym clear\fR"
 Clear the symbol table, deleting all symbols.
 .IP "\fBsym set\fR \fIname\fR \fIvalue\fR"
