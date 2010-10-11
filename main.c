@@ -337,15 +337,9 @@ static int add_fet_device(void *user_data, const struct fet_db_record *r)
 	return vector_push(v, &r->name, 1);
 }
 
-static int cmp_char_ptr(const void *a, const void *b)
-{
-	return strcmp(*(const char **)a, *(const char **)b);
-}
-
 static int list_devices(void)
 {
 	struct vector v;
-	int i;
 
 	vector_init(&v, sizeof(const char *));
 	if (fet_db_enum(add_fet_device, &v) < 0) {
@@ -354,13 +348,10 @@ static int list_devices(void)
 		return -1;
 	}
 
-	qsort(v.ptr, v.size, v.elemsize, cmp_char_ptr);
-
 	printc("Devices supported by FET driver:\n");
-	for (i = 0; i < v.size; i++)
-		printc("    %s\n", VECTOR_AT(v, i, const char *));
-
+	namelist_print(&v);
 	vector_destroy(&v);
+
 	return 0;
 }
 
