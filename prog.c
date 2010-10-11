@@ -34,8 +34,8 @@ int prog_flush(struct prog_data *prog)
 
 	if (!prog->have_erased && (prog->flags & PROG_WANT_ERASE)) {
 		printc("Erasing...\n");
-		if (device_default->ctl(device_default,
-					DEVICE_CTL_ERASE) < 0)
+		if (device_default->erase(device_default,
+					  DEVICE_ERASE_MAIN, 0) < 0)
 			return -1;
 
 		prog->have_erased = 1;

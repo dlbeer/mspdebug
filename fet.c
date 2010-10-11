@@ -575,12 +575,11 @@ static int do_run(struct fet_device *dev, int type)
 	return 0;
 }
 
-static int do_erase(struct fet_device *dev)
+static int fet_erase(device_t dev_base, device_erase_type_t type,
+		     address_t addr)
 {
-	if (xfer(dev, C_RESET, NULL, 0, 3, FET_RESET_ALL, 0, 0) < 0) {
-		printc_err("fet: reset before erase failed\n");
-		return -1;
-	}
+	struct fet_device *dev = (struct fet_device *)dev_base;
+	int fet_erase_type = FET_ERASE_MAIN;
 
 	if (xfer(dev, C_CONFIGURE, NULL, 0, 2, FET_CONFIG_CLKCTRL, 0x26) < 0) {
 		printc_err("fet: config (1) failed\n");
@@ -592,8 +591,27 @@ static int do_erase(struct fet_device *dev)
 		return -1;
 	}
 
-	if (xfer(dev, C_ERASE, NULL, 0, 3, FET_ERASE_MAIN,
-		 dev->code_start, 0) < 0) {
+	switch (type) {
+	case DEVICE_ERASE_MAIN:
+		fet_erase_type = FET_ERASE_MAIN;
+		addr = dev->code_start;
+		break;
+
+	case DEVICE_ERASE_SEGMENT:
+		fet_erase_type = FET_ERASE_SEGMENT;
+		break;
+
+	case DEVICE_ERASE_ALL:
+		fet_erase_type = FET_ERASE_ALL;
+		addr = dev->code_start;
+		break;
+
+	default:
+		printc_err("fet: unsupported erase type\n");
+		return -1;
+	}
+
+	if (xfer(dev, C_ERASE, NULL, 0, 3, fet_erase_type, addr, 0) < 0) {
 		printc_err("fet: erase command failed\n");
 		return -1;
 	}
@@ -686,9 +704,6 @@ static int fet_ctl(device_t dev_base, device_ctl_t action)
 				break;
 		}
 		break;
-
-	case DEVICE_CTL_ERASE:
-		return do_erase(dev);
 	}
 
 	return 0;
@@ -921,6 +936,7 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 	dev->base.setregs = fet_setregs;
 	dev->base.ctl = fet_ctl;
 	dev->base.poll = fet_poll;
+	dev->base.erase = fet_erase;
 
 	dev->transport = transport;
 	dev->proto_flags = proto_flags;

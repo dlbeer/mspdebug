@@ -124,8 +124,10 @@ const struct cmddb_record commands[] = {
 		.name = "erase",
 		.func = cmd_erase,
 		.help =
-"erase\n"
-"    Erase the device under test.\n"
+"erase [all|segment] [address]\n"
+"    Erase the device under test. With no arguments, erases all of main\n"
+"    memory. Specify arguments to perform a mass erase, or to erase\n"
+"    individual segments.\n"
 	},
 	{
 		.name = "step",
@@ -224,7 +226,14 @@ const struct cmddb_record commands[] = {
 "cgraph <address> <length> [function]\n"
 "    Analyse the range given and produce a call graph. Displays a summary\n"
 "    of all functions if no function address is given.\n"
-	}
+	},
+	{
+		.name = "locka",
+		.func = cmd_locka,
+		.help =
+"locka [set|clear]\n"
+"    Show or change the status of the LOCKA flash write-protect bit.\n"
+	},
 };
 
 int cmddb_get(const char *name, struct cmddb_record *ret)

@@ -166,9 +166,14 @@ length (64 bytes) is disassembled and shown.
 
 If symbols are available, then all addresses used as operands are
 translated into \fIsymbol\fR+\fIoffset\fR form.
-.IP "\fBerase\fR"
-Erase the device under test. All code memory is erased (but not
-information or boot memory).
+.IP "\fBerase\fR [\fBall\fR|\fBsegment\fR] [\fIaddress\fR]"
+Erase the device under test. With no arguments, all code memory is erased
+(but not information or boot memory). With the argument "all", a mass
+erase is performed (the results may depend on the state of the LOCKA
+bit in the flash memory controller).
+
+Specify "segment" and a memory address to erase an individual flash
+segment.
 .IP "\fBgdb\fR [\fIport\fR]"
 Start a GDB remote stub, optionally specifying a TCP port to listen on.
 If no port is given, the default port is 2000.
@@ -265,6 +270,17 @@ command is like \fBprog\fR, but it does not load symbols or erase
 the device before programming.
 
 The CPU is reset and halted before and after programming.
+.IP "\fBlocka\fR [\fBset\fR|\fBclear\fR]"
+Show or change the status of the LOCKA bit in the chip's memory
+controller. The LOCKA bit is set on POR and acts as a write-protect bit
+for info segment A. This segment contains factory-configured calibration
+data, and under normal circumstances, should not be changed.
+
+If the LOCKA bit is cleared, erasing the info A segment is possible.
+
+The LOCKA bit also affects the behaviour of the "erase all" command. If
+LOCKA is set (the default), only main memory is erased. If LOCKA is
+cleared, main and information memory are both erased.
 .IP "\fBmd\fR \fIaddress\fR [\fIlength\fR]"
 Read the specified section of device memory and display it as a
 canonical\-style hexdump. Both arguments may be address expressions. If

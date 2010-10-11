@@ -504,10 +504,6 @@ static int sim_ctl(device_t dev_base, device_ctl_t op)
 		dev->regs[MSP430_REG_PC] = MEM_GETW(dev, 0xfffe);
 		return 0;
 
-	case DEVICE_CTL_ERASE:
-		memset(dev->memory, 0xff, MEM_SIZE);
-		return 0;
-
 	case DEVICE_CTL_HALT:
 		dev->running = 0;
 		return 0;
@@ -518,6 +514,30 @@ static int sim_ctl(device_t dev_base, device_ctl_t op)
 	case DEVICE_CTL_RUN:
 		dev->running = 1;
 		return 0;
+	}
+
+	return 0;
+}
+
+static int sim_erase(device_t dev_base, device_erase_type_t type,
+		     address_t addr)
+{
+	struct sim_device *dev = (struct sim_device *)dev_base;
+
+	switch (type) {
+	case DEVICE_ERASE_MAIN:
+		memset(dev->memory + 0x2000, 0xff, MEM_SIZE - 0x2000);
+		break;
+
+	case DEVICE_ERASE_ALL:
+		memset(dev->memory, 0xff, MEM_SIZE);
+		break;
+
+	case DEVICE_ERASE_SEGMENT:
+		addr &= ~0x3f;
+		addr &= (MEM_SIZE - 1);
+		memset(dev->memory + addr, 0xff, 64);
+		break;
 	}
 
 	return 0;
@@ -583,6 +603,7 @@ device_t sim_open(sim_fetch_func_t fetch_func,
 	dev->base.destroy = sim_destroy;
 	dev->base.readmem = sim_readmem;
 	dev->base.writemem = sim_writemem;
+	dev->base.erase = sim_erase;
 	dev->base.getregs = sim_getregs;
 	dev->base.setregs = sim_setregs;
 	dev->base.ctl = sim_ctl;

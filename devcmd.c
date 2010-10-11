@@ -138,11 +138,38 @@ int cmd_reset(char **arg)
 
 int cmd_erase(char **arg)
 {
+	const char *type_text = get_arg(arg);
+	const char *seg_text = get_arg(arg);
+	device_erase_type_t type = DEVICE_ERASE_MAIN;
+	address_t segment = 0;
+
+	if (seg_text && expr_eval(stab_default, seg_text, &segment) < 0) {
+		printc_err("erase: invalid expression: %s\n", seg_text);
+		return -1;
+	}
+
+	if (type_text) {
+		if (!strcasecmp(type_text, "all")) {
+			type = DEVICE_ERASE_ALL;
+		} else if (!strcasecmp(type_text, "segment")) {
+			type = DEVICE_ERASE_SEGMENT;
+			if (!seg_text) {
+				printc_err("erase: expected segment "
+					   "address\n");
+				return -1;
+			}
+		} else {
+			printc_err("erase: unknown erase type: %s\n",
+				    type_text);
+			return -1;
+		}
+	}
+
 	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0)
 		return -1;
 
 	printc("Erasing...\n");
-	return device_default->ctl(device_default, DEVICE_CTL_ERASE);
+	return device_default->erase(device_default, type, segment);
 }
 
 int cmd_step(char **arg)
@@ -602,5 +629,61 @@ int cmd_break(char **arg)
 		}
 	}
 
+	return 0;
+}
+
+#define FCTL3		0x012c
+#define FCTL3_LOCKA	0x40
+#define FWKEY		0xa5
+#define FRKEY           0x96
+
+int cmd_locka(char **arg)
+{
+	const char *status = get_arg(arg);
+	int value = 0;
+	uint8_t regval[2];
+
+	if (status) {
+		if (!strcasecmp(status, "set")) {
+			value = FCTL3_LOCKA;
+		} else if (!strcasecmp(status, "clear")) {
+			value = 0;
+		} else {
+			printc_err("locka: unknown action: %s\n", status);
+			return -1;
+		}
+	}
+
+	if (device_default->readmem(device_default, FCTL3, regval, 2) < 0) {
+		printc_err("locka: can't read FCTL3 register\n");
+		return -1;
+	}
+
+	if (regval[1] != FRKEY) {
+		printc_err("warning: locka: read key invalid (got 0x%02x)\n",
+			   regval[1]);
+		return -1;
+	}
+
+	if (status && ((regval[0] & FCTL3_LOCKA) != value)) {
+		printc_dbg("Toggling LOCKA bit\n");
+
+		regval[0] |= FCTL3_LOCKA;
+		regval[1] = FWKEY;
+
+		if (device_default->writemem(device_default, FCTL3,
+					     regval, 2) < 0) {
+			printc_err("locka: can't write FCTL3 register\n");
+			return -1;
+		}
+
+		if (device_default->readmem(device_default, FCTL3,
+					    regval, 2) < 0) {
+			printc_err("locka: can't read FCTL3 register\n");
+			return -1;
+		}
+	}
+
+	printc("LOCKA is %s\n", (regval[0] & FCTL3_LOCKA) ? "set" : "clear");
 	return 0;
 }

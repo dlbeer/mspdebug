@@ -327,11 +327,18 @@ static int flash_bsl_readmem(device_t dev_base,
 	return 0;
 }
 
-static int flash_bsl_erase(struct flash_bsl_device *dev)
+static int flash_bsl_erase(device_t dev_base, device_erase_type_t type,
+			   address_t addr)
 {
+	struct flash_bsl_device *dev = (struct flash_bsl_device *)dev_base;
 	const uint8_t mass_erase_cmd[] = { MASS_ERASE };
 	uint8_t response_buffer[16];
 	int ret;
+
+	if (type != DEVICE_ERASE_ALL) {
+		printc_err("flash_bsl_erase: only mass erase is supported\n");
+		return -1;
+	}
 
 	if (flash_bsl_send(dev, mass_erase_cmd, sizeof(mass_erase_cmd)) < 0) {
 		printc_err("flash_bsl_erase: failed to send erase command\n");
@@ -380,7 +387,7 @@ static int flash_bsl_unlock(struct flash_bsl_device *dev)
 	int ret;
 
 	/* mass erase (this might wipe Information Memory on some devices */
-	if (flash_bsl_erase(dev) < 0) {
+	if (flash_bsl_erase((device_t)dev, DEVICE_ERASE_ALL, 0) < 0) {
 		printc_err("flash_bsl_unlock: warning: erase failed\n");
 	}
 
@@ -419,12 +426,7 @@ static int flash_bsl_unlock(struct flash_bsl_device *dev)
 
 static int flash_bsl_ctl(device_t dev_base, device_ctl_t type)
 {
-	struct flash_bsl_device *dev = (struct flash_bsl_device *)dev_base;
-
 	switch (type) {
-	case DEVICE_CTL_ERASE:
-		return flash_bsl_erase(dev);
-
 	case DEVICE_CTL_HALT:
 		/* Ignore halt requests */
 		return 0;
@@ -628,6 +630,7 @@ device_t flash_bsl_open(const char *device, int long_password)
 	dev->base.setregs = flash_bsl_setregs;
 	dev->base.ctl = flash_bsl_ctl;
 	dev->base.poll = flash_bsl_poll;
+	dev->base.erase = flash_bsl_erase;
 
 	dev->serial_fd = open_serial_even_parity(device, B9600);
 	if (dev->serial_fd < 0) {
