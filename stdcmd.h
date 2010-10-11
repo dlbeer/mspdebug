@@ -23,5 +23,6 @@
 int cmd_help(char **arg);
 int cmd_read(char **arg);
 int cmd_opt(char **arg);
+int cmd_exit(char **arg);
 
 #endif

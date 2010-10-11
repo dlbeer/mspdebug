@@ -234,6 +234,13 @@ const struct cmddb_record commands[] = {
 "locka [set|clear]\n"
 "    Show or change the status of the LOCKA flash write-protect bit.\n"
 	},
+	{
+		.name = "exit",
+		.func = cmd_exit,
+		.help =
+"exit\n"
+"    Exit from MSPDebug.\n"
+	}
 };
 
 int cmddb_get(const char *name, struct cmddb_record *ret)

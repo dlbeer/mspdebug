@@ -38,6 +38,7 @@
 
 static int modify_flags;
 static int in_reader_loop;
+static int want_exit;
 
 void mark_modified(int flags)
 {
@@ -57,7 +58,7 @@ int prompt_abort(int flags)
                 return 0;
 
         for (;;) {
-                printc("Symbols have not been saved since modification. "
+                printf("Symbols have not been saved since modification. "
                        "Continue (y/n)? ");
                 fflush(stdout);
 
@@ -141,6 +142,11 @@ static int do_command(char *arg, int interactive)
 	return 0;
 }
 
+void reader_exit(void)
+{
+	want_exit = 1;
+}
+
 void reader_loop(void)
 {
 	int old = in_reader_loop;
@@ -154,19 +160,25 @@ void reader_loop(void)
 	}
 
 	do {
+		want_exit = 0;
+
 		for (;;) {
 			char *buf = readline("(mspdebug) ");
 
-			if (!buf)
+			if (!buf) {
+				printc("\n");
 				break;
+			}
 
 			add_history(buf);
 			do_command(buf, 1);
 			free(buf);
+
+			if (want_exit)
+				break;
 		}
 	} while (prompt_abort(MODIFY_SYMS));
 
-	printc("\n");
 	in_reader_loop = old;
 }
 

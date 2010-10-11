@@ -46,6 +46,9 @@ int prompt_abort(int flags);
 /* Run the reader loop */
 void reader_loop(void);
 
+/* Cause the reader loop to exit */
+void reader_exit(void);
+
 /* Commands can be fed directly to the processor either one at a time,
  * or by specifying a file to read from.
  */

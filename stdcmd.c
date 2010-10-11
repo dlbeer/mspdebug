@@ -242,3 +242,9 @@ int cmd_read(char **arg)
 
 	return process_file(filename);
 }
+
+int cmd_exit(char **arg)
+{
+	reader_exit();
+	return 0;
+}
