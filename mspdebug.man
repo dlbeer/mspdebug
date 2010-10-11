@@ -389,8 +389,10 @@ Any command which accepts a memory address, length or register value
 as an argument may be given an address expression. An address
 expression consists of an algebraic combination of values.
 
-An address value may be either a decimal value, a hexadecimal value
-preceeded by the prefix \fB0x\fR, or a symbol name.
+An address value may be either a symbol name, a hex value preceeded
+with the specifier "0x", a decimal value preceeded with the specifier
+"0d", or a number in the default input radix (without a specifier). See
+the option \fBiradix\fR for more information.
 
 The operators recognised are the usual algebraic operators: \fB+\fR, \fB-\fR,
 \fB*\fR, \fB/\fR, \fB%\fR, \fB(\fR and \fB)\fR. Operator precedence is the
@@ -416,6 +418,10 @@ If true, MSPDebug will colorize debugging output.
 Automatically restart the GDB server after disconnection. If this
 option is set, then the GDB server keeps running until an error occurs,
 or the user interrupts with Ctrl+C.
+.IP "\fBiradix\fR (numeric)"
+Default input radix for address expressions. For address values with
+no radix specifier, this value gives the input radix, which is
+10 (decimal) by default.
 .IP "\fBquiet\fR (boolean)"
 If set, MSPDebug will supress most of its debug-related output. This option
 defaults to false, but can be set true on start-up using the \fB-q\fR

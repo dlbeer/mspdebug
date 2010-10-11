@@ -33,6 +33,7 @@
 #include "gdb.h"
 #include "output.h"
 #include "reader.h"
+#include "expr.h"
 
 #define MAX_MEM_XFER    8192
 
@@ -698,10 +699,12 @@ static int gdb_server(int port)
 int cmd_gdb(char **arg)
 {
 	char *port_text = get_arg(arg);
-	int port = 2000;
+	address_t port = 2000;
 
-	if (port_text)
-		port = atoi(port_text);
+	if (port_text && expr_eval(stab_default, port_text, &port) < 0) {
+		printc_err("gdb: can't parse port: %s\n", port_text);
+		return -1;
+	}
 
 	if (port <= 0 || port > 65535) {
 		printc_err("gdb: invalid port: %d\n", port);

@@ -43,9 +43,17 @@ const static struct opdb_key keys[] = {
 	{
 		.name = "quiet",
 		.type = OPDB_TYPE_BOOLEAN,
-		.help = "Supress debugging output\n",
+		.help = "Supress debugging output.\n",
 		.defval = {
 			.boolean = 0
+		}
+	},
+	{
+		.name = "iradix",
+		.type = OPDB_TYPE_NUMERIC,
+		.help = "Default input radix.\n",
+		.defval = {
+			.numeric = 10
 		}
 	}
 };

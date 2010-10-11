@@ -28,6 +28,7 @@
 #include "stab.h"
 #include "util.h"
 #include "output.h"
+#include "opdb.h"
 
 /************************************************************************
  * Address expression parsing.
@@ -52,13 +53,18 @@ static int addr_exp_data(stab_t stab,
 	}
 
 	/* Hex value */
-	if (*text == '0' && text[1] == 'x')
+	if (*text == '0' && text[1] == 'x') {
 		value = strtoul(text + 2, NULL, 16);
-	else if (isdigit(*text))
-		value = atoi(text);
-	else if (stab_get(stab, text, &value) < 0) {
-		printc_err("can't parse token: %s\n", text);
-		return -1;
+	} else if (*text == '0' && text[1] == 'd') {
+		value = atoi(text + 2);
+	} else if (stab_get(stab, text, &value) < 0) {
+		char *end;
+
+		value = strtol(text, &end, opdb_get_numeric("iradix"));
+		if (*end) {
+			printc_err("can't parse token: %s\n", text);
+			return -1;
+		}
 	}
 
 	if (s->data_stack_size + 1 > ARRAY_LEN(s->data_stack)) {

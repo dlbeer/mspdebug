@@ -175,16 +175,19 @@ int cmd_erase(char **arg)
 int cmd_step(char **arg)
 {
 	char *count_text = get_arg(arg);
-	int count = 1;
+	address_t count = 1;
+	int i;
 
-	if (count_text)
-		count = atoi(count_text);
+	if (count_text) {
+		if (expr_eval(stab_default, count_text, &count) < 0) {
+			printc_err("step: can't parse count: %s\n", count_text);
+			return -1;
+		}
+	}
 
-	while (count > 0) {
+	for (i = 0; i < count; i++)
 		if (device_default->ctl(device_default, DEVICE_CTL_STEP) < 0)
 			return -1;
-		count--;
-	}
 
 	return cmd_regs(NULL);
 }
@@ -557,13 +560,15 @@ int cmd_setbreak(char **arg)
 	}
 
 	if (index_text) {
-		index = atoi(index_text);
+		address_t val;
 
-		if (index < 0 || index >= device_default->max_breakpoints) {
-			printc_err("setbreak: invalid breakpoint "
-				"slot: %d\n", index);
+		if (expr_eval(stab_default, index_text, &val) < 0 ||
+		    val >= device_default->max_breakpoints) {
+			printc("setbreak: invalid breakpoint slot: %d\n", val);
 			return -1;
 		}
+
+		index = val;
 	}
 
 	index = device_setbrk(device_default, index, 1, addr);
@@ -583,11 +588,12 @@ int cmd_delbreak(char **arg)
 	int ret = 0;
 
 	if (index_text) {
-		int index = atoi(index_text);
+		address_t index;
 
-		if (index < 0 || index >= device_default->max_breakpoints) {
-			printc_err("delbreak: invalid breakpoint "
-				"slot: %d\n", index);
+		if (expr_eval(stab_default, index_text, &index) < 0 ||
+		    index >= device_default->max_breakpoints) {
+			printc("delbreak: invalid breakpoint slot: %d\n",
+			       index);
 			return -1;
 		}
 
