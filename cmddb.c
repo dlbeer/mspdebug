@@ -245,18 +245,37 @@ const struct cmddb_record commands[] = {
 
 int cmddb_get(const char *name, struct cmddb_record *ret)
 {
+	int len = strlen(name);
 	int i;
+	const struct cmddb_record *found = NULL;
 
+	/* First look for an exact match */
 	for (i = 0; i < ARRAY_LEN(commands); i++) {
 		const struct cmddb_record *r = &commands[i];
 
 		if (!strcasecmp(r->name, name)) {
-			memcpy(ret, r, sizeof(*ret));
-			return 0;
+			found = r;
+			goto done;
 		}
 	}
 
-	return -1;
+	/* Allow partial matches if unambiguous */
+	for (i = 0; i < ARRAY_LEN(commands); i++) {
+		const struct cmddb_record *r = &commands[i];
+
+		if (!strncasecmp(r->name, name, len)) {
+			if (found)
+				return -1;
+			found = r;
+		}
+	}
+
+	if (!found)
+		return -1;
+
+done:
+	memcpy(ret, found, sizeof(*ret));
+	return 0;
 }
 
 int cmddb_enum(cmddb_enum_func_t func, void *user_data)
