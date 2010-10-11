@@ -240,7 +240,7 @@ int cmd_read(char **arg)
 		return -1;
 	}
 
-	return process_file(filename);
+	return process_file(filename, 1);
 }
 
 int cmd_exit(char **arg)

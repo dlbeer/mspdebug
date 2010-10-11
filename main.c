@@ -327,7 +327,7 @@ static void process_rc_file(void)
 
 	snprintf(text, sizeof(text), "%s/.mspdebug", home);
 	if (!access(text, F_OK))
-		process_file(text);
+		process_file(text, 0);
 }
 
 static int add_fet_device(void *user_data, const struct fet_db_record *r)

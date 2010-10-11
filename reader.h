@@ -51,8 +51,10 @@ void reader_exit(void);
 
 /* Commands can be fed directly to the processor either one at a time,
  * or by specifying a file to read from.
+ *
+ * If show is non-zero, commands will be printed as they are executed.
  */
 int process_command(char *cmd);
-int process_file(const char *filename);
+int process_file(const char *filename, int show);
 
 #endif

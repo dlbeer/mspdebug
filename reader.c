@@ -187,7 +187,7 @@ int process_command(char *cmd)
 	return do_command(cmd, 0);
 }
 
-int process_file(const char *filename)
+int process_file(const char *filename, int show)
 {
 	FILE *in;
 	char buf[1024];
@@ -210,6 +210,9 @@ int process_file(const char *filename)
 
 		if (*cmd == '#')
 			continue;
+
+		if (show)
+			printc("\x1b[1m=>\x1b[0m %s", cmd);
 
 		if (do_command(cmd, 0) < 0) {
 			printc_err("read: error processing %s (line %d)\n",
