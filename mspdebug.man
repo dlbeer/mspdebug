@@ -1,4 +1,4 @@
-.TH mspdebug 1 "9 Sep 2010" "Version 0.11"
+.TH mspdebug 1 "12 Oct 2010" "Version 0.12"
 .SH NAME
 MSPDebug - debugging tool for MSP430 MCUs
 .SH SYNOPSIS
