@@ -916,6 +916,57 @@ static int do_configure(struct fet_device *dev)
 	return -1;
 }
 
+int try_open(struct fet_device *dev, int proto_flags, int vcc_mv,
+	     const char *force_id, int send_reset)
+{
+	transport_t transport = dev->transport;
+
+	if (proto_flags & FET_PROTO_OLIMEX) {
+		printc("Resetting Olimex command processor...\n");
+		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
+		usleep(5000);
+		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
+		usleep(5000);
+	}
+
+	printc_dbg("Initializing FET...\n");
+	if (xfer(dev, C_INITIALIZE, NULL, 0, 0) < 0) {
+		printc_err("fet: open failed\n");
+		return -1;
+	}
+
+	dev->version = dev->fet_reply.argv[0];
+	printc_dbg("FET protocol version is %d\n", dev->version);
+
+	if (xfer(dev, 0x27, NULL, 0, 1, 4) < 0) {
+		printc_err("fet: init failed\n");
+		return -1;
+	}
+
+	if (do_configure(dev) < 0)
+		return -1;
+
+	if (send_reset) {
+		printc_dbg("Sending reset...\n");
+		if (xfer(dev, C_RESET, NULL, 0, 3, FET_RESET_ALL, 0, 0) < 0)
+			printc_err("warning: fet: reset failed\n");
+	}
+
+	/* set VCC */
+	if (xfer(dev, C_VCC, NULL, 0, 1, vcc_mv) < 0)
+		printc_err("warning: fet: set VCC failed\n");
+	else
+		printc_dbg("Set Vcc: %d mV\n", vcc_mv);
+
+	/* Identify the chip */
+	if (do_identify(dev, force_id) < 0) {
+		printc_err("fet: identify failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 		  const char *force_id)
 {
@@ -941,41 +992,11 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 	dev->transport = transport;
 	dev->proto_flags = proto_flags;
 
-	if (proto_flags & FET_PROTO_OLIMEX) {
-		printc("Resetting Olimex command processor...\n");
-		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
-		usleep(5000);
-		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
-		usleep(5000);
-	}
-
-	printc_dbg("Initializing FET...\n");
-	if (xfer(dev, C_INITIALIZE, NULL, 0, 0) < 0) {
-		printc_err("fet: open failed\n");
-		goto fail;
-	}
-
-	dev->version = dev->fet_reply.argv[0];
-	printc_dbg("FET protocol version is %d\n", dev->version);
-
-	if (xfer(dev, 0x27, NULL, 0, 1, 4) < 0) {
-		printc_err("fet: init failed\n");
-		goto fail;
-	}
-
-	if (do_configure(dev) < 0)
-		goto fail;
-
-	/* set VCC */
-	if (xfer(dev, C_VCC, NULL, 0, 1, vcc_mv) < 0)
-		printc_err("warning: fet: set VCC failed\n");
-	else
-		printc_dbg("Set Vcc: %d mV\n", vcc_mv);
-
-	/* Identify the chip */
-	if (do_identify(dev, force_id) < 0) {
-		printc_err("fet: identify failed\n");
-		goto fail;
+	if (try_open(dev, proto_flags, vcc_mv, force_id, 0) < 0) {
+		usleep(500000);
+		printc("Trying again...\n");
+		if (try_open(dev, proto_flags, vcc_mv, force_id, 1) < 0)
+			goto fail;
 	}
 
 	/* Make sure breakpoints get reset on the first run */
