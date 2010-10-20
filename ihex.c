@@ -60,7 +60,8 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 
 	switch (type) {
 	case 0:
-		return cb(user_data, address, payload, data_len);
+		return cb(user_data, address + *segment_offset,
+			  payload, data_len);
 
 	case 1:
 	case 3:
