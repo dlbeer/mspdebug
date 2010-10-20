@@ -38,6 +38,7 @@ int prog_flush(struct prog_data *prog)
 					  DEVICE_ERASE_MAIN, 0) < 0)
 			return -1;
 
+		printc("Programming...\n");
 		prog->have_erased = 1;
 	}
 
