@@ -38,7 +38,7 @@ static int decode_00xx(const uint8_t *code, address_t offset,
 	uint16_t op = code[0] | (code[1] << 8);
 	int subtype = (op >> 4) & 0xf;
 	int have_arg = 0;
-	address_t arg;
+	address_t arg = 0;
 
 	/* Parameters common to most cases */
 	insn->op = MSP430_OP_MOVA;
