@@ -261,15 +261,12 @@ static const struct driver driver_table[] = {
 	}
 };
 
-static void version(void)
-{
-	printc(
+static const char *version_text =
 "MSPDebug version 0.12 - debugging tool for MSP430 MCUs\n"
 "Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
-"PURPOSE.\n");
-}
+"PURPOSE.\n";
 
 static void usage(const char *progname)
 {
@@ -409,7 +406,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			exit(0);
 
 		case 'V':
-			version();
+			printc("%s", version_text);
 			exit(0);
 
 		case 'v':
@@ -489,6 +486,7 @@ int main(int argc, char **argv)
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		return -1;
 
+	printc_dbg("%s\n", version_text);
 	if (setup_driver(&args) < 0)
 		return -1;
 
