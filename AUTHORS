@@ -38,3 +38,6 @@ Sören Höckner <soeren.hoeckner@gmx.de>:
 
 Andrew Armenia <andrew@asquaredlabs.com>:
 	* flash-bsl driver.
+
+James Laird <james.laird@nicta.com.au>:
+	* Support for CC430F5133.
