@@ -283,7 +283,7 @@ static const struct driver driver_table[] = {
 };
 
 static const char *version_text =
-"MSPDebug version 0.12 - debugging tool for MSP430 MCUs\n"
+"MSPDebug version 0.13 - debugging tool for MSP430 MCUs\n"
 "Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "

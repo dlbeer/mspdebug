@@ -1,0 +1,112 @@
+Version 0.13 - 9 Nov 2010
+	* Bug fix: incorrect handling of Intel HEX segment offsets.
+	* Support for new chips: MSP430F1121, MSP430F2131, MSP430F2617,
+	  MSP430F247, MSP430F4270, MSP430G2231, CC430F5133.
+	* Support for Olimex MSP430-JTAG-ISO.
+	* FET driver retries with a reset if the first attempt to
+	  connect fails. This should fix the problem which requires
+	  devices to be replugged after each session.
+	* Notify the user when programming in quiet mode, and display
+	  version banner unless starting in quiet mode.
+
+Version 0.12 - 12 Oct 2010
+	* Bug fixes: unaligned flash read/write, reduced memory block
+	  size, MSP430F5438 support, BSL memory ranges.
+	* Support for MSP430FG4618.
+	* New commands: load, locka, exit.
+	* Support for flash BSL (but see notes in manual).
+	* Preliminary support for segment and mass erase (see "erase"
+	  command).
+	* Reset is now issued on disconnect, rather than on init.
+	* Allow specification of default input radix (see "iradix"
+	  option).
+	* Allow partial unambiguous command matches.
+	* Repeat execution of certain commands in reader.
+	* Commands read from a file are now printed as they are
+	  executed.
+
+Version 0.11 - 9 Sep 2010
+	* Support for programming and debugging 20-bit devices.
+	* Support for MSP430X instruction set.
+	* Support for new chips: MSP430F2234, CC430F5137, MSP430F2618,
+	  MSP430F1612, MSP430F47197, MSP430F1232, MSP430F413,
+	  MSP430F2370.
+	* Bug fixes: RF2500 support on OS/X, chip identification using
+	  FET.
+	* Added quiet mode to supress debug output.
+	* Faster gdb transfers.
+	* Faster polling with FET driver (quicker single-stepping and
+	  breakpoint detection).
+	* Commands can now be issued, and output received, via the gdb
+	  interface (using "monitor").
+	* Support for FET430UIF firmware updates via BSL.
+
+Version 0.10 - 4 Aug 2010
+	* Bug fixes for gdb interface, FET driver.
+	* Added support for MSP430F5529.
+	* Added support for COFF, S19 and TI-Text file formats.
+	* Support multiple breakpoints (see "setbreak", "delbreak" and
+	  "break" commands).
+
+Version 0.9 - 29 Jun 2010
+	* Added support for MSP430F2132, MSP430F169.
+	* Fixed support for FET430UIF JTAG with 5xxx series devices.
+	* Added support for Olimex MSP-JTAG-TINY programmer.
+	* Multiple instances of USB programmers can now be used
+	  simultaneously.
+	* Cleaner command line options (see "--help" for information).
+
+Version 0.8 - 22 May 2010
+	* Bug fixes for disassembly, chip erase, gdb interface,
+	  simulation.
+	* Modifications to improve portability to Cygwin and Mac OS X.
+	* Implemented call graph analysis (see "cgraph" command).
+	* Better FET protocol support for firmware versions >= 20300000.
+
+Version 0.7 - 30 Apr 2010
+	* Symbol tables can now be edited and exported (see "sym"
+	  command).
+	* Bug fixes for disassembly.
+	* Added option for coloured output.
+	* Can search memory for instructions matching a pattern (see
+	  "isearch" command).
+	* Can now include initialization commands in ~/.mspdebug RC
+	  file.
+	* Address expressions are now algebraic expressions.
+	* Added support for TI Chronos devices.
+	* Added support for C-style quoted command arguments.
+
+Version 0.6 - 23 Mar 2010
+	* Bug fixes for simulation and disassembly.
+	* Added new commands: erase, mw, read.
+	* Added support for GNU readline.
+	* Implemented GDB remote stub (see "gdb" command).
+
+Version 0.5 - 20 Mar 2010
+	* Added support for BSD-style symbol table files (*.map).
+	* Disassembly bug fixes.
+	* Fixed BSL version reporting.
+	* Added more device IDs.
+	* Added manual page.
+	* Added CPU core emulation.
+
+Version 0.4 - 15 Jan 2010
+	* Bug fixes for FET430UIF devices.
+	* Added ELF32 support.
+	* Added symbol table support.
+	* Added support for the FET430UIF bootloader.
+	* Added simulation/dummy mode.
+	* Added "hexout" command for extracting images.
+
+Version 0.3 - 4 Jan 2010
+	* Better diagnostics (recognises and shows protocol errors).
+	* Protocol bug fixes for non-RF2500 devices.
+	* Added JTAG support.
+
+Version 0.2 - 17 Nov 2009
+	* Added Makefile.
+	* Added support for FET430UIF and eZ430-F2013 devices.
+	* Commands can now be executed non-interactively.
+
+Version 0.1 - 15 Oct 2009
+	* First version.
