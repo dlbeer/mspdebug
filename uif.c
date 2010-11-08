@@ -25,6 +25,10 @@
 #include <unistd.h>
 #include <termios.h>
 
+#include <linux/serial.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+
 #include "uif.h"
 #include "util.h"
 #include "output.h"
@@ -81,7 +85,35 @@ static void serial_destroy(transport_t tr_base)
 	free(tr);
 }
 
-transport_t uif_open(const char *device, int is_olimex)
+static int open_olimex_iso(const char *device)
+{
+        int fd = open(device, O_RDWR | O_NOCTTY);
+        struct termios attr;
+        struct serial_struct serial_info;
+
+        if (fd < 0)
+                return -1;
+
+        tcgetattr(fd, &attr);
+        cfmakeraw(&attr);
+        cfsetispeed(&attr, B38400);
+        cfsetospeed(&attr, B38400);
+
+        serial_info.flags = ASYNC_SPD_CUST;
+        serial_info.custom_divisor = 120;
+        if (ioctl(fd, TIOCSSERIAL, &serial_info) < 0) {
+		printc_err("open_olimex_iso: can't do ioctl TIOCSSERIAL: %s\n",
+			   strerror(errno));
+		return -1;
+        }
+
+        if (tcsetattr(fd, TCSAFLUSH, &attr) < 0)
+                return -1;
+
+        return fd;
+}
+
+transport_t uif_open(const char *device, uif_type_t type)
 {
 	struct uif_transport *tr = malloc(sizeof(*tr));
 
@@ -94,10 +126,23 @@ transport_t uif_open(const char *device, int is_olimex)
 	tr->base.recv = serial_recv;
 	tr->base.destroy = serial_destroy;
 
-	printc("Trying to open %s on %s...\n",
-		is_olimex ? "Olimex" : "UIF", device);
+	switch (type) {
+	case UIF_TYPE_FET:
+		printc("Trying to open UIF on %s...\n", device);
+		tr->serial_fd = open_serial(device, B460800);
+		break;
 
-	tr->serial_fd = open_serial(device, is_olimex ? B500000 : B460800);
+	case UIF_TYPE_OLIMEX:
+		printc("Trying to open Olimex on %s...\n", device);
+		tr->serial_fd = open_serial(device, B500000);
+		break;
+
+	case UIF_TYPE_OLIMEX_ISO:
+		printc("Trying to open Olimex (ISO) on %s...\n", device);
+		tr->serial_fd = open_olimex_iso(device);
+		break;
+	}
+
 	if (tr->serial_fd < 0) {
 		printc_err("uif: can't open serial device: %s: %s\n",
 			device, strerror(errno));

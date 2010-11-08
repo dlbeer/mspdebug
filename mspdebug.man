@@ -71,6 +71,8 @@ Connect to an eZ430-RF2500 device. Only USB connection is supported.
 .IP "\fBolimex\fR"
 Connect to an Olimex MSP-JTAG-TINY device. Both USB and tty access are
 supported.
+.IP "\fBolimex-iso\fR"
+Connect to an Olimex MSP-JTAG-ISO device. Only tty access is supported.
 .IP "\fBsim\fR"
 Do not connect to any hardware device, but instead start in simulation
 mode. A 64k buffer is allocated to simulate the device memory. The CPU

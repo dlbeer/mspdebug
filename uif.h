@@ -21,10 +21,16 @@
 
 #include "transport.h"
 
+typedef enum {
+	UIF_TYPE_FET,
+	UIF_TYPE_OLIMEX,
+	UIF_TYPE_OLIMEX_ISO
+} uif_type_t;
+
 /* This function is for opening an eZ430-F2013 or FET430UIF device via
  * a kernel-supported serial interface. The argument given should be the
  * filename of the relevant tty device.
  */
-transport_t uif_open(const char *device, int is_olimex);
+transport_t uif_open(const char *device, uif_type_t type);
 
 #endif
