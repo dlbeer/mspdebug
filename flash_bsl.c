@@ -331,17 +331,30 @@ static int flash_bsl_erase(device_t dev_base, device_erase_type_t type,
 			   address_t addr)
 {
 	struct flash_bsl_device *dev = (struct flash_bsl_device *)dev_base;
-	const uint8_t mass_erase_cmd[] = { MASS_ERASE };
+	uint8_t erase_cmd[4];
 	uint8_t response_buffer[16];
 	int ret;
 
-	if (type != DEVICE_ERASE_ALL) {
-		printc_err("flash_bsl_erase: only mass erase is supported\n");
+	if (type == DEVICE_ERASE_ALL) {
+		printc_err("flash_bsl_erase: simultaneous code/info erase not supported\n");
 		return -1;
-	}
-
-	if (flash_bsl_send(dev, mass_erase_cmd, sizeof(mass_erase_cmd)) < 0) {
-		printc_err("flash_bsl_erase: failed to send erase command\n");
+	} else if (type == DEVICE_ERASE_MAIN) {
+		erase_cmd[0] = MASS_ERASE;
+		if (flash_bsl_send(dev, erase_cmd, 1) < 0) {
+			printc_err("flash_bsl_erase: failed to send erase command\n");
+			return -1;
+		}
+        } else if (type == DEVICE_ERASE_SEGMENT) {
+		erase_cmd[0] = ERASE_SEGMENT;
+		erase_cmd[1] = addr & 0xff;
+		erase_cmd[2] = (addr >> 8) & 0xff;
+		erase_cmd[3] = (addr >> 16) & 0xff;
+		if (flash_bsl_send(dev, erase_cmd, 4) < 0) {
+			printc_err("flash_bsl_erase: failed to send erase command\n");
+			return -1;
+		}
+	} else {
+		printc_err("flash_bsl_erase: unsupported erase type\n");
 		return -1;
 	}
 
@@ -386,8 +399,9 @@ static int flash_bsl_unlock(struct flash_bsl_device *dev)
 	uint8_t response_buffer[16];
 	int ret;
 
-	/* mass erase (this might wipe Information Memory on some devices */
-	if (flash_bsl_erase((device_t)dev, DEVICE_ERASE_ALL, 0) < 0) {
+	/* mass erase - this might wipe Information Memory on some devices */
+        /* (according to the documentation it should not) */
+	if (flash_bsl_erase((device_t)dev, DEVICE_ERASE_MAIN, 0) < 0) {
 		printc_err("flash_bsl_unlock: warning: erase failed\n");
 	}
 
