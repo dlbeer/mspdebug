@@ -214,7 +214,9 @@ static int read_registers(struct gdb_data *data)
 
 	gdb_packet_start(data);
 	for (i = 0; i < DEVICE_NUM_REGS; i++)
-		gdb_printf(data, "%02x%02x", regs[i] & 0xff, regs[i] >> 8);
+		gdb_printf(data, "%02x%02x",
+			   regs[i] & 0xff,
+			   (regs[i] >> 8) & 0xff);
 	gdb_packet_end(data);
 	return gdb_flush_ack(data);
 }
