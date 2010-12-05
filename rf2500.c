@@ -67,7 +67,7 @@ static int open_interface(struct rf2500_transport *tr,
 		return -1;
 	}
 
-#if !(defined(__APPLE__) || defined(WIN32))
+#if defined(__linux__)
 	if (usb_detach_kernel_driver_np(tr->handle, tr->int_number) < 0)
 		pr_error("rf2500: warning: can't "
 			"detach kernel driver");

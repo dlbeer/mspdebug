@@ -61,12 +61,12 @@ struct olimex_transport {
 #define CP210X_SET_BAUDDIV              0x01
 #define CP210X_SET_MHS                  0x07
 
-#define TIMEOUT 	                1000
+#define TIMEOUT		                1000
 
 static int open_interface(struct olimex_transport *tr,
 			  struct usb_device *dev, int ino)
 {
-#if !(defined (__APPLE__) || defined(WIN32))
+#if defined(__linux__)
 	int drv;
 	char drName[256];
 #endif
@@ -82,7 +82,7 @@ static int open_interface(struct olimex_transport *tr,
 		return -1;
 	}
 
-#if !(defined(__APPLE__) || defined(WIN32))
+#if defined(__linux__)
 	drv = usb_get_driver_np(tr->handle, tr->int_number, drName,
 				sizeof(drName));
 	printc(__FILE__" : driver %d\n", drv);
