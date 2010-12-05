@@ -45,3 +45,6 @@ James Laird <james.laird@nicta.com.au>:
 Stefan Mahr <Stefan.Mahr@sphairon.com>:
 	* Initial support, testing and analysis for Olimex
 	  MSP430-JTAG-ISO.
+
+Jasper Lievisse Adriaanse <jasper@humppa.nl>:
+	* Ported to OpenBSD.

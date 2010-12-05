@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__OpenBSD__)
 #include <libelf.h>
 #else
 #include <elf.h>

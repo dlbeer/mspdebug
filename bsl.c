@@ -31,7 +31,7 @@
 #include "output.h"
 #include "fet_error.h"
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__OpenBSD__)
 #define B460800 460800
 #endif
 

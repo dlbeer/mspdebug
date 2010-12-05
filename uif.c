@@ -36,7 +36,7 @@
 #include "util.h"
 #include "output.h"
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__OpenBSD__)
 #define B460800 460800
 #define B500000 500000
 #endif
