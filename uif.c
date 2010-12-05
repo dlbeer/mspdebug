@@ -25,7 +25,7 @@
 #include <unistd.h>
 #include <termios.h>
 
-#if !(defined(__APPLE__) || defined(WIN32))
+#if defined(__linux__)
 #include <linux/serial.h>
 #endif
 
@@ -88,7 +88,7 @@ static void serial_destroy(transport_t tr_base)
 	free(tr);
 }
 
-#if !(defined(__APPLE__) || defined(WIN32))
+#if defined(__linux__)
 static int open_olimex_iso(const char *device)
 {
         int fd = open(device, O_RDWR | O_NOCTTY);
