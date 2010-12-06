@@ -46,5 +46,5 @@ Stefan Mahr <Stefan.Mahr@sphairon.com>:
 	* Initial support, testing and analysis for Olimex
 	  MSP430-JTAG-ISO.
 
-Jasper Lievisse Adriaanse <jasper@humppa.nl>:
+Jasper Lievisse Adriaanse <jasper@openbsd.org>:
 	* Ported to OpenBSD.
