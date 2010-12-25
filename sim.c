@@ -185,7 +185,7 @@ static int step_double(struct sim_device *dev, uint16_t ins)
 	case MSP430_OP_SUB:
 	case MSP430_OP_SUBC:
 	case MSP430_OP_CMP:
-		src_data = ~src_data;
+		src_data = (~src_data) & mask;
 	case MSP430_OP_ADD:
 	case MSP430_OP_ADDC:
 		if (opcode == MSP430_OP_ADDC || opcode == MSP430_OP_SUBC)
