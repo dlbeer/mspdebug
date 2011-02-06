@@ -1,3 +1,11 @@
+Version 0.14 - 7 Feb 2011
+	* Corrected email address in AUTHORS file.
+	* Support for new chips: MSP430F2272, MSP430F2122.
+	* Support for different erase types with flash_bsl driver.
+	* Fixed build problems on OS/X and OpenBSD.
+	* Bug fix: incorrect simulation of SUB/SUBC/CMP opcodes.
+	* Bug fix: faulty response to gdb "read registers" command.
+
 Version 0.13 - 9 Nov 2010
 	* Bug fix: incorrect handling of Intel HEX segment offsets.
 	* Support for new chips: MSP430F1121, MSP430F2131, MSP430F2617,

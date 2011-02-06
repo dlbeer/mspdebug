@@ -1,4 +1,4 @@
-.TH mspdebug 1 "9 Nov 2010" "Version 0.13"
+.TH mspdebug 1 "7 Feb 2011" "Version 0.14"
 .SH NAME
 MSPDebug - debugging tool for MSP430 MCUs
 .SH SYNOPSIS
@@ -444,7 +444,7 @@ defaults to false, but can be set true on start-up using the \fB-q\fR
 command-line option.
 .SH BUGS
 If you find any bugs, you should report them to the author at
-daniel@tortek.co.nz. It would help if you could include a transcript
+dlbeer@gmail.com. It would help if you could include a transcript
 of an MSPDebug session illustrating the program, as well as any
 relevant binaries or other files. Below, known bugs in the current
 version of MSPDebug are described.
@@ -453,7 +453,7 @@ When using the GDB remote stub in simulation and an IO read request
 occurs, any request to interrupt from GDB will not be acknowledged
 until the IO request is either completed or aborted.
 .SH COPYRIGHT
-Copyright (C) 2009, 2010 Daniel Beer <daniel@tortek.co.nz>
+Copyright (C) 2009-2011 Daniel Beer <dlbeer@gmail.com>
 
 MSPDebug is free software, distributed under the terms of the GNU
 General Public license (version 2 or later). See the file COPYING
