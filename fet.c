@@ -32,9 +32,10 @@
 #include "fet_error.h"
 #include "fet_db.h"
 #include "output.h"
+#include "opdb.h"
 
 #define MAX_PARAMS		16
-#define BLOCK_SIZE              64
+#define MAX_BLOCK_SIZE		4096
 
 struct fet_device {
 	struct device                   base;
@@ -357,10 +358,10 @@ static int send_command(struct fet_device *dev, int command_code,
 		        const uint32_t *params, int nparams,
 			const uint8_t *extra, int exlen)
 {
-	uint8_t datapkt[256];
+	uint8_t datapkt[MAX_BLOCK_SIZE * 2];
 	int len = 0;
 
-	uint8_t buf[512];
+	uint8_t buf[MAX_BLOCK_SIZE * 3];
 	uint16_t cksum;
 	int i = 0;
 	int j;
@@ -758,10 +759,23 @@ static int write_byte(struct fet_device *dev, address_t addr, uint8_t value)
 	return 0;
 }
 
+static int get_adjusted_block_size(void)
+{
+	int block_size = opdb_get_numeric("fet_block_size") & ~1;
+
+	if (block_size < 2)
+		block_size = 2;
+	if (block_size > MAX_BLOCK_SIZE)
+		block_size = MAX_BLOCK_SIZE;
+
+	return block_size;
+}
+
 int fet_readmem(device_t dev_base, address_t addr, uint8_t *buffer,
 		address_t count)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
+	int block_size = get_adjusted_block_size();
 
 	if (addr & 1) {
 		if (read_byte(dev, addr, buffer) < 0)
@@ -772,7 +786,7 @@ int fet_readmem(device_t dev_base, address_t addr, uint8_t *buffer,
 	}
 
 	while (count > 1) {
-		int plen = count > BLOCK_SIZE ? BLOCK_SIZE : count;
+		int plen = count > block_size ? block_size : count;
 
 		plen &= ~0x1;
 
@@ -804,6 +818,7 @@ int fet_writemem(device_t dev_base, address_t addr,
 		 const uint8_t *buffer, address_t count)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
+	int block_size = get_adjusted_block_size();
 
 	if (addr & 1) {
 		if (write_byte(dev, addr, *buffer) < 0)
@@ -814,7 +829,7 @@ int fet_writemem(device_t dev_base, address_t addr,
 	}
 
 	while (count > 1) {
-		int plen = count > BLOCK_SIZE ? BLOCK_SIZE : count;
+		int plen = count > block_size ? block_size : count;
 		int ret;
 
 		plen &= ~0x1;

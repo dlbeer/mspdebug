@@ -82,7 +82,7 @@ int cmd_md(char **arg)
 	reader_set_repeat("md 0x%x 0x%x", offset + length, length);
 
 	while (length) {
-		uint8_t buf[128];
+		uint8_t buf[4096];
 		int blen = length > sizeof(buf) ? sizeof(buf) : length;
 
 		if (device_default->readmem(device_default,
@@ -450,7 +450,7 @@ int cmd_hexout(char **arg)
 		return -1;
 
 	while (length) {
-		uint8_t buf[128];
+		uint8_t buf[4096];
 		int count = length;
 
 		if (count > sizeof(buf))

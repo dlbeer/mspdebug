@@ -55,6 +55,17 @@ const static struct opdb_key keys[] = {
 		.defval = {
 			.numeric = 10
 		}
+	},
+	{
+		.name = "fet_block_size",
+		.type = OPDB_TYPE_NUMERIC,
+		.help =
+"Size of buffer used for memory transfers to and from the FET device.\n"
+"Increasing this value will result in faster transfers, but may cause\n"
+"problems with some chips.\n",
+		.defval = {
+			.numeric = 64
+		}
 	}
 };
 

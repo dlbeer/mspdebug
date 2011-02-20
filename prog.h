@@ -19,7 +19,7 @@
 #ifndef PROG_H_
 #define PROG_H_
 
-#define PROG_BUFSIZE    128
+#define PROG_BUFSIZE    4096
 
 struct prog_data {
 	uint8_t         buf[PROG_BUFSIZE];
