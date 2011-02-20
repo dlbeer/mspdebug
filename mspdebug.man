@@ -53,8 +53,8 @@ of the standard 16-byte password.
 .IP "\-\-help"
 Display a brief help message and exit.
 .IP "\-\-fet\-list"
-Display a list of devices supported by the FET driver (the driver used
-for \fB\-R\fR and \fB\-u\fR operating modes).
+Display a list of chips supported by the FET driver (the driver used
+for UIF, RF2500 and Olimex devices)>
 .IP "\-\-fet\-force\-id \fIstring\fR"
 When using a FET device, force the connected chip to be recognised by
 MSPDebug as one of the given type during initialization. This overrides
