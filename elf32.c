@@ -269,6 +269,10 @@ static int syms_load_strings(struct elf32_info *info, FILE *in, Elf32_Shdr *s)
 
 #define N_SYMS	128
 
+#ifndef STT_COMMON
+#define STT_COMMON 5
+#endif
+
 static int syms_load_syms(struct elf32_info *info, FILE *in,
 			  Elf32_Shdr *s, stab_t stab)
 {
