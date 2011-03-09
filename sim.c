@@ -179,6 +179,26 @@ static int step_double(struct sim_device *dev, uint16_t ins)
 	uint32_t res_data;
 	uint32_t msb = is_byte ? 0x80 : 0x8000;
 	uint32_t mask = is_byte ? 0xff : 0xffff;
+	int cycles;
+
+	if (amode_dst == MSP430_AMODE_REGISTER && dreg == MSP430_REG_PC) {
+		if (amode_src == MSP430_AMODE_REGISTER ||
+		    amode_src == MSP430_AMODE_INDIRECT)
+			cycles = 2;
+		else
+			cycles = 3;
+	} else {
+		if (amode_src == MSP430_AMODE_INDIRECT ||
+		    amode_src == MSP430_AMODE_INDIRECT_INC)
+			cycles = 2;
+		else if (amode_src == MSP430_AMODE_INDEXED)
+			cycles = 3;
+		else
+			cycles = 1;
+
+		if (amode_dst == MSP430_AMODE_INDEXED)
+			cycles += 3;
+	}
 
 	if (fetch_operand(dev, amode_src, sreg, is_byte, NULL, &src_data) < 0)
 		return -1;
@@ -277,7 +297,7 @@ static int step_double(struct sim_device *dev, uint16_t ins)
 			      dst_addr, res_data) < 0)
 		return -1;
 
-	return 0;
+	return cycles;
 }
 
 static int step_single(struct sim_device *dev, uint16_t ins)
@@ -291,9 +311,17 @@ static int step_single(struct sim_device *dev, uint16_t ins)
 	uint16_t src_addr = 0;
 	uint32_t src_data;
 	uint32_t res_data = 0;
+	int cycles = 1;
 
 	if (fetch_operand(dev, amode, reg, is_byte, &src_addr, &src_data) < 0)
 		return -1;
+
+	if (amode == MSP430_AMODE_INDEXED)
+		cycles = 4;
+	else if (amode == MSP430_AMODE_REGISTER)
+		cycles = 1;
+	else
+		cycles = 5;
 
 	switch (opcode) {
 	case MSP430_OP_RRC:
@@ -335,6 +363,15 @@ static int step_single(struct sim_device *dev, uint16_t ins)
 	case MSP430_OP_PUSH:
 		dev->regs[MSP430_REG_SP] -= 2;
 		MEM_SETW(dev, dev->regs[MSP430_REG_SP], src_data);
+
+		if (amode == MSP430_AMODE_REGISTER)
+			cycles = 3;
+		else if (amode == MSP430_AMODE_INDIRECT ||
+			 (amode == MSP430_AMODE_INDIRECT_INC &&
+			  reg == MSP430_REG_PC))
+			cycles = 4;
+		else
+			cycles = 5;
 		break;
 
 	case MSP430_OP_CALL:
@@ -342,6 +379,12 @@ static int step_single(struct sim_device *dev, uint16_t ins)
 		MEM_SETW(dev, dev->regs[MSP430_REG_SP],
 			 dev->regs[MSP430_REG_PC]);
 		dev->regs[MSP430_REG_PC] = src_data;
+
+		if (amode == MSP430_AMODE_REGISTER ||
+		    amode == MSP430_AMODE_INDIRECT)
+			cycles = 4;
+		else
+			cycles = 5;
 		break;
 
 	case MSP430_OP_RETI:
@@ -364,7 +407,7 @@ static int step_single(struct sim_device *dev, uint16_t ins)
 		store_operand(dev, amode, reg, is_byte, src_addr, res_data) < 0)
 		return -1;
 
-	return 0;
+	return cycles;
 }
 
 static int step_jump(struct sim_device *dev, uint16_t ins)
@@ -415,9 +458,12 @@ static int step_jump(struct sim_device *dev, uint16_t ins)
 	if (sr)
 		dev->regs[MSP430_REG_PC] += pc_offset;
 
-	return 0;
+	return 2;
 }
 
+/* Fetch and execute one instruction. Return the number of CPU cycles
+ * it would have taken, or -1 if an error occurs.
+ */
 static int step_cpu(struct sim_device *dev)
 {
 	uint16_t ins;
@@ -441,6 +487,20 @@ static int step_cpu(struct sim_device *dev)
 		dev->regs[MSP430_REG_PC] = dev->current_insn;
 
 	return ret;
+}
+
+static int step_system(struct sim_device *dev)
+{
+	int count = 1;
+
+	if (!(dev->regs[MSP430_REG_SR] & MSP430_SR_CPUOFF)) {
+		count = step_cpu(dev);
+		if (count < 0)
+			return -1;
+	}
+
+	simio_step(dev->regs[MSP430_REG_SR], count);
+	return 0;
 }
 
 /************************************************************************
@@ -513,7 +573,9 @@ static int sim_ctl(device_t dev_base, device_ctl_t op)
 	case DEVICE_CTL_RESET:
 		memset(dev->regs, 0, sizeof(dev->regs));
 		dev->regs[MSP430_REG_PC] = MEM_GETW(dev, 0xfffe);
+		dev->regs[MSP430_REG_SR] = 0;
 		simio_reset();
+		simio_step(dev->regs[MSP430_REG_SR], 4);
 		return 0;
 
 	case DEVICE_CTL_HALT:
@@ -521,7 +583,7 @@ static int sim_ctl(device_t dev_base, device_ctl_t op)
 		return 0;
 
 	case DEVICE_CTL_STEP:
-		return step_cpu(dev);
+		return step_system(dev);
 
 	case DEVICE_CTL_RUN:
 		dev->running = 1;
@@ -578,13 +640,7 @@ static device_status_t sim_poll(device_t dev_base)
 			}
 		}
 
-		if (dev->regs[MSP430_REG_SR] & MSP430_SR_CPUOFF) {
-			printc("CPU disabled\n");
-			dev->running = 0;
-			return DEVICE_STATUS_HALTED;
-		}
-
-		if (step_cpu(dev) < 0) {
+		if (step_system(dev) < 0) {
 			dev->running = 0;
 			return DEVICE_STATUS_ERROR;
 		}

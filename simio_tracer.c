@@ -212,6 +212,8 @@ static int tracer_config(struct simio_device *dev,
 	else if (!strcasecmp(param, "clear")) {
 		tr->head = 0;
 		tr->tail = 0;
+		memset(tr->cycles, 0, sizeof(tr->cycles));
+		tr->inscount = 0;
 	} else if (!strcasecmp(param, "trigger")) {
 		const char *irq_text = get_arg(arg_text);
 		address_t value;

@@ -361,6 +361,8 @@ void simio_step(uint16_t status_register, int cycles)
 	clocks[SIMIO_SMCLK] = cycles;
 	clocks[SIMIO_ACLK] = aclk_counter >> 8;
 
+	aclk_counter &= 0xff;
+
 	if (status_register & MSP430_SR_CPUOFF)
 		clocks[SIMIO_MCLK] = 0;
 
