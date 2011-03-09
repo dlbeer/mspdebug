@@ -50,7 +50,7 @@ int simio_check_interrupt(void);
 /* When the CPU begins to handle an interrupt, it needs to notify the IO
  * simulation. Some interrupt flags are cleared automatically when handled.
  */
-void simio_ack_interrupt(void);
+void simio_ack_interrupt(int irq);
 
 /* This should be called after executing an instruction to advance the system
  * clocks.

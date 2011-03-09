@@ -24,8 +24,10 @@
 #include "simio_cpu.h"
 #include "simio_device.h"
 
+#include "simio_tracer.h"
+
 static const struct simio_class *const class_db[] = {
-	/* FIXME: nothing here yet */
+	&simio_tracer
 };
 
 /* Simulator data. We keep a list of devices on the bus, and the special
@@ -53,7 +55,7 @@ void simio_init(void)
 void simio_exit(void)
 {
 	while (!LIST_EMPTY(&device_list))
-		destroy_device((struct simio_device *)&device_list.next);
+		destroy_device((struct simio_device *)device_list.next);
 }
 
 static const struct simio_class *find_class(const char *name)
@@ -86,13 +88,13 @@ static struct simio_device *find_device(const char *name)
 
 static int cmd_add(char **arg_text)
 {
-	const char *name_text = get_arg(arg_text);
 	const char *type_text = get_arg(arg_text);
+	const char *name_text = get_arg(arg_text);
 	const struct simio_class *type;
 	struct simio_device *dev;
 
 	if (!(name_text && type_text)) {
-		printc_err("simio add: device name and class must be "
+		printc_err("simio add: device class and name must be "
 			   "specified.\n");
 		return -1;
 	}
@@ -150,7 +152,7 @@ static int cmd_devices(char **arg_text)
 	struct list_node *n;
 
 	for (n = device_list.next; n != &device_list; n = n->next) {
-		struct simio_device *dev = (struct simio_device *)&n;
+		struct simio_device *dev = (struct simio_device *)n;
 		int irq = dev->type->check_interrupt(dev);
 
 		printc("    %-10s (type %s", dev->name, dev->type->name);
@@ -200,7 +202,7 @@ static int cmd_help(char **arg_text)
 		return -1;
 	}
 
-	printc("\x1b[1mDEVICE CLASS: %s\x1b[0m\n%s\n", type->name, type->help);
+	printc("\x1b[1mDEVICE CLASS: %s\x1b[0m\n\n%s\n", type->name, type->help);
 	return 0;
 }
 
@@ -276,8 +278,18 @@ int cmd_simio(char **arg_text)
 
 void simio_reset(void)
 {
+	struct list_node *n;
+
 	memset(sfr_data, 0, sizeof(sfr_data));
 	aclk_counter = 0;
+
+	for (n = device_list.next; n != &device_list; n = n->next) {
+		struct simio_device *dev = (struct simio_device *)n;
+		const struct simio_class *type = dev->type;
+
+		if (type->reset)
+			type->reset(dev);
+	}
 }
 
 #define IO_REQUEST_FUNC(name, method, datatype) \
@@ -325,7 +337,7 @@ int simio_check_interrupt(void)
 	return irq;
 }
 
-void simio_ack_interrupt(void)
+void simio_ack_interrupt(int irq)
 {
 	struct list_node *n;
 
@@ -334,13 +346,13 @@ void simio_ack_interrupt(void)
 		const struct simio_class *type = dev->type;
 
 		if (type->ack_interrupt)
-			type->ack_interrupt(dev);
+			type->ack_interrupt(dev, irq);
 	}
 }
 
 void simio_step(uint16_t status_register, int cycles)
 {
-	int clocks[3] = {0};
+	int clocks[SIMIO_NUM_CLOCKS] = {0};
 	struct list_node *n;
 
 	aclk_counter += cycles;

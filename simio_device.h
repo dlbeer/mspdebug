@@ -29,7 +29,8 @@
 typedef enum {
 	SIMIO_MCLK = 0,
 	SIMIO_SMCLK,
-	SIMIO_ACLK
+	SIMIO_ACLK,
+	SIMIO_NUM_CLOCKS
 } simio_clock_t;
 
 /* Access to special function registers is provided by these functions. The
@@ -72,6 +73,9 @@ struct simio_class {
 		      char **arg_text);
 	int (*info)(struct simio_device *dev);
 
+	/* System reset hook. */
+	void (*reset)(struct simio_device *dev);
+
 	/* Programmed IO functions return 1 to indicate an unhandled
 	 * request. This scheme allows stacking.
 	 */
@@ -88,7 +92,7 @@ struct simio_class {
 	 * a single interrupt request at any time.
 	 */
 	int (*check_interrupt)(struct simio_device *dev);
-	void (*ack_interrupt)(struct simio_device *dev);
+	void (*ack_interrupt)(struct simio_device *dev, int irq);
 
 	/* Run the clocks for this device. The counters array has one
 	 * array per clock, and gives the number of cycles elapsed since
