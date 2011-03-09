@@ -21,20 +21,7 @@
 
 #include "device.h"
 
-/* These function pointers should be supplied in order to allow
- * the simulator to perform IO operations. If they're left blank, IO
- * addresses just map to RAM.
- */
-typedef int (*sim_fetch_func_t)(void *user_data,
-				uint16_t pc, uint16_t addr,
-				int is_byte, uint16_t *data);
-
-typedef void (*sim_store_func_t)(void *user_data,
-				 uint16_t pc, uint16_t addr,
-				 int is_byte, uint16_t data);
-
 /* Dummy/simulation implementation. */
-device_t sim_open(sim_fetch_func_t fetch, sim_store_func_t store,
-		  void *user_data);
+device_t sim_open(void);
 
 #endif

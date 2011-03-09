@@ -51,75 +51,6 @@
 #include "olimex.h"
 #include "rf2500.h"
 
-static void io_prefix(const char *prefix, uint16_t pc,
-		      uint16_t addr, int is_byte)
-{
-	char name[64];
-	address_t offset;
-
-	if (!stab_nearest(stab_default, pc, name, sizeof(name), &offset)) {
-		printf("%s", name);
-		if (offset)
-			printf("+0x%x", offset);
-	} else {
-		printf("0x%04x", pc);
-	}
-
-	printf(": IO %s.%c: 0x%04x", prefix, is_byte ? 'B' : 'W', addr);
-	if (!stab_nearest(stab_default, addr, name, sizeof(name), &offset)) {
-		printf(" (%s", name);
-		if (offset)
-			printf("+0x%x", offset);
-		printf(")");
-	}
-}
-
-static int fetch_io(void *user_data, uint16_t pc,
-		    uint16_t addr, int is_byte, uint16_t *data_ret)
-{
-	io_prefix("READ", pc, addr, is_byte);
-
-	for (;;) {
-		char text[128];
-		int len;
-		address_t data;
-
-		printf("? ");
-		fflush(stdout);
-		if (!fgets(text, sizeof(text), stdin)) {
-			printf("\nAborted IO request\n");
-			return -1;
-		}
-
-		len = strlen(text);
-		while (len && isspace(text[len - 1]))
-			len--;
-		text[len] = 0;
-
-		if (!len)
-			return 0;
-
-		if (!expr_eval(stab_default, text, &data)) {
-			if (data_ret)
-				*data_ret = data;
-			return 0;
-		}
-	}
-
-	return 0;
-}
-
-static void store_io(void *user_data, uint16_t pc,
-		     uint16_t addr, int is_byte, uint16_t data)
-{
-	io_prefix("WRITE", pc, addr, is_byte);
-
-	if (is_byte)
-		printf(" => 0x%02x\n", data & 0xff);
-	else
-		printf(" => 0x%04x\n", data);
-}
-
 struct cmdline_args {
 	const char      *driver_name;
 	const char      *serial_device;
@@ -204,7 +135,7 @@ static device_t driver_open_olimex_iso(const struct cmdline_args *args)
 
 static device_t driver_open_sim(const struct cmdline_args *args)
 {
-	return sim_open(fetch_io, store_io, NULL);
+	return sim_open();
 }
 
 static device_t driver_open_uif(const struct cmdline_args *args)
