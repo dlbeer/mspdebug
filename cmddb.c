@@ -26,6 +26,7 @@
 #include "rtools.h"
 #include "sym.h"
 #include "stdcmd.h"
+#include "simio.h"
 
 const struct cmddb_record commands[] = {
 	{
@@ -240,6 +241,25 @@ const struct cmddb_record commands[] = {
 		.help =
 "exit\n"
 "    Exit from MSPDebug.\n"
+	},
+	{
+		.name = "simio",
+		.func = cmd_simio,
+		.help =
+"simio add <class> <name> [args ...]\n"
+"    Add a new device to the IO simulator's bus.\n"
+"simio del <name>\n"
+"    Delete a device from the bus.\n"
+"simio devices\n"
+"    Show all devices attached to the bus.\n"
+"simio classes\n"
+"    Show the types of devices which may be attached.\n"
+"simio help <class>\n"
+"    Obtain more information about a device type.\n"
+"simio config <name> <param> [args ...]\n"
+"    Change settings of an attached device.\n"
+"simio info <name>\n"
+"    Print status information for an attached device.\n"
 	}
 };
 

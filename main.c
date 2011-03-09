@@ -38,6 +38,7 @@
 #include "opdb.h"
 #include "reader.h"
 #include "output.h"
+#include "simio.h"
 
 #include "sim.h"
 #include "bsl.h"
@@ -511,6 +512,8 @@ int main(int argc, char **argv)
 	if (setup_driver(&args) < 0)
 		return -1;
 
+	simio_init();
+
 	if (!args.no_rc)
 		process_rc_file();
 
@@ -526,6 +529,8 @@ int main(int argc, char **argv)
 		ctrlc_init();
 		reader_loop();
 	}
+
+	simio_exit();
 
 	stab_destroy(stab_default);
 	device_default->destroy(device_default);
