@@ -79,16 +79,9 @@ mode. A 64k buffer is allocated to simulate the device memory. The CPU
 core alone is emulated (no peripheral emulation).
 
 During simulation, addresses below 0x0200 are assumed to be IO memory.
-When data is written to an IO memory address, a message is displayed
-on the console showing the program counter location, address written
-to, and data. The data value is also written to simulated RAM at the
-relevant address.
-
-When data is read from IO memory, the user is notified similarly and
-prompted to supply the data. At this prompt, address expressions can
-be entered. If no value is entered, the value is read from simulated
-RAM. The user can press Ctrl+C to abort an IO request and stop
-execution.
+Programmed IO writes to and from IO memory are handled by the IO
+simulator, which can be configured and controlled with the \fBsimio\fR
+command, described below.
 
 This mode is intended for testing of changes to MSPDebug, and for
 aiding the disassembly of MSP430 binaries (as all binary and symbol
@@ -255,6 +248,7 @@ Match instructions using the specified mode in the destination operand. See
 below for a list of modes. This option implies that no-argument instructions
 are not matched.
 .RE
+.IP
 For single-operand instructions, the operand is considered to be the
 destination operand.
 
@@ -369,6 +363,38 @@ instructions at the address selected by the program counter.
 An optional count can be specified to step multiple times. If no
 argument is given, the CPU steps once. This command supports repeat
 execution.
+.IP "\fBsimio add\fR \fIclass\fR \fIname\fR [\fIargs ...\fR]"
+Add a new peripheral to the IO simulator. The \fIclass\fR parameter may be
+any of the peripheral types named in the output of the \fBsimio classes\fR
+command. The \fIname\fR parameter is a unique name assigned by the user to
+this peripheral instance, and is used with other commands to refer to this
+instance of the peripheral.
+
+Some peripheral classes take arguments upon creation. These are documented
+in the output to the \fBsimio help\fR command.
+.IP "\fBsimio classes\fR"
+List the names of the different types of peripherals which may be added to
+the simulator. You can use the \fBsimio help\fR command to obtain more
+information about each peripheral type.
+.IP "\fBsimio config\fR \fIname\fR \fIparam\fR [\fIargs ...\fR]"
+Configure or perform some action on a peripheral instance. The \fIparam\fR
+argument is specific to the peripheral type. A list of valid configuration
+commands can be obtained by using the \fBsimio help\fR command.
+.IP "\fBsimio del\fR \fIname\fR"
+Remove a previously added peripheral instance. The \fIname\fR argument
+should be the name of the peripheral that was assigned with the
+\fBsimio add\fR command.
+.IP "\fBsimio devices\fR"
+List all peripheral instances currently attached to the simulator, along
+with their types and interrupt status. You can obtain more detailed
+information for each instance with the \fBsimio info\fR command.
+.IP "\fBsimio help\fR \fIclass\fR"
+Obtain more information about a peripheral class. The documentation
+given will list constructor arguments and configuration parameters for
+the device type.
+.IP "\fBsimio info\fR \fIname\fR"
+Display detailed status information for a particular peripheral. The type
+of information displayed is specific to each type of peripheral.
 .IP "\fBsym clear\fR"
 Clear the symbol table, deleting all symbols.
 .IP "\fBsym set\fR \fIname\fR \fIvalue\fR"
@@ -400,6 +426,83 @@ Rename symbols by searching for those matching the given regular
 expression and substituting the given string for the matched portion. The
 symbols renamed are displayed, as well as a total count of all symbols
 renamed.
+.SH IO SIMULATOR
+The IO simulator subsystem consists of a database of device classes, and a
+list of instances of those classes. Each device class has a different
+set of constructor arguments, configuration parameters and information which
+may be displayed. This section describes the operation of the available
+device classes in detail.
+
+In the list below, each device class is listed, followed by its constructor
+arguments.
+.IP "\fBtimer\fR [\fIsize\fR]"
+This peripheral simulators Timer_A modules, and can be used to simulate
+Timer_B modules, provided that the extended features aren't required.
+
+The constructor takes a size argument specifying the number of capture/compare
+registers in this peripheral instance. The number of such registers may not
+be less than 2, or greater than 7.
+
+The IO addresses and IRQs used are configurable. The default IO addresses used
+are those specified for Timer_A in the MSP430 hardware documentation.
+.RS
+.IP "\fBbase\fR \fIaddress\fR"
+Alter the base IO address. By default, this is 0x0160. By setting this to 0x0180,
+a Timer_B module may be simulated.
+.IP "\fBirq0\fR \fInumber\fR"
+Set the TACCR0 interrupt vector number. By default, this is interrupt vector 9.
+This interrupt is self-clearing, and higher priority than the TACCR1/TAIFG
+vector.
+.IP "\fBirq1\fR \fInumber\fR"
+Set the TACCR1/TAIFG interrupt vector. By default, this is interrupt vector 8.
+.IP "\fBiv\fR \fIaddress\fR"
+Alter the address of the interrupt vector register. By default, this is 0x012E.
+By setting this to 0x011E, a Timer_B module may be simulated.
+.IP "\fBset\fR \fIchannel\fR \fIvalue\fR"
+When Timer_A is used in capture mode, the CCI bit in each capture register reflects
+the state of the corresponding input pin, and can't be altered in software. This
+configuration command can be used to simulate changes in input pin state, and will
+trigger the corresponding interrupts if the peripheral is so configured.
+.RE
+.IP "\fBtracer\fR [\fIhistory-size\fR]"
+The tracer peripheral is a debugging device. It can be used to investigate
+and record the IO activity of a running program, to benchmark execution time,
+and to simulate interrupts.
+
+The information displayed by the tracer gives a running count of clock cycles
+from each of the system clocks, and an instruction count. A list of the \fIN\fR
+most recent IO events is also displayed (this is configurable via the \fIhistory-size\fR
+argument of the constructor). Each IO event is timestamped by the number of
+MCLK cycles that have elapsed since the last reset of the device's counter.
+
+The IO events that it records consist of programmed IO reads and writes,
+interrupt acceptance, and system resets. As well as keeping the IO events in a
+rotating buffer, the tracer can be configured to display the events as they
+occur.
+
+Note that since clock cycles don't advance while the CPU isn't running, this
+peripheral can be used to calculate execution times for blocks of code. This
+can be achieved by setting a breakpoint at the end of the code block, setting the
+program counter to the start of the code block, clearing the tracer and running
+the code. After the breakpoint is reached, the information displayed by the
+tracer will contain a count of MCLK cycles elapsed during the last run.
+
+The configuration parameters for this device class are:
+.RS
+.IP "\fBverbose\fR"
+Start displaying IO events as they occur, as well as recording them in the
+rotating buffer.
+.IP "\fBquiet\fR"
+Stop displaying IO events as they occur, and just record them in the buffer.
+.IP "\fBtrigger\fR \fIirq\fR"
+Signal an interrupt request to the CPU. This request will remain raised until
+accepted by the CPU or cleared by the user.
+.IP "\fBuntrigger\fR"
+Clear a signalled interrupt request.
+.IP "\fBclear\fR"
+Reset the clock cycle and instruction counts to 0, and clear the IO event
+history.
+.RE
 .SH ADDRESS EXPRESSIONS
 Any command which accepts a memory address, length or register value
 as an argument may be given an address expression. An address
