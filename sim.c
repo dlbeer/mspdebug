@@ -550,6 +550,26 @@ static int sim_readmem(device_t dev_base, address_t addr,
 	if (addr + len > MEM_SIZE)
 		len = MEM_SIZE - addr;
 
+	/* Read byte IO addresses */
+	while (len && (addr < 0x100)) {
+		simio_read_b(addr, mem);
+		mem++;
+		len--;
+		addr++;
+	}
+
+	/* Read word IO addresses */
+	while (len > 2 && (addr < 0x200)) {
+		uint16_t data = 0;
+
+		simio_read(addr, &data);
+		mem[0] = data & 0xff;
+		mem[1] = data >> 8;
+		mem += 2;
+		len -= 2;
+		addr += 2;
+	}
+
 	memcpy(mem, dev->memory + addr, len);
 	return 0;
 }
@@ -563,6 +583,22 @@ static int sim_writemem(device_t dev_base, address_t addr,
 	    (addr + len) > MEM_SIZE) {
 		printc_err("sim: memory write out of range\n");
 		return -1;
+	}
+
+	/* Write byte IO addresses */
+	while (len && (addr < 0x100)) {
+		simio_write_b(addr, *mem);
+		mem++;
+		len--;
+		addr++;
+	}
+
+	/* Write word IO addresses */
+	while (len > 2 && (addr < 0x200)) {
+		simio_write(addr, ((uint16_t)mem[1] << 8) | mem[0]);
+		mem += 2;
+		len -= 2;
+		addr += 2;
 	}
 
 	memcpy(dev->memory + addr, mem, len);
