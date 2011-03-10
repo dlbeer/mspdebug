@@ -286,7 +286,7 @@ static int timer_write(struct simio_device *dev,
 	struct timer *tr = (struct timer *)dev;
 
 	if (addr == tr->base_addr) {
-		tr->tactl = data & ~(TACLR | 0x40);
+		tr->tactl = data & ~(TACLR | 0x08);
 		if (data & TACLR)
 			tr->tar = 0;
 
@@ -430,7 +430,7 @@ static void timer_step(struct simio_device *dev,
 	tr->clock_input &= ((1 << i) - 1);
 
 	/* Run the timer for however many pulses */
-	for (i = 0; i < tr->clock_input; i++) {
+	for (i = 0; i < pulse_count; i++) {
 		int j;
 
 		for (j = 0; j < tr->size; j++)
