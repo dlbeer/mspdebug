@@ -200,7 +200,7 @@ static int config_channel(struct timer *tr, char **arg_text)
 	oldval = tr->ctls[which] & CCI;
 	tr->ctls[which] &= ~CCI;
 	if (value)
-		tr->ctls[which] &= ~CCI;
+		tr->ctls[which] |= CCI;
 
 	if (oldval && !value)
 		edge_flags |= CM1;
@@ -453,7 +453,7 @@ const struct simio_class simio_timer = {
 "This peripheral implements the Timer_A module.\n"
 "\n"
 "Constructor arguments: [size]\n"
-"    Specify the number of capture/compare registers (excluding CCR0).\n"
+"    Specify the number of capture/compare registers.\n"
 "\n"
 "Config arguments are:\n"
 "    base <address>\n"
