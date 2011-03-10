@@ -25,9 +25,11 @@
 #include "simio_device.h"
 
 #include "simio_tracer.h"
+#include "simio_timer.h"
 
 static const struct simio_class *const class_db[] = {
-	&simio_tracer
+	&simio_tracer,
+	&simio_timer
 };
 
 /* Simulator data. We keep a list of devices on the bus, and the special
