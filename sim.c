@@ -497,7 +497,7 @@ static int step_system(struct sim_device *dev)
 	uint16_t status = dev->regs[MSP430_REG_SR];
 
 	irq = simio_check_interrupt();
-	if ((status & MSP430_SR_GIE) && irq >= 0) {
+	if (((status & MSP430_SR_GIE) && irq >= 0) || irq >= 14) {
 		if (irq >= 16) {
 			printc_err("sim: invalid interrupt number: %d\n", irq);
 			return -1;
