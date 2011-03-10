@@ -394,6 +394,7 @@ static int step_single(struct sim_device *dev, uint16_t ins)
 		dev->regs[MSP430_REG_PC] =
 			MEM_GETW(dev, dev->regs[MSP430_REG_SP]);
 		dev->regs[MSP430_REG_SP] += 2;
+		cycles = 5;
 		break;
 
 	default:
@@ -492,14 +493,37 @@ static int step_cpu(struct sim_device *dev)
 static int step_system(struct sim_device *dev)
 {
 	int count = 1;
+	int irq;
+	uint16_t status = dev->regs[MSP430_REG_SR];
 
-	if (!(dev->regs[MSP430_REG_SR] & MSP430_SR_CPUOFF)) {
+	irq = simio_check_interrupt();
+	if ((status & MSP430_SR_GIE) && irq >= 0) {
+		if (irq >= 16) {
+			printc_err("sim: invalid interrupt number: %d\n", irq);
+			return -1;
+		}
+
+		dev->regs[MSP430_REG_SP] -= 2;
+		MEM_SETW(dev, dev->regs[MSP430_REG_SP],
+			 dev->regs[MSP430_REG_PC]);
+
+		dev->regs[MSP430_REG_SP] -= 2;
+		MEM_SETW(dev, dev->regs[MSP430_REG_SP],
+			 dev->regs[MSP430_REG_SR]);
+
+		dev->regs[MSP430_REG_SR] &=
+			~(MSP430_SR_GIE | MSP430_SR_CPUOFF);
+		dev->regs[MSP430_REG_PC] = MEM_GETW(dev, 0xffe0 + irq * 2);
+
+		simio_ack_interrupt(irq);
+		count = 6;
+	} else if (!(status & MSP430_SR_CPUOFF)) {
 		count = step_cpu(dev);
 		if (count < 0)
 			return -1;
 	}
 
-	simio_step(dev->regs[MSP430_REG_SR], count);
+	simio_step(status, count);
 	return 0;
 }
 
@@ -571,11 +595,11 @@ static int sim_ctl(device_t dev_base, device_ctl_t op)
 
 	switch (op) {
 	case DEVICE_CTL_RESET:
+		simio_step(dev->regs[MSP430_REG_SR], 4);
 		memset(dev->regs, 0, sizeof(dev->regs));
 		dev->regs[MSP430_REG_PC] = MEM_GETW(dev, 0xfffe);
 		dev->regs[MSP430_REG_SR] = 0;
 		simio_reset();
-		simio_step(dev->regs[MSP430_REG_SR], 4);
 		return 0;
 
 	case DEVICE_CTL_HALT:

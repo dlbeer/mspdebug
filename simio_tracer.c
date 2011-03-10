@@ -23,6 +23,7 @@
 #include "simio_tracer.h"
 #include "expr.h"
 #include "output.h"
+#include "dis.h"
 
 #define DEFAULT_HISTORY		16
 
@@ -321,7 +322,7 @@ static void tracer_ack_interrupt(struct simio_device *dev, int irq)
 }
 
 static void tracer_step(struct simio_device *dev,
-			uint16_t addr, const int *clocks)
+			uint16_t status, const int *clocks)
 {
 	struct tracer *tr = (struct tracer *)dev;
 	int i;
@@ -329,7 +330,8 @@ static void tracer_step(struct simio_device *dev,
 	for (i = 0; i < SIMIO_NUM_CLOCKS; i++)
 		tr->cycles[i] += clocks[i];
 
-	tr->inscount++;
+	if (!(status & MSP430_SR_CPUOFF))
+		tr->inscount++;
 }
 
 const struct simio_class simio_tracer = {

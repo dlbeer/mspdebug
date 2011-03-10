@@ -54,6 +54,9 @@ void simio_ack_interrupt(int irq);
 
 /* This should be called after executing an instruction to advance the system
  * clocks.
+ *
+ * The status_register value should be the value of SR _before_ the
+ * instruction was executed.
  */
 void simio_step(uint16_t status_register, int cycles);
 
