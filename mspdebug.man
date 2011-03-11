@@ -503,6 +503,23 @@ Clear a signalled interrupt request.
 Reset the clock cycle and instruction counts to 0, and clear the IO event
 history.
 .RE
+.IP "\fBwdt\fR"
+This peripheral simulates the Watchdog Timer+, which can be used in software
+either as a watchdog or as an interval timer. It has no constructor arguments.
+
+The simulated state of the NMI/RST# pin can be controlled through a configuration
+parameter. Note that if this pin state is held low with the pin mode selected
+as a reset (the default), the CPU will not run.
+
+The extended information for this peripheral shows all register states, including
+the hidden counter register. Configuration parameters are:
+.RS
+.IP "\fBnmi\fR \fIstate\fR"
+Set the NMI/RST# pin state. The argument should be zero to indicate a low state
+or non-zero for a high state.
+.IP "\fBirq\fR \fIirq\fR"
+Select the interrupt vector for interval timer mode. The default is to use
+interrupt vector 10.
 .SH ADDRESS EXPRESSIONS
 Any command which accepts a memory address, length or register value
 as an argument may be given an address expression. An address

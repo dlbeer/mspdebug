@@ -26,10 +26,12 @@
 
 #include "simio_tracer.h"
 #include "simio_timer.h"
+#include "simio_wdt.h"
 
 static const struct simio_class *const class_db[] = {
 	&simio_tracer,
-	&simio_timer
+	&simio_timer,
+	&simio_wdt
 };
 
 /* Simulator data. We keep a list of devices on the bus, and the special
@@ -316,8 +318,28 @@ int name(address_t addr, datatype data) { \
 
 IO_REQUEST_FUNC(simio_write, write, uint16_t)
 IO_REQUEST_FUNC(simio_read, read, uint16_t *)
-IO_REQUEST_FUNC(simio_write_b, write_b, uint8_t)
-IO_REQUEST_FUNC(simio_read_b, read_b, uint8_t *)
+IO_REQUEST_FUNC(static simio_write_b_device, write_b, uint8_t)
+IO_REQUEST_FUNC(static simio_read_b_device, read_b, uint8_t *)
+
+int simio_write_b(address_t addr, uint8_t data)
+{
+	if (addr >= 0 && addr < 16) {
+		sfr_data[addr] = data;
+		return 0;
+	}
+
+	return simio_write_b_device(addr, data);
+}
+
+int simio_read_b(address_t addr, uint8_t *data)
+{
+	if (addr >= 0 && addr < 16) {
+		*data = sfr_data[addr];
+		return 0;
+	}
+
+	return simio_read_b_device(addr, data);
+}
 
 int simio_check_interrupt(void)
 {

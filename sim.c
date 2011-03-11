@@ -490,6 +490,15 @@ static int step_cpu(struct sim_device *dev)
 	return ret;
 }
 
+static void do_reset(struct sim_device *dev)
+{
+	simio_step(dev->regs[MSP430_REG_SR], 4);
+	memset(dev->regs, 0, sizeof(dev->regs));
+	dev->regs[MSP430_REG_PC] = MEM_GETW(dev, 0xfffe);
+	dev->regs[MSP430_REG_SR] = 0;
+	simio_reset();
+}
+
 static int step_system(struct sim_device *dev)
 {
 	int count = 1;
@@ -497,7 +506,10 @@ static int step_system(struct sim_device *dev)
 	uint16_t status = dev->regs[MSP430_REG_SR];
 
 	irq = simio_check_interrupt();
-	if (((status & MSP430_SR_GIE) && irq >= 0) || irq >= 14) {
+	if (irq == 15) {
+		do_reset(dev);
+		return 0;
+	} else if (((status & MSP430_SR_GIE) && irq >= 0) || irq >= 14) {
 		if (irq >= 16) {
 			printc_err("sim: invalid interrupt number: %d\n", irq);
 			return -1;
@@ -631,11 +643,7 @@ static int sim_ctl(device_t dev_base, device_ctl_t op)
 
 	switch (op) {
 	case DEVICE_CTL_RESET:
-		simio_step(dev->regs[MSP430_REG_SR], 4);
-		memset(dev->regs, 0, sizeof(dev->regs));
-		dev->regs[MSP430_REG_PC] = MEM_GETW(dev, 0xfffe);
-		dev->regs[MSP430_REG_SR] = 0;
-		simio_reset();
+		do_reset(dev);
 		return 0;
 
 	case DEVICE_CTL_HALT:

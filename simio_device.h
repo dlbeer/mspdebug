@@ -38,6 +38,11 @@ typedef enum {
  *
  *     SFR = (SFR & ~mask) | bits
  */
+#define SIMIO_IE1		0x00
+#define SIMIO_IFG1		0x01
+#define SIMIO_IE2		0x02
+#define SIMIO_IFG2		0x03
+
 uint8_t simio_sfr_get(address_t which);
 void simio_sfr_modify(address_t which, uint8_t mask, uint8_t bits);
 
