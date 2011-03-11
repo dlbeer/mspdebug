@@ -435,6 +435,9 @@ device classes in detail.
 
 In the list below, each device class is listed, followed by its constructor
 arguments.
+.IP "\fBhwmult\fR"
+This peripheral simulates the hardware multiplier. It has no constructor or
+configuration parameters, and does not provide any extended information.
 .IP "\fBtimer\fR [\fIsize\fR]"
 This peripheral simulators Timer_A modules, and can be used to simulate
 Timer_B modules, provided that the extended features aren't required.

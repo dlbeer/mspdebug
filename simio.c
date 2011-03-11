@@ -27,11 +27,13 @@
 #include "simio_tracer.h"
 #include "simio_timer.h"
 #include "simio_wdt.h"
+#include "simio_hwmult.h"
 
 static const struct simio_class *const class_db[] = {
 	&simio_tracer,
 	&simio_timer,
-	&simio_wdt
+	&simio_wdt,
+	&simio_hwmult
 };
 
 /* Simulator data. We keep a list of devices on the bus, and the special
@@ -157,7 +159,10 @@ static int cmd_devices(char **arg_text)
 
 	for (n = device_list.next; n != &device_list; n = n->next) {
 		struct simio_device *dev = (struct simio_device *)n;
-		int irq = dev->type->check_interrupt(dev);
+		int irq = -1;
+
+		if (dev->type->check_interrupt)
+			irq = dev->type->check_interrupt(dev);
 
 		printc("    %-10s (type %s", dev->name, dev->type->name);
 		if (irq < 0)
@@ -228,6 +233,12 @@ static int cmd_config(char **arg_text)
 		return -1;
 	}
 
+	if (!dev->type->config) {
+		printc_err("simio config: no configuration parameters are "
+			   "defined for this device\n");
+		return -1;
+	}
+
 	return dev->type->config(dev, param, arg_text);
 }
 
@@ -244,6 +255,11 @@ static int cmd_info(char **arg_text)
 	dev = find_device(name);
 	if (!dev) {
 		printc_err("simio info: no such device: %s\n", name);
+		return -1;
+	}
+
+	if (!dev->type->info) {
+		printc_err("simio config: no information available\n");
 		return -1;
 	}
 
