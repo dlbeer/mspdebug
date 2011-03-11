@@ -42,7 +42,7 @@ int prog_flush(struct prog_data *prog)
 		prog->have_erased = 1;
 	}
 
-	printc_dbg("Writing %3d bytes to %04x...\n", prog->len, prog->addr);
+	printc_dbg("Writing %4d bytes to %04x...\n", prog->len, prog->addr);
 	if (device_default->writemem(device_default, prog->addr,
 				     prog->buf, prog->len) < 0)
 		return -1;

@@ -456,7 +456,7 @@ int cmd_hexout(char **arg)
 		if (count > sizeof(buf))
 			count = sizeof(buf);
 
-		printc("Reading %d bytes from 0x%04x...\n", count, off);
+		printc("Reading %4d bytes from 0x%04x...\n", count, off);
 		if (device_default->readmem(device_default,
 					    off, buf, count) < 0) {
 			pr_error("hexout: can't read memory");

@@ -324,7 +324,7 @@ static int read_memory(struct gdb_data *data, char *text)
 	if (length > sizeof(buf))
 		length = sizeof(buf);
 
-	printc("Reading %3d bytes from 0x%04x\n", length, addr);
+	printc("Reading %4d bytes from 0x%04x\n", length, addr);
 
 	if (device_default->readmem(device_default, addr, buf, length) < 0)
 		return gdb_send(data, "E00");
@@ -367,7 +367,7 @@ static int write_memory(struct gdb_data *data, char *text)
 		return gdb_send(data, "E00");
 	}
 
-	printc("Writing %3d bytes to 0x%04x\n", length, addr);
+	printc("Writing %4d bytes to 0x%04x\n", length, addr);
 
 	if (device_default->writemem(device_default, addr, buf, buflen) < 0)
 		return gdb_send(data, "E00");
