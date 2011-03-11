@@ -435,6 +435,29 @@ device classes in detail.
 
 In the list below, each device class is listed, followed by its constructor
 arguments.
+.IP "\fBgpio\fR"
+Digital IO port simulator. This device simulates any of the digital ports
+with or without interrupt capability. It has the following configuration
+parameters:
+.RS
+.IP "\fBbase\fR \fIaddress\fR"
+Set the base address for this port. Note that for ports without interrupt
+capability, the resistor enable port has a special address which is
+computable from the base address.
+.IP "\fBirq\fR \fIvector\fR"
+Enable interrupt functionality for this port by specifying an interrupt
+vector number.
+.IP "\fBnoirq\fR"
+Disable interrupt functionality for this port.
+.IP "\fBverbose\fR"
+Print a state change message every time the port output changes.
+.IP "\fBquiet\fR"
+Don't print anything when the port state changes (the default).
+.IP "\fBset\fR \fIpin\fR \fIvalue\fR"
+Set the input pin state for the given pin on this port. The \fIpin\fR
+parameter should be an index between 0 and 7. The \fIvalue\fR should be
+either zero (for a low state) or non-zero (for a high state).
+.RE
 .IP "\fBhwmult\fR"
 This peripheral simulates the hardware multiplier. It has no constructor or
 configuration parameters, and does not provide any extended information.

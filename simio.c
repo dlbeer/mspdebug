@@ -28,12 +28,14 @@
 #include "simio_timer.h"
 #include "simio_wdt.h"
 #include "simio_hwmult.h"
+#include "simio_gpio.h"
 
 static const struct simio_class *const class_db[] = {
 	&simio_tracer,
 	&simio_timer,
 	&simio_wdt,
-	&simio_hwmult
+	&simio_hwmult,
+	&simio_gpio
 };
 
 /* Simulator data. We keep a list of devices on the bus, and the special

@@ -64,7 +64,7 @@ mspdebug: main.o fet.o rf2500.o dis.o uif.o olimex.o ihex.o elf32.o stab.o \
 	  reader.o vector.o output_util.o expr.o fet_error.o binfile.o \
 	  fet_db.o usbutil.o titext.o srec.o device.o coff.o opdb.o output.o \
 	  cmddb.o stdcmd.o prog.o flash_bsl.o list.o simio.o simio_tracer.o \
-	  simio_timer.o simio_wdt.o simio_hwmult.o
+	  simio_timer.o simio_wdt.o simio_hwmult.o simio_gpio.o
 	$(CC) $(LDFLAGS) $(PORTS_LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
 
 .c.o:
