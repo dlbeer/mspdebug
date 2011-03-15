@@ -23,6 +23,6 @@
 
 int coff_check(FILE *in);
 int coff_extract(FILE *in, binfile_imgcb_t cb, void *user_data);
-int coff_syms(FILE *in, stab_t stab);
+int coff_syms(FILE *in);
 
 #endif

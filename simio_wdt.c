@@ -102,7 +102,7 @@ static int parse_int(int *val, char **arg_text)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, text, &value) < 0) {
+	if (expr_eval(text, &value) < 0) {
 		printc_err("wdt: couldn't parse argument: %s\n", text);
 		return -1;
 	}

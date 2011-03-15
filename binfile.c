@@ -29,7 +29,7 @@
 struct file_format {
 	int (*check)(FILE *in);
 	int (*extract)(FILE *in, binfile_imgcb_t cb, void *user_data);
-	int (*syms)(FILE *in, stab_t stab);
+	int (*syms)(FILE *in);
 };
 
 static const struct file_format formats[] = {
@@ -107,7 +107,7 @@ int binfile_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 	return fmt->extract(in, cb, user_data);
 }
 
-int binfile_syms(FILE *in, stab_t stab)
+int binfile_syms(FILE *in)
 {
 	const struct file_format *fmt = identify(in);
 
@@ -121,5 +121,5 @@ int binfile_syms(FILE *in, stab_t stab)
 		return -1;
 	}
 
-	return fmt->syms(in, stab);
+	return fmt->syms(in);
 }

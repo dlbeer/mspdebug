@@ -53,7 +53,7 @@ static int format_addr(msp430_amode_t amode, uint16_t addr)
 
 	if ((!numeric ||
 	     (addr >= 0x200 && addr < 0xfff0)) &&
-	    !stab_nearest(stab_default, addr, name, sizeof(name), &offset) &&
+	    !stab_nearest(addr, name, sizeof(name), &offset) &&
 	    !offset)
 		return printc("%s\x1b[1m%s\x1b[0m", prefix, name);
 	else if (numeric)
@@ -178,7 +178,7 @@ void disassemble(address_t offset, const uint8_t *data, int length)
 		address_t oboff;
 		char obname[64];
 
-		if (!stab_nearest(stab_default, offset, obname, sizeof(obname),
+		if (!stab_nearest(offset, obname, sizeof(obname),
 				  &oboff)) {
 			if (!oboff)
 				printc("\x1b[m%s:\x1b[0m\n", obname);

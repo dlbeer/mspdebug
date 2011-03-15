@@ -42,8 +42,7 @@ struct addr_exp_state {
 	int            op_stack_size;
 };
 
-static int addr_exp_data(stab_t stab,
-			 struct addr_exp_state *s, const char *text)
+static int addr_exp_data(struct addr_exp_state *s, const char *text)
 {
 	address_t value;
 
@@ -57,7 +56,7 @@ static int addr_exp_data(stab_t stab,
 		value = strtoul(text + 2, NULL, 16);
 	} else if (*text == '0' && text[1] == 'd') {
 		value = atoi(text + 2);
-	} else if (stab_get(stab, text, &value) < 0) {
+	} else if (stab_get(text, &value) < 0) {
 		char *end;
 
 		value = strtol(text, &end, opdb_get_numeric("iradix"));
@@ -232,7 +231,7 @@ static int addr_exp_finish(struct addr_exp_state *s, address_t *ret)
 	return 0;
 }
 
-int expr_eval(stab_t stab, const char *text, address_t *addr)
+int expr_eval(const char *text, address_t *addr)
 {
 	const char *text_save = text;
 	int last_cc = 1;
@@ -270,7 +269,7 @@ int expr_eval(stab_t stab, const char *text, address_t *addr)
 			token_buf[token_len] = 0;
 			token_len = 0;
 
-			if (addr_exp_data(stab, &s, token_buf) < 0)
+			if (addr_exp_data(&s, token_buf) < 0)
 				goto fail;
 		}
 

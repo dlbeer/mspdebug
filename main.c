@@ -271,13 +271,12 @@ int setup_driver(struct cmdline_args *args)
 		return -1;
 	}
 
-	stab_default = stab_new();
-	if (!stab_default)
+	if (stab_init() < 0)
 		return -1;
 
 	device_default = driver_table[i]->open(&args->devarg);
 	if (!device_default) {
-		stab_destroy(stab_default);
+		stab_exit();
 		return -1;
 	}
 
@@ -318,8 +317,7 @@ int main(int argc, char **argv)
 	}
 
 	simio_exit();
-
-	stab_destroy(stab_default);
+	stab_exit();
 	device_destroy();
 
 	return ret;

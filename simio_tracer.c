@@ -71,7 +71,7 @@ static void print_address(address_t addr)
         address_t offset;
 
 	printc("0x%04x", addr);
-        if (!stab_nearest(stab_default, addr, name, sizeof(name), &offset)) {
+        if (!stab_nearest(addr, name, sizeof(name), &offset)) {
                 printc(" (%s", name);
                 if (offset)
                         printc("+0x%x", offset);
@@ -150,7 +150,7 @@ static struct simio_device *tracer_create(char **arg_text)
 	if (size_text) {
 		address_t value;
 
-		if (expr_eval(stab_default, size_text, &value) < 0) {
+		if (expr_eval(size_text, &value) < 0) {
 			printc_err("tracer: can't parse history size: %s\n",
 				   size_text);
 			return NULL;
@@ -225,7 +225,7 @@ static int tracer_config(struct simio_device *dev,
 			return -1;
 		}
 
-		if (expr_eval(stab_default, irq_text, &value) < 0) {
+		if (expr_eval(irq_text, &value) < 0) {
 			printc_err("tracer: trigger: can't parse IRQ "
 				   "number: %s\n", irq_text);
 			return -1;

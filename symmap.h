@@ -22,6 +22,6 @@
 #include "binfile.h"
 
 int symmap_check(FILE *in);
-int symmap_syms(FILE *in, stab_t stab);
+int symmap_syms(FILE *in);
 
 #endif

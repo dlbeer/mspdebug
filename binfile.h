@@ -47,6 +47,6 @@ int binfile_extract(FILE *in, binfile_imgcb_t cb, void *user_data);
 /* Attempt to load symbols from the file and store them in the given
  * symbol table. Returns 0 on success or -1 if an error occurs.
  */
-int binfile_syms(FILE *in, stab_t stab);
+int binfile_syms(FILE *in);
 
 #endif

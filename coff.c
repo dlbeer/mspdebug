@@ -338,7 +338,7 @@ static int read_symtab(FILE *in, const struct coff_header *hdr,
 	return hdr->stab_count;
 }
 
-int coff_syms(FILE *in, stab_t stab)
+int coff_syms(FILE *in)
 {
 	struct coff_header hdr;
 	char *strtab;
@@ -379,7 +379,7 @@ int coff_syms(FILE *in, stab_t stab)
 		}
 
 		if ((storage_class == C_EXT || storage_class == C_LABEL) &&
-		    stab_set(stab, name, value) < 0) {
+		    stab_set(name, value) < 0) {
 			printc_err("coff: failed to insert symbol\n");
 			ret = -1;
 			break;

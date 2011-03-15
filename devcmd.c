@@ -64,13 +64,13 @@ int cmd_md(char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, off_text, &offset) < 0) {
+	if (expr_eval(off_text, &offset) < 0) {
 		printc_err("md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (expr_eval(stab_default, len_text, &length) < 0) {
+		if (expr_eval(len_text, &length) < 0) {
 			printc_err("md: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -109,7 +109,7 @@ int cmd_mw(char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, off_text, &offset) < 0) {
+	if (expr_eval(off_text, &offset) < 0) {
 		printc_err("md: can't parse offset: %s\n", off_text);
 		return -1;
 	}
@@ -144,7 +144,7 @@ int cmd_erase(char **arg)
 	device_erase_type_t type = DEVICE_ERASE_MAIN;
 	address_t segment = 0;
 
-	if (seg_text && expr_eval(stab_default, seg_text, &segment) < 0) {
+	if (seg_text && expr_eval(seg_text, &segment) < 0) {
 		printc_err("erase: invalid expression: %s\n", seg_text);
 		return -1;
 	}
@@ -180,7 +180,7 @@ int cmd_step(char **arg)
 	int i;
 
 	if (count_text) {
-		if (expr_eval(stab_default, count_text, &count) < 0) {
+		if (expr_eval(count_text, &count) < 0) {
 			printc_err("step: can't parse count: %s\n", count_text);
 			return -1;
 		}
@@ -262,7 +262,7 @@ int cmd_set(char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, val_text, &value) < 0) {
+	if (expr_eval(val_text, &value) < 0) {
 		printc_err("set: can't parse value: %s\n", val_text);
 		return -1;
 	}
@@ -290,13 +290,13 @@ int cmd_dis(char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, off_text, &offset) < 0) {
+	if (expr_eval(off_text, &offset) < 0) {
 		printc_err("dis: can't parse offset: %s\n", off_text);
 		return -1;
 	}
 
 	if (len_text) {
-		if (expr_eval(stab_default, len_text, &length) < 0) {
+		if (expr_eval(len_text, &length) < 0) {
 			printc_err("dis: can't parse length: %s\n",
 				len_text);
 			return -1;
@@ -440,8 +440,8 @@ int cmd_hexout(char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, off_text, &off) < 0 ||
-	    expr_eval(stab_default, len_text, &length) < 0)
+	if (expr_eval(off_text, &off) < 0 ||
+	    expr_eval(len_text, &length) < 0)
 		return -1;
 
 	if (hexout_start(&hexout, filename) < 0)
@@ -515,8 +515,8 @@ static int do_cmd_prog(char **arg, int prog_flags)
 	}
 
 	if (prog_flags && (binfile_info(in) & BINFILE_HAS_SYMS)) {
-		stab_clear(stab_default);
-		binfile_syms(in, stab_default);
+		stab_clear();
+		binfile_syms(in);
 	}
 
 	fclose(in);
@@ -555,7 +555,7 @@ int cmd_setbreak(char **arg)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, addr_text, &addr) < 0) {
+	if (expr_eval(addr_text, &addr) < 0) {
 		printc_err("setbreak: invalid address\n");
 		return -1;
 	}
@@ -563,7 +563,7 @@ int cmd_setbreak(char **arg)
 	if (index_text) {
 		address_t val;
 
-		if (expr_eval(stab_default, index_text, &val) < 0 ||
+		if (expr_eval(index_text, &val) < 0 ||
 		    val >= device_default->max_breakpoints) {
 			printc("setbreak: invalid breakpoint slot: %d\n", val);
 			return -1;
@@ -591,7 +591,7 @@ int cmd_delbreak(char **arg)
 	if (index_text) {
 		address_t index;
 
-		if (expr_eval(stab_default, index_text, &index) < 0 ||
+		if (expr_eval(index_text, &index) < 0 ||
 		    index >= device_default->max_breakpoints) {
 			printc("delbreak: invalid breakpoint slot: %d\n",
 			       index);
@@ -625,7 +625,7 @@ int cmd_break(char **arg)
 			address_t offset;
 
 			printc("    %d. 0x%05x", i, bp->addr);
-			if (!stab_nearest(stab_default, bp->addr, name,
+			if (!stab_nearest(bp->addr, name,
 					  sizeof(name), &offset)) {
 				printc(" (%s", name);
 				if (offset)

@@ -45,7 +45,7 @@ int symmap_check(FILE *in)
 	return spc_count >= 2;
 }
 
-int symmap_syms(FILE *in, stab_t stab)
+int symmap_syms(FILE *in)
 {
 	rewind(in);
 	char buf[128];
@@ -60,7 +60,7 @@ int symmap_syms(FILE *in, stab_t stab)
 		if (addr && name) {
 			address_t addr_val = strtoul(addr, NULL, 16);
 
-			if (stab_set(stab, name, addr_val) < 0)
+			if (stab_set(name, addr_val) < 0)
 				return -1;
 		}
 	}

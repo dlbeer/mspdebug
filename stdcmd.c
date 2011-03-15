@@ -120,7 +120,7 @@ static int parse_option(opdb_type_t type, union opdb_value *value,
 		break;
 
 	case OPDB_TYPE_NUMERIC:
-		return expr_eval(stab_default, word, &value->numeric);
+		return expr_eval(word, &value->numeric);
 
 	case OPDB_TYPE_STRING:
 		strncpy(value->string, word, sizeof(value->string));

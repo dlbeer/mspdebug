@@ -23,6 +23,6 @@
 
 int elf32_check(FILE *in);
 int elf32_extract(FILE *in, binfile_imgcb_t cb, void *user_data);
-int elf32_syms(FILE *in, stab_t stab);
+int elf32_syms(FILE *in);
 
 #endif

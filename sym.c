@@ -38,13 +38,13 @@ int cmd_eval(char **arg)
 	address_t offset;
 	char name[64];
 
-	if (expr_eval(stab_default, *arg, &addr) < 0) {
+	if (expr_eval(*arg, &addr) < 0) {
 		printc_err("=: can't parse: %s\n", *arg);
 		return -1;
 	}
 
 	printc("0x%05x", addr);
-	if (!stab_nearest(stab_default, addr, name, sizeof(name), &offset)) {
+	if (!stab_nearest(addr, name, sizeof(name), &offset)) {
 		printc(" = %s", name);
 		if (offset)
 			printc("+0x%x", offset);
@@ -68,13 +68,13 @@ static int cmd_sym_load_add(int clear, char **arg)
 	}
 
 	if (clear) {
-		stab_clear(stab_default);
+		stab_clear();
 		unmark_modified(MODIFY_SYMS);
 	} else {
 		mark_modified(MODIFY_SYMS);
 	}
 
-	if (binfile_syms(in, stab_default) < 0) {
+	if (binfile_syms(in) < 0) {
 		fclose(in);
 		return -1;
 	}
@@ -112,7 +112,7 @@ static int cmd_sym_savemap(char **arg)
 		return -1;
 	}
 
-	if (stab_enum(stab_default, savemap_cb, savemap_out) < 0) {
+	if (stab_enum(savemap_cb, savemap_out) < 0) {
 		fclose(savemap_out);
 		return -1;
 	}
@@ -148,7 +148,7 @@ static int cmd_sym_find(char **arg)
 	char *expr = get_arg(arg);
 
 	if (!expr) {
-		stab_enum(stab_default, print_sym, NULL);
+		stab_enum(print_sym, NULL);
 		return 0;
 	}
 
@@ -157,7 +157,7 @@ static int cmd_sym_find(char **arg)
 		return -1;
 	}
 
-	stab_enum(stab_default, find_sym, &find_preg);
+	stab_enum(find_sym, &find_preg);
 	regfree(&find_preg);
 	return 0;
 }
@@ -194,13 +194,13 @@ static int renames_do(struct rename_data *rename, const char *replace)
 
 		printc("%s -> %s\n", r->old_name, new_name);
 
-		if (stab_get(stab_default, r->old_name, &value) < 0) {
+		if (stab_get(r->old_name, &value) < 0) {
 			printc_err("sym: warning: "
 				"symbol missing: %s\n",
 				r->old_name);
 		} else {
-			stab_del(stab_default, r->old_name);
-			if (stab_set(stab_default, new_name, value) < 0) {
+			stab_del(r->old_name);
+			if (stab_set(new_name, value) < 0) {
 				printc_err("sym: warning: "
 					"failed to set new name: %s\n",
 					new_name);
@@ -253,7 +253,7 @@ static int cmd_sym_rename(char **arg)
 
 	vector_init(&rename.list, sizeof(struct rename_record));
 
-	if (stab_enum(stab_default, find_renames, &rename) < 0) {
+	if (stab_enum(find_renames, &rename) < 0) {
 		printc_err("sym: rename failed\n");
 		regfree(&rename.preg);
 		vector_destroy(&rename.list);
@@ -280,7 +280,7 @@ static int cmd_sym_del(char **arg)
 		return -1;
 	}
 
-	if (stab_del(stab_default, name) < 0) {
+	if (stab_del(name) < 0) {
 		printc_err("sym: can't delete nonexistent symbol: %s\n",
 			name);
 		return -1;
@@ -303,7 +303,7 @@ int cmd_sym(char **arg)
 	if (!strcasecmp(subcmd, "clear")) {
 		if (prompt_abort(MODIFY_SYMS))
 			return 0;
-		stab_clear(stab_default);
+		stab_clear();
 		unmark_modified(MODIFY_SYMS);
 		return 0;
 	}
@@ -319,13 +319,13 @@ int cmd_sym(char **arg)
 			return -1;
 		}
 
-		if (expr_eval(stab_default, val_text, &value) < 0) {
+		if (expr_eval(val_text, &value) < 0) {
 			printc_err("sym: can't parse value: %s\n",
 				val_text);
 			return -1;
 		}
 
-		if (stab_set(stab_default, name, value) < 0)
+		if (stab_set(name, value) < 0)
 			return -1;
 
 		mark_modified(MODIFY_SYMS);

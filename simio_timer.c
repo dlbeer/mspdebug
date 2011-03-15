@@ -83,7 +83,7 @@ static struct simio_device *timer_create(char **arg_text)
 	if (size_text) {
 		address_t value;
 
-		if (expr_eval(stab_default, size_text, &value) < 0) {
+		if (expr_eval(size_text, &value) < 0) {
 			printc_err("timer: can't parse size: %s\n",
 				   size_text);
 			return NULL;
@@ -139,7 +139,7 @@ static int config_addr(address_t *addr, char **arg_text)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, text, addr) < 0) {
+	if (expr_eval(text, addr) < 0) {
 		printc_err("timer: can't parse address: %s\n", text);
 		return -1;
 	}
@@ -157,7 +157,7 @@ static int config_irq(int *irq, char **arg_text)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, text, &value) < 0) {
+	if (expr_eval(text, &value) < 0) {
 		printc_err("timer: can't parse interrupt number: %s\n", text);
 		return -1;
 	}
@@ -180,13 +180,13 @@ static int config_channel(struct timer *tr, char **arg_text)
 		return -1;
 	}
 
-	if (expr_eval(stab_default, which_text, &which) < 0) {
+	if (expr_eval(which_text, &which) < 0) {
 		printc_err("timer: can't parse channel number: %s\n",
 			   which_text);
 		return -1;
 	}
 
-	if (expr_eval(stab_default, value_text, &value) < 0) {
+	if (expr_eval(value_text, &value) < 0) {
 		printc_err("timer: can't parse channel value: %s\n",
 			   value_text);
 		return -1;
