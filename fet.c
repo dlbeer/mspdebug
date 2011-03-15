@@ -38,11 +38,17 @@
 #include "olimex.h"
 #include "rf2500.h"
 
-typedef enum {
-	PROTOCOL_UIF,
-	PROTOCOL_RF2500,
-	PROTOCOL_OLIMEX
-} protocol_t;
+/* Send data in separate packets, as in the RF2500 */
+#define FET_PROTO_SEPARATE_DATA		0x01
+
+/* Received packets have an extra trailing byte */
+#define FET_PROTO_EXTRA_RECV		0x02
+
+/* Command packets have no leading \x7e */
+#define FET_PROTO_NOLEAD_SEND		0x04
+
+/* The new identify method should always be used */
+#define FET_PROTO_IDENTIFY_NEW		0x08
 
 #define MAX_PARAMS		16
 #define MAX_BLOCK_SIZE		4096
@@ -51,7 +57,7 @@ struct fet_device {
 	struct device                   base;
 
 	transport_t                     transport;
-	protocol_t                      protocol;
+	int				flags;
 	int                             version;
 
 	/* Device-specific information */
@@ -334,7 +340,7 @@ too_short:
  */
 static int recv_packet(struct fet_device *dev)
 {
-	int pkt_extra = (dev->protocol == PROTOCOL_OLIMEX) ? 3 : 2;
+	int pkt_extra = (dev->flags & FET_PROTO_EXTRA_RECV) ? 3 : 2;
 	int plen = LE_WORD(dev->fet_buf, 0);
 
 	/* If there's a packet still here from last time, get rid of it */
@@ -424,7 +430,7 @@ static int send_command(struct fet_device *dev, int command_code,
 	/* Copy into buf, escaping special characters and adding
 	 * delimeters.
 	 */
-	if (dev->protocol != PROTOCOL_OLIMEX)
+	if (!(dev->flags & FET_PROTO_NOLEAD_SEND))
 		buf[i++] = 0x7e;
 
 	for (j = 0; j < len; j++) {
@@ -459,7 +465,7 @@ static int xfer(struct fet_device *dev,
 		params[i] = va_arg(ap, uint32_t);
 	va_end(ap);
 
-	if (data && (dev->protocol == PROTOCOL_RF2500)) {
+	if (data && (dev->flags & FET_PROTO_SEPARATE_DATA)) {
 		assert (nparams + 1 <= MAX_PARAMS);
 		params[nparams++] = datalen;
 
@@ -567,7 +573,7 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 
 static int do_identify(struct fet_device *dev, const char *force_id)
 {
-	if (dev->protocol == PROTOCOL_OLIMEX)
+	if (dev->flags & FET_PROTO_IDENTIFY_NEW)
 		return identify_new(dev, force_id);
 
 	if (dev->version < 20300000)
@@ -943,11 +949,11 @@ static int do_configure(struct fet_device *dev,
 }
 
 int try_open(struct fet_device *dev, const struct device_args *args,
-	     protocol_t protocol, int send_reset)
+	     int send_reset)
 {
 	transport_t transport = dev->transport;
 
-	if (protocol == PROTOCOL_OLIMEX) {
+	if (dev->flags & FET_PROTO_NOLEAD_SEND) {
 		printc("Resetting Olimex command processor...\n");
 		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
 		usleep(5000);
@@ -994,7 +1000,7 @@ int try_open(struct fet_device *dev, const struct device_args *args,
 }
 
 static device_t fet_open(const struct device_args *args,
-		         protocol_t protocol, transport_t transport,
+		         int flags, transport_t transport,
 		         const struct device_class *type)
 {
 	struct fet_device *dev = malloc(sizeof(*dev));
@@ -1009,12 +1015,12 @@ static device_t fet_open(const struct device_args *args,
 
 	dev->base.type = type;
 	dev->transport = transport;
-	dev->protocol = protocol;
+	dev->flags = flags;
 
-	if (try_open(dev, args, protocol, 0) < 0) {
+	if (try_open(dev, args, 0) < 0) {
 		usleep(500000);
 		printc("Trying again...\n");
-		if (try_open(dev, args, protocol, 1) < 0)
+		if (try_open(dev, args, 1) < 0)
 			goto fail;
 	}
 
@@ -1045,7 +1051,7 @@ static device_t fet_open_rf2500(const struct device_args *args)
         if (!trans)
                 return NULL;
 
-        return fet_open(args, PROTOCOL_RF2500, trans, &device_rf2500);
+        return fet_open(args, FET_PROTO_SEPARATE_DATA, trans, &device_rf2500);
 }
 
 const struct device_class device_rf2500 = {
@@ -1075,7 +1081,9 @@ static device_t fet_open_olimex(const struct device_args *args)
         if (!trans)
                 return NULL;
 
-	return fet_open(args, PROTOCOL_OLIMEX, trans, &device_olimex);
+	return fet_open(args, FET_PROTO_NOLEAD_SEND | FET_PROTO_EXTRA_RECV |
+			      FET_PROTO_IDENTIFY_NEW,
+			trans, &device_olimex);
 }
 
 const struct device_class device_olimex = {
@@ -1106,7 +1114,9 @@ static device_t fet_open_olimex_iso(const struct device_args *args)
         if (!trans)
                 return NULL;
 
-	return fet_open(args, PROTOCOL_OLIMEX, trans, &device_olimex_iso);
+	return fet_open(args, FET_PROTO_NOLEAD_SEND | FET_PROTO_EXTRA_RECV |
+			      FET_PROTO_IDENTIFY_NEW,
+			trans, &device_olimex_iso);
 }
 
 const struct device_class device_olimex_iso = {
@@ -1137,7 +1147,7 @@ static device_t fet_open_uif(const struct device_args *args)
 	if (!trans)
 		return NULL;
 
-	return fet_open(args, PROTOCOL_UIF, trans, &device_uif);
+	return fet_open(args, 0, trans, &device_uif);
 }
 
 const struct device_class device_uif = {
