@@ -25,7 +25,7 @@
 #include "output.h"
 
 struct outbuf {
-	char	buf[1024];
+	char	buf[4096];
 	int	len;
 	int	in_code;
 };
@@ -70,7 +70,7 @@ static int write_text(struct outbuf *out, const char *buf, FILE *fout)
 
 int printc(const char *fmt, ...)
 {
-	char buf[1024];
+	char buf[4096];
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -82,7 +82,7 @@ int printc(const char *fmt, ...)
 
 int printc_dbg(const char *fmt, ...)
 {
-	char buf[1024];
+	char buf[4096];
 	va_list ap;
 
 	if (opdb_get_boolean("quiet"))
@@ -97,7 +97,7 @@ int printc_dbg(const char *fmt, ...)
 
 int printc_err(const char *fmt, ...)
 {
-	char buf[1024];
+	char buf[4096];
 	va_list ap;
 
 	va_start(ap, fmt);
