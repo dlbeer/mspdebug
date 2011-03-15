@@ -426,6 +426,22 @@ Rename symbols by searching for those matching the given regular
 expression and substituting the given string for the matched portion. The
 symbols renamed are displayed, as well as a total count of all symbols
 renamed.
+.SH BINARY FORMATS
+The following binary/symbol formats are supported by MSPDebug:
+
+.RS
+ELF32
+.br
+COFF
+.br
+Intel HEX (program only)
+.br
+BSD symbol table (symbols only)
+.br
+TI Text (program only)
+.br
+SREC (program only)
+.RE
 .SH IO SIMULATOR
 The IO simulator subsystem consists of a database of device classes, and a
 list of instances of those classes. Each device class has a different
