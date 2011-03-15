@@ -785,7 +785,6 @@ static void cgraph_summary(struct call_graph *graph)
 		int from_count = 0;
 		int to_count = 0;
 		char name[64];
-		address_t o;
 
 		while (j < graph->edge_from.size &&
 		       CG_EDGE_FROM(graph, j)->src < n->offset)
@@ -807,11 +806,7 @@ static void cgraph_summary(struct call_graph *graph)
 			k++;
 		}
 
-		if (stab_nearest(n->offset,
-				 name, sizeof(name), &o) ||
-		    o)
-			name[0] = 0;
-
+		print_address(n->offset, name, sizeof(name));
 		printc("0x%04x [%3d ==> %3d] %s\n",
 		       n->offset, to_count, from_count, name);
 	}
@@ -823,7 +818,6 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 	int j = 0;
 	int k = 0;
 	char name[64];
-	address_t offset;
 	struct cg_node *n;
 
 	while (i + 1 < graph->node_list.size &&
@@ -845,12 +839,8 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 	       CG_EDGE_TO(graph, k)->dst < n->offset)
 		k++;
 
-	if (stab_nearest(n->offset, name, sizeof(name), &offset))
-		printc("0x%04x:\n", n->offset);
-	else if (offset)
-		printc("0x%04x %s+0x%x:\n", n->offset, name, offset);
-	else
-		printc("0x%04x %s:\n", n->offset, name);
+	print_address(n->offset, name, sizeof(name));
+	printc("0x%04x %s:\n", n->offset, name);
 
 	if (j < graph->edge_from.size &&
 	    CG_EDGE_FROM(graph, j)->src == n->offset) {
@@ -861,11 +851,7 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 			if (e->src != n->offset)
 				break;
 
-			if (stab_nearest(e->dst,
-					 name, sizeof(name),
-					 &offset) ||
-			    offset)
-				snprintf(name, sizeof(name), "0x%04x", e->dst);
+			print_address(e->dst, name, sizeof(name));
 			printc("        %s%s\n",
 			       e->is_tail_call ? "*" : "", name);
 
@@ -883,11 +869,7 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 			if (e->dst != n->offset)
 				break;
 
-			if (stab_nearest(e->src,
-					 name, sizeof(name),
-					 &offset) ||
-			    offset)
-				snprintf(name, sizeof(name), "0x%04x", e->src);
+			print_address(e->src, name, sizeof(name));
 			printc("        %s%s\n",
 			       e->is_tail_call ? "*" : "", name);
 

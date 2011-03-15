@@ -28,6 +28,7 @@
 #include "binfile.h"
 #include "util.h"
 #include "output.h"
+#include "output_util.h"
 #include "vector.h"
 #include "sym.h"
 #include "reader.h"
@@ -35,7 +36,6 @@
 int cmd_eval(char **arg)
 {
 	address_t addr;
-	address_t offset;
 	char name[64];
 
 	if (expr_eval(*arg, &addr) < 0) {
@@ -43,13 +43,8 @@ int cmd_eval(char **arg)
 		return -1;
 	}
 
-	printc("0x%05x", addr);
-	if (!stab_nearest(addr, name, sizeof(name), &offset)) {
-		printc(" = %s", name);
-		if (offset)
-			printc("+0x%x", offset);
-	}
-	printc("\n");
+	print_address(addr, name, sizeof(name));
+	printc("0x%05x = %s\n", addr, name);
 
 	return 0;
 }

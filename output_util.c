@@ -27,7 +27,6 @@
 static int format_addr(msp430_amode_t amode, uint16_t addr)
 {
 	char name[64];
-	address_t offset;
 	int numeric = 0;
 	const char *prefix = "";
 
@@ -51,15 +50,8 @@ static int format_addr(msp430_amode_t amode, uint16_t addr)
 		break;
 	}
 
-	if ((!numeric ||
-	     (addr >= 0x200 && addr < 0xfff0)) &&
-	    !stab_nearest(addr, name, sizeof(name), &offset) &&
-	    !offset)
-		return printc("%s\x1b[1m%s\x1b[0m", prefix, name);
-	else if (numeric)
-		return printc("%s\x1b[1m0x%x\x1b[0m", prefix, addr);
-	else
-		return printc("%s\x1b[1m0x%04x\x1b[0m", prefix, addr);
+	print_address(addr, name, sizeof(name));
+	return printc("%s\x1b[1m%s\x1b[0m", prefix, name);
 }
 
 static int format_reg(msp430_amode_t amode, msp430_reg_t reg)
@@ -178,13 +170,12 @@ void disassemble(address_t offset, const uint8_t *data, int length)
 		address_t oboff;
 		char obname[64];
 
-		if (!stab_nearest(offset, obname, sizeof(obname),
-				  &oboff)) {
-			if (!oboff)
-				printc("\x1b[m%s:\x1b[0m\n", obname);
-			else if (first_line)
-				printc("\x1b[m%s+0x%x:\x1b[0m\n",
-				       obname, oboff);
+		if (!stab_nearest(offset, obname, sizeof(obname), &oboff) &&
+		    !oboff) {
+			printc("\x1b[m%s\x1b[0m:\n", obname);
+		} else if (first_line) {
+			print_address(offset, obname, sizeof(obname));
+			printc("\x1b[m%s\x1b[0m:\n", obname);
 		}
 		first_line = 0;
 
@@ -261,4 +252,22 @@ void show_regs(const address_t *regs)
 
 		printc("\n");
 	}
+}
+
+int print_address(address_t addr, char *out, int max_len)
+{
+	char name[128];
+        address_t offset;
+
+        if (!stab_nearest(addr, name, sizeof(name), &offset)) {
+		if (offset)
+			snprintf(out, max_len, "%s+0x%x", name, offset);
+		else
+			snprintf(out, max_len, "%s", name);
+
+		return 1;
+        }
+
+	snprintf(out, max_len, "0x%04x", addr);
+	return 0;
 }

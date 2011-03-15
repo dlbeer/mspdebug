@@ -31,4 +31,10 @@ void hexdump(address_t addr, const uint8_t *buf, int len);
 /* Colorized register dump */
 void show_regs(const address_t *regs);
 
+/* Given an address, format it either as sym+0x0offset or just 0x0offset.
+ *
+ * Returns non-zero if the result is of the form sym+0x0offset.
+ */
+int print_address(address_t addr, char *buf, int max_len);
+
 #endif

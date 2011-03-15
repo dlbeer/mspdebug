@@ -622,17 +622,9 @@ int cmd_break(char **arg)
 
 		if (bp->flags & DEVICE_BP_ENABLED) {
 			char name[128];
-			address_t offset;
 
-			printc("    %d. 0x%05x", i, bp->addr);
-			if (!stab_nearest(bp->addr, name,
-					  sizeof(name), &offset)) {
-				printc(" (%s", name);
-				if (offset)
-					printc("+0x%x", offset);
-				printc(")");
-			}
-			printc("\n");
+			print_address(bp->addr, name, sizeof(name));
+			printc("    %d. %s\n", i, name);
 		}
 	}
 

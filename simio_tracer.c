@@ -23,6 +23,7 @@
 #include "simio_tracer.h"
 #include "expr.h"
 #include "output.h"
+#include "output_util.h"
 #include "dis.h"
 
 #define DEFAULT_HISTORY		16
@@ -65,47 +66,28 @@ struct tracer {
 	int			verbose;
 };
 
-static void print_address(address_t addr)
-{
-        char name[64];
-        address_t offset;
-
-	printc("0x%04x", addr);
-        if (!stab_nearest(addr, name, sizeof(name), &offset)) {
-                printc(" (%s", name);
-                if (offset)
-                        printc("+0x%x", offset);
-                printc(")");
-        }
-}
-
 static void event_print(const struct event *e)
 {
+	char name[128];
+
+	print_address(e->addr, name, sizeof(name));
 	printc("  %10lld: ", e->when);
 
 	switch (e->what) {
 	case EVENT_WRITE_16:
-		printc("write.w ");
-		print_address(e->addr);
-		printc(" => 0x%04x\n", e->data);
+		printc("write.w => %s 0x%04x\n", name, e->data);
 		break;
 
 	case EVENT_READ_16:
-		printc("read.w ");
-		print_address(e->addr);
-		printc("\n");
+		printc("read.w => %s 0x%04x\n", name);
 		break;
 
 	case EVENT_WRITE_8:
-		printc("write.b ");
-		print_address(e->addr);
-		printc(" => 0x%02x\n", e->data);
+		printc("write.b => %s 0x%02x\n", name, e->data);
 		break;
 
 	case EVENT_READ_8:
-		printc("read.b ");
-		print_address(e->addr);
-		printc("\n");
+		printc("read.b => %s\n", name);
 		break;
 
 	case EVENT_IRQ_HANDLE:
