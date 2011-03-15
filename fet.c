@@ -34,6 +34,16 @@
 #include "output.h"
 #include "opdb.h"
 
+#include "uif.h"
+#include "olimex.h"
+#include "rf2500.h"
+
+typedef enum {
+	PROTOCOL_UIF,
+	PROTOCOL_RF2500,
+	PROTOCOL_OLIMEX
+} protocol_t;
+
 #define MAX_PARAMS		16
 #define MAX_BLOCK_SIZE		4096
 
@@ -41,7 +51,7 @@ struct fet_device {
 	struct device                   base;
 
 	transport_t                     transport;
-	int                             proto_flags;
+	protocol_t                      protocol;
 	int                             version;
 
 	/* Device-specific information */
@@ -324,7 +334,7 @@ too_short:
  */
 static int recv_packet(struct fet_device *dev)
 {
-	int pkt_extra = (dev->proto_flags & FET_PROTO_OLIMEX) ? 3 : 2;
+	int pkt_extra = (dev->protocol == PROTOCOL_OLIMEX) ? 3 : 2;
 	int plen = LE_WORD(dev->fet_buf, 0);
 
 	/* If there's a packet still here from last time, get rid of it */
@@ -414,7 +424,7 @@ static int send_command(struct fet_device *dev, int command_code,
 	/* Copy into buf, escaping special characters and adding
 	 * delimeters.
 	 */
-	if (!(dev->proto_flags & FET_PROTO_OLIMEX))
+	if (dev->protocol != PROTOCOL_OLIMEX)
 		buf[i++] = 0x7e;
 
 	for (j = 0; j < len; j++) {
@@ -449,7 +459,7 @@ static int xfer(struct fet_device *dev,
 		params[i] = va_arg(ap, uint32_t);
 	va_end(ap);
 
-	if (data && (dev->proto_flags & FET_PROTO_RF2500)) {
+	if (data && (dev->protocol == PROTOCOL_RF2500)) {
 		assert (nparams + 1 <= MAX_PARAMS);
 		params[nparams++] = datalen;
 
@@ -557,7 +567,7 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 
 static int do_identify(struct fet_device *dev, const char *force_id)
 {
-	if (dev->proto_flags & FET_PROTO_OLIMEX)
+	if (dev->protocol == PROTOCOL_OLIMEX)
 		return identify_new(dev, force_id);
 
 	if (dev->version < 20300000)
@@ -899,9 +909,10 @@ static int fet_setregs(device_t dev_base, const address_t *regs)
 	return 0;
 }
 
-static int do_configure(struct fet_device *dev)
+static int do_configure(struct fet_device *dev,
+		        const struct device_args *args)
 {
-	if (dev->proto_flags & FET_PROTO_SPYBIWIRE) {
+	if (!(args->flags & DEVICE_FLAG_JTAG)) {
 		if (!xfer(dev, C_CONFIGURE, NULL, 0,
 			  2, FET_CONFIG_PROTOCOL, 1)) {
 			printc_dbg("Configured for Spy-Bi-Wire\n");
@@ -931,12 +942,12 @@ static int do_configure(struct fet_device *dev)
 	return -1;
 }
 
-int try_open(struct fet_device *dev, int proto_flags, int vcc_mv,
-	     const char *force_id, int send_reset)
+int try_open(struct fet_device *dev, const struct device_args *args,
+	     protocol_t protocol, int send_reset)
 {
 	transport_t transport = dev->transport;
 
-	if (proto_flags & FET_PROTO_OLIMEX) {
+	if (protocol == PROTOCOL_OLIMEX) {
 		printc("Resetting Olimex command processor...\n");
 		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
 		usleep(5000);
@@ -958,7 +969,7 @@ int try_open(struct fet_device *dev, int proto_flags, int vcc_mv,
 		return -1;
 	}
 
-	if (do_configure(dev) < 0)
+	if (do_configure(dev, args) < 0)
 		return -1;
 
 	if (send_reset) {
@@ -968,13 +979,13 @@ int try_open(struct fet_device *dev, int proto_flags, int vcc_mv,
 	}
 
 	/* set VCC */
-	if (xfer(dev, C_VCC, NULL, 0, 1, vcc_mv) < 0)
+	if (xfer(dev, C_VCC, NULL, 0, 1, args->vcc_mv) < 0)
 		printc_err("warning: fet: set VCC failed\n");
 	else
-		printc_dbg("Set Vcc: %d mV\n", vcc_mv);
+		printc_dbg("Set Vcc: %d mV\n", args->vcc_mv);
 
 	/* Identify the chip */
-	if (do_identify(dev, force_id) < 0) {
+	if (do_identify(dev, args->forced_chip_id) < 0) {
 		printc_err("fet: identify failed\n");
 		return -1;
 	}
@@ -982,8 +993,8 @@ int try_open(struct fet_device *dev, int proto_flags, int vcc_mv,
 	return 0;
 }
 
-device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
-		  const char *force_id)
+device_t fet_open(const struct device_args *args,
+		  protocol_t protocol, transport_t transport)
 {
 	struct fet_device *dev = malloc(sizeof(*dev));
 	int i;
@@ -1005,12 +1016,12 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 	dev->base.erase = fet_erase;
 
 	dev->transport = transport;
-	dev->proto_flags = proto_flags;
+	dev->protocol = protocol;
 
-	if (try_open(dev, proto_flags, vcc_mv, force_id, 0) < 0) {
+	if (try_open(dev, args, protocol, 0) < 0) {
 		usleep(500000);
 		printc("Trying again...\n");
-		if (try_open(dev, proto_flags, vcc_mv, force_id, 1) < 0)
+		if (try_open(dev, args, protocol, 1) < 0)
 			goto fail;
 	}
 
@@ -1023,6 +1034,70 @@ device_t fet_open(transport_t transport, int proto_flags, int vcc_mv,
 	return (device_t)dev;
 
  fail:
+	transport->destroy(transport);
 	free(dev);
 	return NULL;
+}
+
+device_t fet_open_rf2500(const struct device_args *args)
+{
+	transport_t trans;
+
+	if (args->flags & DEVICE_FLAG_TTY) {
+		printc_err("This driver does not support TTY devices.\n");
+		return NULL;
+	}
+
+        trans = rf2500_open(args->path);
+        if (!trans)
+                return NULL;
+
+        return fet_open(args, PROTOCOL_RF2500, trans);
+}
+
+device_t fet_open_olimex(const struct device_args *args)
+{
+	transport_t trans;
+
+	if (args->flags & DEVICE_FLAG_TTY)
+		trans = uif_open(args->path, UIF_TYPE_OLIMEX);
+	else
+		trans = olimex_open(args->path);
+
+        if (!trans)
+                return NULL;
+
+	return fet_open(args, PROTOCOL_OLIMEX, trans);
+}
+
+device_t fet_open_olimex_iso(const struct device_args *args)
+{
+	transport_t trans;
+
+	if (!(args->flags & DEVICE_FLAG_TTY)) {
+		printc_err("This driver does not support raw USB access.\n");
+		return NULL;
+	}
+
+	trans = uif_open(args->path, UIF_TYPE_OLIMEX_ISO);
+        if (!trans)
+                return NULL;
+
+	return fet_open(args, PROTOCOL_OLIMEX, trans);
+}
+
+device_t fet_open_uif(const struct device_args *args)
+{
+	transport_t trans;
+
+	if (!(args->flags & DEVICE_FLAG_TTY)) {
+		printc_err("This driver does not support raw USB access.\n");
+		return NULL;
+	}
+
+	trans = uif_open(args->path, UIF_TYPE_FET);
+	if (!trans)
+		return NULL;
+
+	return fet_open(args, PROTOCOL_UIF, trans);
 }

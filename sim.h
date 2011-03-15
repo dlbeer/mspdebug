@@ -22,6 +22,6 @@
 #include "device.h"
 
 /* Dummy/simulation implementation. */
-device_t sim_open(void);
+device_t sim_open(const struct device_args *args);
 
 #endif

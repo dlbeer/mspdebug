@@ -722,7 +722,7 @@ static device_status_t sim_poll(device_t dev_base)
 	return DEVICE_STATUS_RUNNING;
 }
 
-device_t sim_open(void)
+device_t sim_open(const struct device_args *args)
 {
 	struct sim_device *dev = malloc(sizeof(*dev));
 

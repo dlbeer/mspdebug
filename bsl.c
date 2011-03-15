@@ -361,10 +361,16 @@ static int enter_via_fet(struct bsl_device *dev)
 	return 0;
 }
 
-device_t bsl_open(const char *device)
+device_t bsl_open(const struct device_args *args)
 {
-	struct bsl_device *dev = malloc(sizeof(*dev));
+	struct bsl_device *dev;
 
+	if (!(args->flags & DEVICE_FLAG_TTY)) {
+		printc_err("This driver does not support raw USB access.\n");
+		return NULL;
+	}
+
+	dev = malloc(sizeof(*dev));
 	if (!dev) {
 		pr_error("bsl: can't allocate memory");
 		return NULL;
@@ -381,10 +387,10 @@ device_t bsl_open(const char *device)
 	dev->base.ctl = bsl_ctl;
 	dev->base.poll = bsl_poll;
 
-	dev->serial_fd = open_serial(device, B460800);
+	dev->serial_fd = open_serial(args->path, B460800);
 	if (dev->serial_fd < 0) {
 		printc_err("bsl: can't open %s: %s\n",
-			device, strerror(errno));
+			   args->path, strerror(errno));
 		free(dev);
 		return NULL;
 	}

@@ -52,165 +52,51 @@
 #include "rf2500.h"
 
 struct cmdline_args {
-	const char      *driver_name;
-	const char      *serial_device;
-	const char      *usb_device;
-	const char      *fet_force_id;
-	int             want_jtag;
-	int             no_rc;
-	int             vcc_mv;
-	int		long_password;
+	const char		*driver_name;
+	int			no_rc;
+	struct device_args	devarg;
 };
 
 struct driver {
 	const char      *name;
 	const char      *help;
-	device_t        (*func)(const struct cmdline_args *args);
+	device_t        (*func)(const struct device_args *args);
 };
-
-static device_t driver_open_fet(const struct cmdline_args *args,
-				int flags, transport_t trans)
-{
-	device_t dev;
-
-	if (!args->want_jtag)
-		flags |= FET_PROTO_SPYBIWIRE;
-
-	dev = fet_open(trans, flags, args->vcc_mv, args->fet_force_id);
-	if (!dev) {
-		trans->destroy(trans);
-		return NULL;
-	}
-
-	return dev;
-}
-
-static device_t driver_open_rf2500(const struct cmdline_args *args)
-{
-	transport_t trans;
-
-	if (args->serial_device) {
-		printc_err("This driver does not support tty devices.\n");
-		return NULL;
-	}
-
-	trans = rf2500_open(args->usb_device);
-	if (!trans)
-		return NULL;
-
-	return driver_open_fet(args, FET_PROTO_RF2500, trans);
-}
-
-static device_t driver_open_olimex(const struct cmdline_args *args)
-{
-	transport_t trans;
-
-	if (args->serial_device)
-		trans = uif_open(args->serial_device, UIF_TYPE_OLIMEX);
-	else
-		trans = olimex_open(args->usb_device);
-
-	if (!trans)
-		return NULL;
-
-	return driver_open_fet(args, FET_PROTO_OLIMEX, trans);
-}
-
-static device_t driver_open_olimex_iso(const struct cmdline_args *args)
-{
-	transport_t trans;
-
-	if (!args->serial_device) {
-		printc_err("This driver does not support USB access. "
-			   "Specify a tty device using -d.\n");
-		return NULL;
-	}
-
-	trans = uif_open(args->serial_device, UIF_TYPE_OLIMEX_ISO);
-	if (!trans)
-		return NULL;
-
-	return driver_open_fet(args, FET_PROTO_OLIMEX, trans);
-}
-
-static device_t driver_open_sim(const struct cmdline_args *args)
-{
-	return sim_open();
-}
-
-static device_t driver_open_uif(const struct cmdline_args *args)
-{
-	transport_t trans;
-
-	if (!args->serial_device) {
-		printc_err("This driver does not support USB access. "
-			   "Specify a tty device using -d.\n");
-		return NULL;
-	}
-
-	trans = uif_open(args->serial_device, UIF_TYPE_FET);
-	if (!trans)
-		return NULL;
-
-	return driver_open_fet(args, 0, trans);
-}
-
-static device_t driver_open_uif_bsl(const struct cmdline_args *args)
-{
-	if (!args->serial_device) {
-		printc_err("This driver does not support USB access. "
-			   "Specify a tty device using -d.\n");
-		return NULL;
-	}
-
-	return bsl_open(args->serial_device);
-}
-
-static device_t driver_open_flash_bsl(const struct cmdline_args *args)
-{
-	if (!args->serial_device) {
-		printc_err("This driver does not support USB access. "
-			   "Specify a tty device using -d.\n");
-		return NULL;
-	}
-
-	return flash_bsl_open(args->serial_device, args->long_password);
-}
 
 static const struct driver driver_table[] = {
 	{
 		.name = "rf2500",
 		.help = "eZ430-RF2500 devices. Only USB connection is "
 		"supported.",
-		driver_open_rf2500
+		.func = fet_open_rf2500
 	},
 	{       .name = "olimex",
 		.help = "Olimex MSP-JTAG-TINY.",
-		.func = driver_open_olimex
+		.func = fet_open_olimex
 	},
 	{       .name = "olimex-iso",
 		.help = "Olimex MSP-JTAG-ISO.",
-		.func = driver_open_olimex_iso
+		.func = fet_open_olimex_iso
 	},
 	{
 		.name = "sim",
 		.help = "Simulation mode.",
-		.func = driver_open_sim
+		.func = sim_open
 	},
 	{
 		.name = "uif",
 		.help = "TI FET430UIF and compatible devices (e.g. eZ430).",
-		.func = driver_open_uif
+		.func = fet_open_uif
 	},
 	{
 		.name = "uif-bsl",
 		.help = "TI FET430UIF bootloader.",
-		.func = driver_open_uif_bsl
+		.func = bsl_open
 	},
 	{
 		.name = "flash-bsl",
 		.help = "TI generic flash-based bootloader via RS-232",
-		.func = driver_open_flash_bsl
+		.func = flash_bsl_open
 	}
 };
 
@@ -318,6 +204,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"long-password",       0, 0, 'P'},
 		{NULL, 0, 0, 0}
 	};
+	int want_usb = 0;
 
 	while ((opt = getopt_long(argc, argv, "d:jv:nU:q",
 				  longopts, NULL)) >= 0)
@@ -340,18 +227,20 @@ static int parse_cmdline_args(int argc, char **argv,
 			exit(0);
 
 		case 'd':
-			args->serial_device = optarg;
+			args->devarg.path = optarg;
+			args->devarg.flags |= DEVICE_FLAG_TTY;
 			break;
 
 		case 'U':
-			args->usb_device = optarg;
+			args->devarg.path = optarg;
+			want_usb = 1;
 			break;
 
 		case 'L':
 			exit(list_devices());
 
 		case 'F':
-			args->fet_force_id = optarg;
+			args->devarg.forced_chip_id = optarg;
 			break;
 
 		case 'H':
@@ -363,11 +252,11 @@ static int parse_cmdline_args(int argc, char **argv,
 			exit(0);
 
 		case 'v':
-			args->vcc_mv = atoi(optarg);
+			args->devarg.vcc_mv = atoi(optarg);
 			break;
 
 		case 'j':
-			args->want_jtag = 1;
+			args->devarg.flags |= DEVICE_FLAG_JTAG;
 			break;
 
 		case 'n':
@@ -375,7 +264,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			break;
 
 		case 'P':
-			args->long_password = 1;
+			args->devarg.flags |= DEVICE_FLAG_LONG_PW;
 			break;
 
 		case '?':
@@ -383,7 +272,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			return -1;
 		}
 
-	if (args->usb_device && args->serial_device) {
+	if (want_usb && (args->devarg.flags & DEVICE_FLAG_TTY)) {
 		printc_err("You can't simultaneously specify a serial and "
 			"a USB device.\n");
 		return -1;
@@ -419,7 +308,7 @@ int setup_driver(struct cmdline_args *args)
 	if (!stab_default)
 		return -1;
 
-	device_default = driver_table[i].func(args);
+	device_default = driver_table[i].func(&args->devarg);
 	if (!device_default) {
 		stab_destroy(stab_default);
 		return -1;
@@ -435,7 +324,7 @@ int main(int argc, char **argv)
 
 	opdb_reset();
 
-	args.vcc_mv = 3000;
+	args.devarg.vcc_mv = 3000;
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		return -1;
 

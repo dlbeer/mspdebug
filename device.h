@@ -56,6 +56,17 @@ struct device_breakpoint {
 	int            flags;
 };
 
+#define DEVICE_FLAG_JTAG	0x01 /* default is SBW */
+#define DEVICE_FLAG_LONG_PW	0x02
+#define DEVICE_FLAG_TTY		0x04 /* default is USB */
+
+struct device_args {
+	int			flags;
+	int			vcc_mv;
+	const char		*path;
+	const char		*forced_chip_id;
+};
+
 struct device {
 	/* Breakpoint table. This should not be modified directly.
 	 * Instead, you should use the device_setbrk() helper function. This

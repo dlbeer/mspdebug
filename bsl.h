@@ -22,6 +22,6 @@
 #include "device.h"
 
 /* MSP430 FET Bootloader implementation. */
-device_t bsl_open(const char *devpath);
+device_t bsl_open(const struct device_args *args);
 
 #endif
