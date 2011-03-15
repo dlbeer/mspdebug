@@ -1057,7 +1057,7 @@ static device_t fet_open_rf2500(const struct device_args *args)
 const struct device_class device_rf2500 = {
 	.name		= "rf2500",
 	.help		=
-"ez430-RF2500 devices. Only USB connection is supported.",
+"eZ430-RF2500 devices. Only USB connection is supported.",
 	.open		= fet_open_rf2500,
 	.destroy	= fet_destroy,
 	.readmem	= fet_readmem,
@@ -1151,7 +1151,7 @@ static device_t fet_open_uif(const struct device_args *args)
 }
 
 const struct device_class device_uif = {
-	.name		= "olimex-iso",
+	.name		= "uif",
 	.help		=
 "TI FET430UIF and compatible devices (e.g. eZ430).",
 	.open		= fet_open_uif,
