@@ -67,14 +67,12 @@ struct device_args {
 	const char		*forced_chip_id;
 };
 
-struct device {
-	/* Breakpoint table. This should not be modified directly.
-	 * Instead, you should use the device_setbrk() helper function. This
-	 * will set the appropriate flags and ensure that the breakpoint is
-	 * reloaded before the next run.
-	 */
-	int max_breakpoints;
-	struct device_breakpoint breakpoints[DEVICE_MAX_BREAKPOINTS];
+struct device_class {
+	const char		*name;
+	const char		*help;
+
+	/* Create a new device */
+	device_t (*open)(const struct device_args *args);
 
 	/* Close the connection to the device and destroy the driver object */
 	void (*destroy)(device_t dev);
@@ -100,6 +98,18 @@ struct device {
 	device_status_t (*poll)(device_t dev);
 };
 
+struct device {
+	const struct device_class	*type;
+
+	/* Breakpoint table. This should not be modified directly.
+	 * Instead, you should use the device_setbrk() helper function. This
+	 * will set the appropriate flags and ensure that the breakpoint is
+	 * reloaded before the next run.
+	 */
+	int max_breakpoints;
+	struct device_breakpoint breakpoints[DEVICE_MAX_BREAKPOINTS];
+};
+
 /* Set or clear a breakpoint. The index of the modified entry is
  * returned, or -1 if no free entries were available. The modified
  * entry is flagged so that it will be reloaded on the next run.
@@ -113,20 +123,20 @@ int device_setbrk(device_t dev, int which, int enabled, address_t address);
 extern device_t device_default;
 
 /* Helper macros for operating on the default device */
-#define device_destroy() device_default->destroy(device_default)
+#define device_destroy() device_default->type->destroy(device_default)
 #define device_readmem(addr, mem, len) \
-	device_default->readmem(device_default, addr, mem, len)
+	device_default->type->readmem(device_default, addr, mem, len)
 #define device_writemem(addr, mem, len) \
-	device_default->writemem(device_default, addr, mem, len)
-#define device_erase(type, addr) \
-	device_default->erase(device_default, type, addr)
+	device_default->type->writemem(device_default, addr, mem, len)
+#define device_erase(et, addr) \
+	device_default->type->erase(device_default, et, addr)
 #define device_getregs(regs) \
-	device_default->getregs(device_default, regs)
+	device_default->type->getregs(device_default, regs)
 #define device_setregs(regs) \
-	device_default->setregs(device_default, regs)
+	device_default->type->setregs(device_default, regs)
 #define device_ctl(op) \
-	device_default->ctl(device_default, op)
+	device_default->type->ctl(device_default, op)
 #define device_poll() \
-	device_default->poll(device_default)
+	device_default->type->poll(device_default)
 
 #endif

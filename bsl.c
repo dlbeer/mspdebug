@@ -361,7 +361,7 @@ static int enter_via_fet(struct bsl_device *dev)
 	return 0;
 }
 
-device_t bsl_open(const struct device_args *args)
+static device_t bsl_open(const struct device_args *args)
 {
 	struct bsl_device *dev;
 
@@ -378,14 +378,7 @@ device_t bsl_open(const struct device_args *args)
 
 	memset(dev, 0, sizeof(*dev));
 
-	dev->base.destroy = bsl_destroy;
-	dev->base.readmem = bsl_readmem;
-	dev->base.writemem = bsl_writemem;
-	dev->base.erase = bsl_erase;
-	dev->base.getregs = bsl_getregs;
-	dev->base.setregs = bsl_setregs;
-	dev->base.ctl = bsl_ctl;
-	dev->base.poll = bsl_poll;
+	dev->base.type = &device_bsl;
 
 	dev->serial_fd = open_serial(args->path, B460800);
 	if (dev->serial_fd < 0) {
@@ -423,3 +416,17 @@ device_t bsl_open(const struct device_args *args)
 	free(dev);
 	return NULL;
 }
+
+const struct device_class device_bsl = {
+	.name		= "uif-bsl",
+	.help		= "TI FET430UIF bootloader.",
+	.open		= bsl_open,
+	.destroy	= bsl_destroy,
+	.readmem	= bsl_readmem,
+	.writemem	= bsl_writemem,
+	.erase		= bsl_erase,
+	.getregs	= bsl_getregs,
+	.setregs	= bsl_setregs,
+	.ctl		= bsl_ctl,
+	.poll		= bsl_poll
+};

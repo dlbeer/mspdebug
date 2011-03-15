@@ -57,47 +57,14 @@ struct cmdline_args {
 	struct device_args	devarg;
 };
 
-struct driver {
-	const char      *name;
-	const char      *help;
-	device_t        (*func)(const struct device_args *args);
-};
-
-static const struct driver driver_table[] = {
-	{
-		.name = "rf2500",
-		.help = "eZ430-RF2500 devices. Only USB connection is "
-		"supported.",
-		.func = fet_open_rf2500
-	},
-	{       .name = "olimex",
-		.help = "Olimex MSP-JTAG-TINY.",
-		.func = fet_open_olimex
-	},
-	{       .name = "olimex-iso",
-		.help = "Olimex MSP-JTAG-ISO.",
-		.func = fet_open_olimex_iso
-	},
-	{
-		.name = "sim",
-		.help = "Simulation mode.",
-		.func = sim_open
-	},
-	{
-		.name = "uif",
-		.help = "TI FET430UIF and compatible devices (e.g. eZ430).",
-		.func = fet_open_uif
-	},
-	{
-		.name = "uif-bsl",
-		.help = "TI FET430UIF bootloader.",
-		.func = bsl_open
-	},
-	{
-		.name = "flash-bsl",
-		.help = "TI generic flash-based bootloader via RS-232",
-		.func = flash_bsl_open
-	}
+static const struct device_class *const driver_table[] = {
+	&device_rf2500,
+	&device_olimex,
+	&device_olimex_iso,
+	&device_sim,
+	&device_uif,
+	&device_bsl,
+	&device_flash_bsl
 };
 
 static const char *version_text =
@@ -147,7 +114,7 @@ static void usage(const char *progname)
 
 	printc("Available drivers are:\n");
 	for (i = 0; i < ARRAY_LEN(driver_table); i++) {
-		const struct driver *drv = &driver_table[i];
+		const struct device_class *drv = driver_table[i];
 
 		printc("    %s\n        %s\n", drv->name, drv->help);
 	}
@@ -296,7 +263,7 @@ int setup_driver(struct cmdline_args *args)
 
 	i = 0;
 	while (i < ARRAY_LEN(driver_table) &&
-	       strcasecmp(driver_table[i].name, args->driver_name))
+	       strcasecmp(driver_table[i]->name, args->driver_name))
 		i++;
 	if (i >= ARRAY_LEN(driver_table)) {
 		printc_err("Unknown driver: %s. Try --help for a list.\n",
@@ -308,7 +275,7 @@ int setup_driver(struct cmdline_args *args)
 	if (!stab_default)
 		return -1;
 
-	device_default = driver_table[i].func(&args->devarg);
+	device_default = driver_table[i]->open(&args->devarg);
 	if (!device_default) {
 		stab_destroy(stab_default);
 		return -1;

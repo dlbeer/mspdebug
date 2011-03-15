@@ -23,6 +23,6 @@
 #include "device.h"
 
 /* MSP430 Flash bootloader implementation. */
-device_t flash_bsl_open(const struct device_args *args);
+extern const struct device_class device_flash_bsl;
 
 #endif

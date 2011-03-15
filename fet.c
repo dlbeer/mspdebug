@@ -993,8 +993,9 @@ int try_open(struct fet_device *dev, const struct device_args *args,
 	return 0;
 }
 
-device_t fet_open(const struct device_args *args,
-		  protocol_t protocol, transport_t transport)
+static device_t fet_open(const struct device_args *args,
+		         protocol_t protocol, transport_t transport,
+		         const struct device_class *type)
 {
 	struct fet_device *dev = malloc(sizeof(*dev));
 	int i;
@@ -1006,15 +1007,7 @@ device_t fet_open(const struct device_args *args,
 
 	memset(dev, 0, sizeof(*dev));
 
-	dev->base.destroy = fet_destroy;
-	dev->base.readmem = fet_readmem;
-	dev->base.writemem = fet_writemem;
-	dev->base.getregs = fet_getregs;
-	dev->base.setregs = fet_setregs;
-	dev->base.ctl = fet_ctl;
-	dev->base.poll = fet_poll;
-	dev->base.erase = fet_erase;
-
+	dev->base.type = type;
 	dev->transport = transport;
 	dev->protocol = protocol;
 
@@ -1039,7 +1032,7 @@ device_t fet_open(const struct device_args *args,
 	return NULL;
 }
 
-device_t fet_open_rf2500(const struct device_args *args)
+static device_t fet_open_rf2500(const struct device_args *args)
 {
 	transport_t trans;
 
@@ -1052,10 +1045,25 @@ device_t fet_open_rf2500(const struct device_args *args)
         if (!trans)
                 return NULL;
 
-        return fet_open(args, PROTOCOL_RF2500, trans);
+        return fet_open(args, PROTOCOL_RF2500, trans, &device_rf2500);
 }
 
-device_t fet_open_olimex(const struct device_args *args)
+const struct device_class device_rf2500 = {
+	.name		= "rf2500",
+	.help		=
+"ez430-RF2500 devices. Only USB connection is supported.",
+	.open		= fet_open_rf2500,
+	.destroy	= fet_destroy,
+	.readmem	= fet_readmem,
+	.writemem	= fet_writemem,
+	.erase		= fet_erase,
+	.getregs	= fet_getregs,
+	.setregs	= fet_setregs,
+	.ctl		= fet_ctl,
+	.poll		= fet_poll
+};
+
+static device_t fet_open_olimex(const struct device_args *args)
 {
 	transport_t trans;
 
@@ -1067,10 +1075,25 @@ device_t fet_open_olimex(const struct device_args *args)
         if (!trans)
                 return NULL;
 
-	return fet_open(args, PROTOCOL_OLIMEX, trans);
+	return fet_open(args, PROTOCOL_OLIMEX, trans, &device_olimex);
 }
 
-device_t fet_open_olimex_iso(const struct device_args *args)
+const struct device_class device_olimex = {
+	.name		= "olimex",
+	.help		=
+"Olimex MSP-JTAG-TINY.",
+	.open		= fet_open_olimex,
+	.destroy	= fet_destroy,
+	.readmem	= fet_readmem,
+	.writemem	= fet_writemem,
+	.erase		= fet_erase,
+	.getregs	= fet_getregs,
+	.setregs	= fet_setregs,
+	.ctl		= fet_ctl,
+	.poll		= fet_poll
+};
+
+static device_t fet_open_olimex_iso(const struct device_args *args)
 {
 	transport_t trans;
 
@@ -1083,10 +1106,25 @@ device_t fet_open_olimex_iso(const struct device_args *args)
         if (!trans)
                 return NULL;
 
-	return fet_open(args, PROTOCOL_OLIMEX, trans);
+	return fet_open(args, PROTOCOL_OLIMEX, trans, &device_olimex_iso);
 }
 
-device_t fet_open_uif(const struct device_args *args)
+const struct device_class device_olimex_iso = {
+	.name		= "olimex-iso",
+	.help		=
+"Olimex MSP-JTAG-ISO.",
+	.open		= fet_open_olimex_iso,
+	.destroy	= fet_destroy,
+	.readmem	= fet_readmem,
+	.writemem	= fet_writemem,
+	.erase		= fet_erase,
+	.getregs	= fet_getregs,
+	.setregs	= fet_setregs,
+	.ctl		= fet_ctl,
+	.poll		= fet_poll
+};
+
+static device_t fet_open_uif(const struct device_args *args)
 {
 	transport_t trans;
 
@@ -1099,5 +1137,20 @@ device_t fet_open_uif(const struct device_args *args)
 	if (!trans)
 		return NULL;
 
-	return fet_open(args, PROTOCOL_UIF, trans);
+	return fet_open(args, PROTOCOL_UIF, trans, &device_uif);
 }
+
+const struct device_class device_uif = {
+	.name		= "olimex-iso",
+	.help		=
+"TI FET430UIF and compatible devices (e.g. eZ430).",
+	.open		= fet_open_uif,
+	.destroy	= fet_destroy,
+	.readmem	= fet_readmem,
+	.writemem	= fet_writemem,
+	.erase		= fet_erase,
+	.getregs	= fet_getregs,
+	.setregs	= fet_setregs,
+	.ctl		= fet_ctl,
+	.poll		= fet_poll
+};

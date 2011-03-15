@@ -621,7 +621,7 @@ static void flash_bsl_destroy(device_t dev_base)
 	free(dev);
 }
 
-device_t flash_bsl_open(const struct device_args *args)
+static device_t flash_bsl_open(const struct device_args *args)
 {
 	struct flash_bsl_device *dev;
 	uint8_t tx_bsl_version_command[] = { TX_BSL_VERSION };
@@ -642,15 +642,7 @@ device_t flash_bsl_open(const struct device_args *args)
 	crc_selftest( );
 
 	memset(dev, 0, sizeof(*dev));
-
-	dev->base.destroy = flash_bsl_destroy;
-	dev->base.readmem = flash_bsl_readmem;
-	dev->base.writemem = flash_bsl_writemem;
-	dev->base.getregs = flash_bsl_getregs;
-	dev->base.setregs = flash_bsl_setregs;
-	dev->base.ctl = flash_bsl_ctl;
-	dev->base.poll = flash_bsl_poll;
-	dev->base.erase = flash_bsl_erase;
+	dev->base.type = &device_flash_bsl;
 
 	dev->serial_fd = open_serial_even_parity(args->path, B9600);
 	if (dev->serial_fd < 0) {
@@ -697,3 +689,17 @@ device_t flash_bsl_open(const struct device_args *args)
 	free(dev);
 	return NULL;
 }
+
+const struct device_class device_flash_bsl = {
+	.name		= "flash-bsl",
+	.help = "TI generic flash-based bootloader via RS-232",
+	.open		= flash_bsl_open,
+	.destroy	= flash_bsl_destroy,
+	.readmem	= flash_bsl_readmem,
+	.writemem	= flash_bsl_writemem,
+	.getregs	= flash_bsl_getregs,
+	.setregs	= flash_bsl_setregs,
+	.ctl		= flash_bsl_ctl,
+	.poll		= flash_bsl_poll,
+	.erase		= flash_bsl_erase
+};

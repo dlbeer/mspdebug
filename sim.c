@@ -722,7 +722,7 @@ static device_status_t sim_poll(device_t dev_base)
 	return DEVICE_STATUS_RUNNING;
 }
 
-device_t sim_open(const struct device_args *args)
+static device_t sim_open(const struct device_args *args)
 {
 	struct sim_device *dev = malloc(sizeof(*dev));
 
@@ -733,15 +733,8 @@ device_t sim_open(const struct device_args *args)
 
 	memset(dev, 0, sizeof(*dev));
 
+	dev->base.type = &device_sim;
 	dev->base.max_breakpoints = DEVICE_MAX_BREAKPOINTS;
-	dev->base.destroy = sim_destroy;
-	dev->base.readmem = sim_readmem;
-	dev->base.writemem = sim_writemem;
-	dev->base.erase = sim_erase;
-	dev->base.getregs = sim_getregs;
-	dev->base.setregs = sim_setregs;
-	dev->base.ctl = sim_ctl;
-	dev->base.poll = sim_poll;
 
 	memset(dev->memory, 0xff, sizeof(dev->memory));
 	memset(dev->regs, 0xff, sizeof(dev->regs));
@@ -752,3 +745,17 @@ device_t sim_open(const struct device_args *args)
 	printc_dbg("Simulation started, 0x%x bytes of RAM\n", MEM_SIZE);
 	return (device_t)dev;
 }
+
+const struct device_class device_sim = {
+	.name		= "sim",
+	.help		= "Simulation mode.",
+	.open		= sim_open,
+	.destroy	= sim_destroy,
+	.readmem	= sim_readmem,
+	.writemem	= sim_writemem,
+	.erase		= sim_erase,
+	.getregs	= sim_getregs,
+	.setregs	= sim_setregs,
+	.ctl		= sim_ctl,
+	.poll		= sim_poll
+};

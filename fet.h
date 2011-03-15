@@ -21,10 +21,9 @@
 
 #include "device.h"
 
-/* Open UIF devices and variants */
-device_t fet_open_rf2500(const struct device_args *args);
-device_t fet_open_olimex(const struct device_args *args);
-device_t fet_open_uif(const struct device_args *args);
-device_t fet_open_olimex_iso(const struct device_args *args);
+extern const struct device_class device_rf2500;
+extern const struct device_class device_olimex;
+extern const struct device_class device_olimex_iso;
+extern const struct device_class device_uif;
 
 #endif
