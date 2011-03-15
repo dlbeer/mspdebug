@@ -25,8 +25,6 @@
 struct device;
 typedef struct device *device_t;
 
-extern device_t device_default;
-
 typedef enum {
 	DEVICE_CTL_RESET,
 	DEVICE_CTL_RUN,
@@ -100,5 +98,24 @@ struct device {
  * automatically.
  */
 int device_setbrk(device_t dev, int which, int enabled, address_t address);
+
+extern device_t device_default;
+
+/* Helper macros for operating on the default device */
+#define device_destroy() device_default->destroy(device_default)
+#define device_readmem(addr, mem, len) \
+	device_default->readmem(device_default, addr, mem, len)
+#define device_writemem(addr, mem, len) \
+	device_default->writemem(device_default, addr, mem, len)
+#define device_erase(type, addr) \
+	device_default->erase(device_default, type, addr)
+#define device_getregs(regs) \
+	device_default->getregs(device_default, regs)
+#define device_setregs(regs) \
+	device_default->setregs(device_default, regs)
+#define device_ctl(op) \
+	device_default->ctl(device_default, op)
+#define device_poll() \
+	device_default->poll(device_default)
 
 #endif

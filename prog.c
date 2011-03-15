@@ -34,8 +34,7 @@ int prog_flush(struct prog_data *prog)
 
 	if (!prog->have_erased && (prog->flags & PROG_WANT_ERASE)) {
 		printc("Erasing...\n");
-		if (device_default->erase(device_default,
-					  DEVICE_ERASE_MAIN, 0) < 0)
+		if (device_erase(DEVICE_ERASE_MAIN, 0) < 0)
 			return -1;
 
 		printc("Programming...\n");
@@ -43,8 +42,7 @@ int prog_flush(struct prog_data *prog)
 	}
 
 	printc_dbg("Writing %4d bytes to %04x...\n", prog->len, prog->addr);
-	if (device_default->writemem(device_default, prog->addr,
-				     prog->buf, prog->len) < 0)
+	if (device_writemem(prog->addr, prog->buf, prog->len) < 0)
 		return -1;
 
 	prog->addr += prog->len;

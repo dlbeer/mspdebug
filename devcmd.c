@@ -38,14 +38,14 @@ int cmd_regs(char **arg)
 	uint8_t code[16];
 	int len = sizeof(code);
 
-	if (device_default->getregs(device_default, regs) < 0)
+	if (device_getregs(regs) < 0)
 		return -1;
 	show_regs(regs);
 
 	/* Try to disassemble the instruction at PC */
 	if (len > 0x10000 - regs[0])
 		len = 0x10000 - regs[0];
-	if (device_default->readmem(device_default, regs[0], code, len) < 0)
+	if (device_readmem(regs[0], code, len) < 0)
 		return 0;
 
 	disassemble(regs[0], (uint8_t *)code, len);
@@ -85,8 +85,7 @@ int cmd_md(char **arg)
 		uint8_t buf[4096];
 		int blen = length > sizeof(buf) ? sizeof(buf) : length;
 
-		if (device_default->readmem(device_default,
-					    offset, buf, blen) < 0)
+		if (device_readmem(offset, buf, blen) < 0)
 			return -1;
 		hexdump(offset, buf, blen);
 
@@ -127,7 +126,7 @@ int cmd_mw(char **arg)
 	if (!length)
 		return 0;
 
-	if (device_default->writemem(device_default, offset, buf, length) < 0)
+	if (device_writemem(offset, buf, length) < 0)
 		return -1;
 
 	return 0;
@@ -135,7 +134,7 @@ int cmd_mw(char **arg)
 
 int cmd_reset(char **arg)
 {
-	return device_default->ctl(device_default, DEVICE_CTL_RESET);
+	return device_ctl(DEVICE_CTL_RESET);
 }
 
 int cmd_erase(char **arg)
@@ -167,11 +166,11 @@ int cmd_erase(char **arg)
 		}
 	}
 
-	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0)
+	if (device_ctl(DEVICE_CTL_HALT) < 0)
 		return -1;
 
 	printc("Erasing...\n");
-	return device_default->erase(device_default, type, segment);
+	return device_erase(type, segment);
 }
 
 int cmd_step(char **arg)
@@ -188,7 +187,7 @@ int cmd_step(char **arg)
 	}
 
 	for (i = 0; i < count; i++)
-		if (device_default->ctl(device_default, DEVICE_CTL_STEP) < 0)
+		if (device_ctl(DEVICE_CTL_STEP) < 0)
 			return -1;
 
 	reader_set_repeat("step");
@@ -200,7 +199,7 @@ int cmd_run(char **arg)
 	device_status_t status;
 	address_t regs[DEVICE_NUM_REGS];
 
-	if (device_default->getregs(device_default, regs) < 0) {
+	if (device_getregs(regs) < 0) {
 		printc_err("warning: device: can't fetch registers\n");
 	} else {
 		int i;
@@ -217,11 +216,11 @@ int cmd_run(char **arg)
 		if (i < device_default->max_breakpoints) {
 			printc("Stepping over breakpoint #%d at 0x%04x\n",
 			       i, regs[0]);
-			device_default->ctl(device_default, DEVICE_CTL_STEP);
+			device_ctl(DEVICE_CTL_STEP);
 		}
 	}
 
-	if (device_default->ctl(device_default, DEVICE_CTL_RUN) < 0) {
+	if (device_ctl(DEVICE_CTL_RUN) < 0) {
 		printc_err("run: failed to start CPU\n");
 		return -1;
 	}
@@ -229,7 +228,7 @@ int cmd_run(char **arg)
 	printc("Running. Press Ctrl+C to interrupt...\n");
 
 	do {
-		status = device_default->poll(device_default);
+		status = device_poll();
 	} while (status == DEVICE_STATUS_RUNNING);
 
 	if (status == DEVICE_STATUS_INTR)
@@ -238,7 +237,7 @@ int cmd_run(char **arg)
 	if (status == DEVICE_STATUS_ERROR)
 		return -1;
 
-	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0)
+	if (device_ctl(DEVICE_CTL_HALT) < 0)
 		return -1;
 
 	return cmd_regs(NULL);
@@ -268,10 +267,10 @@ int cmd_set(char **arg)
 		return -1;
 	}
 
-	if (device_default->getregs(device_default, regs) < 0)
+	if (device_getregs(regs) < 0)
 		return -1;
 	regs[reg] = value;
-	if (device_default->setregs(device_default, regs) < 0)
+	if (device_setregs(regs) < 0)
 		return -1;
 
 	show_regs(regs);
@@ -312,8 +311,7 @@ int cmd_dis(char **arg)
 		return -1;
 	}
 
-	if (device_default->readmem(device_default,
-				    offset, buf, length) < 0) {
+	if (device_readmem(offset, buf, length) < 0) {
 		free(buf);
 		return -1;
 	}
@@ -457,8 +455,7 @@ int cmd_hexout(char **arg)
 			count = sizeof(buf);
 
 		printc("Reading %4d bytes from 0x%04x...\n", count, off);
-		if (device_default->readmem(device_default,
-					    off, buf, count) < 0) {
+		if (device_readmem(off, buf, count) < 0) {
 			pr_error("hexout: can't read memory");
 			goto fail;
 		}
@@ -505,7 +502,7 @@ static int do_cmd_prog(char **arg, int prog_flags)
 		return -1;
 	}
 
-	if (device_default->ctl(device_default, DEVICE_CTL_HALT) < 0) {
+	if (device_ctl(DEVICE_CTL_HALT) < 0) {
 		fclose(in);
 		return -1;
 	}
@@ -527,7 +524,7 @@ static int do_cmd_prog(char **arg, int prog_flags)
 	if (prog_flush(&prog) < 0)
 		return -1;
 
-	if (device_default->ctl(device_default, DEVICE_CTL_RESET) < 0) {
+	if (device_ctl(DEVICE_CTL_RESET) < 0) {
 		printc_err("prog: failed to reset after programming\n");
 		return -1;
 	}
@@ -664,7 +661,7 @@ int cmd_locka(char **arg)
 		}
 	}
 
-	if (device_default->readmem(device_default, FCTL3, regval, 2) < 0) {
+	if (device_readmem(FCTL3, regval, 2) < 0) {
 		printc_err("locka: can't read FCTL3 register\n");
 		return -1;
 	}
@@ -681,14 +678,12 @@ int cmd_locka(char **arg)
 		regval[0] |= FCTL3_LOCKA;
 		regval[1] = FWKEY;
 
-		if (device_default->writemem(device_default, FCTL3,
-					     regval, 2) < 0) {
+		if (device_writemem(FCTL3, regval, 2) < 0) {
 			printc_err("locka: can't write FCTL3 register\n");
 			return -1;
 		}
 
-		if (device_default->readmem(device_default, FCTL3,
-					    regval, 2) < 0) {
+		if (device_readmem(FCTL3, regval, 2) < 0) {
 			printc_err("locka: can't read FCTL3 register\n");
 			return -1;
 		}

@@ -353,7 +353,7 @@ static int do_isearch(address_t addr, address_t len,
 		return -1;
 	}
 
-	if (device_default->readmem(device_default, addr, mbuf, len) < 0) {
+	if (device_readmem(addr, mbuf, len) < 0) {
 		printc_err("isearch: couldn't read device memory\n");
 		free(mbuf);
 		return -1;
@@ -940,7 +940,7 @@ int cmd_cgraph(char **arg)
 		return -1;
 	}
 
-	if (device_default->readmem(device_default, offset, memory, len) < 0) {
+	if (device_readmem(offset, memory, len) < 0) {
 		printc_err("cgraph: couldn't fetch memory\n");
 		free(memory);
 		return -1;

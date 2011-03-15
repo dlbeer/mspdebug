@@ -464,7 +464,7 @@ int main(int argc, char **argv)
 	simio_exit();
 
 	stab_destroy(stab_default);
-	device_default->destroy(device_default);
+	device_destroy();
 
 	return ret;
 }
