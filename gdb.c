@@ -531,6 +531,9 @@ static int gdb_send_supported(struct gdb_data *data)
 
 static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 {
+#ifdef DEBUG_GDB
+	printc("process_gdb_command: %s\n", buf);
+#endif
 	switch (buf[0]) {
 	case '?': /* Return target halt reason */
 		return run_final_status(data);
@@ -563,7 +566,13 @@ static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 
 	case 's': /* Single step */
 		return single_step(data, buf + 1);
+	case 'k': /* kill */
+		return -1;
 	}
+
+#ifdef DEBUG_GDB
+	printc("process_gdb_command: unknown command %s\n", buf);
+#endif
 
 	/* For unknown/unsupported packets, return an empty reply */
 	return gdb_send(data, "");
@@ -693,7 +702,14 @@ static int gdb_server(int port)
 	for (i = 0; i < device_default->max_breakpoints; i++)
 		device_setbrk(device_default, i, 0, 0);
 
+#ifdef DEBUG_GDB
+	printc("starting GDB reader loop...\n");
+#endif
 	gdb_reader_loop(&data);
+#ifdef DEBUG_GDB
+	printc("... reader loop returned\n");
+#endif
+	close(client);
 
 	return data.error ? -1 : 0;
 }
