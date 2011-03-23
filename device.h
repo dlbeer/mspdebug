@@ -59,6 +59,7 @@ struct device_breakpoint {
 #define DEVICE_FLAG_JTAG	0x01 /* default is SBW */
 #define DEVICE_FLAG_LONG_PW	0x02
 #define DEVICE_FLAG_TTY		0x04 /* default is USB */
+#define DEVICE_FLAG_FORCE_RESET	0x08
 
 struct device_args {
 	int			flags;

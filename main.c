@@ -102,6 +102,8 @@ static void usage(const char *progname)
 "        Override the device ID returned by the FET.\n"
 "    --usb-list\n"
 "        Show a list of available USB devices.\n"
+"    --force-reset\n"
+"        Force target reset in initialization sequence.\n"
 "    --version\n"
 "        Show copyright and version information.\n"
 "\n"
@@ -169,6 +171,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"usb-list",            0, 0, 'I'},
 		{"version",             0, 0, 'V'},
 		{"long-password",       0, 0, 'P'},
+		{"force-reset",       	0, 0, 'R'},
 		{NULL, 0, 0, 0}
 	};
 	int want_usb = 0;
@@ -232,6 +235,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case 'P':
 			args->devarg.flags |= DEVICE_FLAG_LONG_PW;
+			break;
+
+		case 'R':
+			args->devarg.flags |= DEVICE_FLAG_FORCE_RESET;
 			break;
 
 		case '?':

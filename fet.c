@@ -978,7 +978,7 @@ int try_open(struct fet_device *dev, const struct device_args *args,
 	if (do_configure(dev, args) < 0)
 		return -1;
 
-	if (send_reset) {
+	if (send_reset || args->flags & DEVICE_FLAG_FORCE_RESET) {
 		printc_dbg("Sending reset...\n");
 		if (xfer(dev, C_RESET, NULL, 0, 3, FET_RESET_ALL, 0, 0) < 0)
 			printc_err("warning: fet: reset failed\n");
