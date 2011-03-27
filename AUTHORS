@@ -48,3 +48,7 @@ Stefan Mahr <Stefan.Mahr@sphairon.com>:
 
 Jasper Lievisse Adriaanse <jasper@openbsd.org>:
 	* Ported to OpenBSD.
+
+Ionut Nicu <ionut.nicu@mindbit.ro>:
+	* Support for MSP430F47173 and MSP430F5526.
+	* --force-reset option.
