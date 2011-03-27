@@ -61,6 +61,9 @@ MSPDebug as one of the given type during initialization. This overrides
 the device ID returned by the FET.
 .IP "\-\-usb\-list"
 List available USB devices and exit.
+.IP "\-\-force-reset"
+When using a FET device, always send a reset during initialization. By
+default, an initialization without reset will be tried first.
 .IP "\-\-version"
 Show program version and copyright information.
 .SH DRIVERS
