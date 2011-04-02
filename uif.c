@@ -150,8 +150,12 @@ transport_t uif_open(const char *device, uif_type_t type)
 		break;
 
 	case UIF_TYPE_OLIMEX_ISO:
+#if defined(__linux__)
 		printc("Trying to open Olimex (ISO) on %s...\n", device);
 		tr->serial_fd = open_olimex_iso(device);
+#else
+		printc_err("uif_open: ioctl TIOCSSERIAL not supported on this platform\n");
+#endif
 		break;
 	}
 
