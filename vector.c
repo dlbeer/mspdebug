@@ -57,30 +57,39 @@ int vector_realloc(struct vector *v, int capacity)
 	return 0;
 }
 
+static int size_for(struct vector *v, int needed)
+{
+	int cap = needed;
+
+	/* Find the smallest power of 2 which is greater than the
+	 * necessary capacity.
+	 */
+	while (cap & (cap - 1))
+		cap &= (cap - 1);
+	if (cap < needed)
+		cap <<= 1;
+
+	/* Don't allocate fewer than 8 elements */
+	if (cap < 8)
+		cap = 8;
+
+	if (v->capacity >= cap && v->capacity <= cap * 2)
+		return 0;
+
+	if (vector_realloc(v, cap) < 0)
+		return -1;
+
+	return 0;
+}
+
 int vector_push(struct vector *v, const void *data, int count)
 {
 	int needed = v->size + count;
 
 	assert (count >= 0);
 
-	if (needed > v->capacity) {
-		int cap = needed;
-
-		/* Find the smallest power of 2 which is greater than the
-		 * necessary capacity.
-		 */
-		while (cap & (cap - 1))
-			cap &= (cap - 1);
-		if (cap < needed)
-			cap <<= 1;
-
-		/* Don't allocate fewer than 8 elements */
-		if (cap < 8)
-			cap = 8;
-
-		if (vector_realloc(v, cap) < 0)
-			return -1;
-	}
+	if (size_for(v, needed) < 0)
+		return -1;
 
 	memcpy((char *)v->ptr + v->size * v->elemsize,
 	       data,
@@ -88,4 +97,13 @@ int vector_push(struct vector *v, const void *data, int count)
 	v->size += count;
 
 	return 0;
+}
+
+void vector_pop(struct vector *v)
+{
+	if (v->size <= 0)
+		return;
+
+	size_for(v, v->size - 1);
+	v->size--;
 }

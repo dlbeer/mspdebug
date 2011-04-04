@@ -47,6 +47,9 @@ int vector_realloc(struct vector *v, int capacity);
  */
 int vector_push(struct vector *v, const void *data, int count);
 
+/* Remove the last element from a vector. */
+void vector_pop(struct vector *v);
+
 /* Dereference a vector, giving an expression for the element of type t at
  * position i in vector v. Use as follows:
  *

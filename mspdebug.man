@@ -143,6 +143,16 @@ question.
 
 See the section marked \fBADDRESS EXPRESSIONS\fR for more information on
 the syntax of expressions.
+.IP "\fBalias\fR"
+Show a list of defined command aliases.
+.IP "\fBalias\fR \fIname\fR"
+Remove a previously defined command alias.
+.IP "\fBalias\fR \fIname\fR \fIcommand\fR"
+Define a command alias. The text \fIcommand\fR will be substituted for
+\fIname\fR when looking up commands. The given command text may contain
+a command plus arguments, if the entire text is wrapped in quotes when
+defining the alias. To avoid alias substitution when interpreting
+commands, prefix the command with \\ (a backslash character).
 .IP "\fBbreak\fR"
 Show a list of active breakpoints. Breakpoints can be added and removed
 with the \fBsetbreak\fR and \fBdelbreak\fR commands. Each breakpoint is

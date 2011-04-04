@@ -35,6 +35,7 @@
 #include "stdcmd.h"
 #include "reader.h"
 #include "opdb.h"
+#include "aliasdb.h"
 
 #define MAX_READER_LINE		1024
 
@@ -124,7 +125,15 @@ static int do_command(char *arg, int interactive)
 
 	cmd_text = get_arg(&arg);
 	if (cmd_text) {
+		char translated[1024];
 		struct cmddb_record cmd;
+
+		if (translate_alias(cmd_text, arg,
+				    translated, sizeof(translated)) < 0)
+			return -1;
+
+		arg = translated;
+		cmd_text = get_arg(&arg);
 
 		if (!cmddb_get(cmd_text, &cmd)) {
 			int old = in_reader_loop;

@@ -27,6 +27,7 @@
 #include "sym.h"
 #include "stdcmd.h"
 #include "simio.h"
+#include "aliasdb.h"
 
 const struct cmddb_record commands[] = {
 	{
@@ -260,6 +261,17 @@ const struct cmddb_record commands[] = {
 "    Change settings of an attached device.\n"
 "simio info <name>\n"
 "    Print status information for an attached device.\n"
+	},
+	{
+		.name = "alias",
+		.func = cmd_alias,
+		.help =
+"alias\n"
+"    List all defined aliases.\n"
+"alias <name>\n"
+"    Remove an alias definition.\n"
+"alias <name> <command>\n"
+"    Define a new alias.\n"
 	}
 };
 
