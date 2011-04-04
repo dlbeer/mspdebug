@@ -16,8 +16,8 @@ which can be used to reflash the device memory, inspect memory and
 registers, set registers, and control the CPU (single step, run and
 run to breakpoint).
 
-It supports ELF32, Intel HEX and BSD-style symbol tables (such as the
-output produced by \fBnm\fR(1)). It can also be used as a remote stub
+It supports a variety of file formats, described in the section
+\fBBINARY FORMATS\fR below. It can also be used as a remote stub
 for \fBgdb\fR(1).
 
 On startup, MSPDebug will look for a file called .mspdebug in the user's
@@ -78,8 +78,7 @@ supported.
 Connect to an Olimex MSP-JTAG-ISO device. Only tty access is supported.
 .IP "\fBsim\fR"
 Do not connect to any hardware device, but instead start in simulation
-mode. A 64k buffer is allocated to simulate the device memory. The CPU
-core alone is emulated (no peripheral emulation).
+mode. A 64k buffer is allocated to simulate the device memory.
 
 During simulation, addresses below 0x0200 are assumed to be IO memory.
 Programmed IO writes to and from IO memory are handled by the IO
@@ -102,10 +101,8 @@ MSP430F419 chips. By sending a special command sequence, you can obtain
 access to the bootloader and inspect memory on the MSP430F419 in the
 programming device itself.
 
-Currently, only memory inspection is supported. CPU control via the
-bootloader is not possible. Memory erase and write is possible, but is
-currently not implemented, for lack of ability to test it. If implemented,
-this would allow firmware updates to FET430UIF devices.
+Currently, only memory read/write and erase are supported. CPU control
+via the bootloader is not possible.
 
 USB connection is not supported for this driver.
 .IP "\fBflash-bsl\fR"
@@ -368,14 +365,6 @@ Add a new breakpoint. The breakpoint location is an address expression. An
 optional index may be specified, indicating that this new breakpoint should
 overwrite an existing slot. If no index is specified, then the breakpoint
 will be stored in the next unused slot.
-.IP "\fBstep\fR [\fIcount\fR]"
-Step the CPU through one or more instructions. After stepping, the new
-register values are displayed, as well as a disassembly of the
-instructions at the address selected by the program counter.
-
-An optional count can be specified to step multiple times. If no
-argument is given, the CPU steps once. This command supports repeat
-execution.
 .IP "\fBsimio add\fR \fIclass\fR \fIname\fR [\fIargs ...\fR]"
 Add a new peripheral to the IO simulator. The \fIclass\fR parameter may be
 any of the peripheral types named in the output of the \fBsimio classes\fR
@@ -408,6 +397,14 @@ the device type.
 .IP "\fBsimio info\fR \fIname\fR"
 Display detailed status information for a particular peripheral. The type
 of information displayed is specific to each type of peripheral.
+.IP "\fBstep\fR [\fIcount\fR]"
+Step the CPU through one or more instructions. After stepping, the new
+register values are displayed, as well as a disassembly of the
+instructions at the address selected by the program counter.
+
+An optional count can be specified to step multiple times. If no
+argument is given, the CPU steps once. This command supports repeat
+execution.
 .IP "\fBsym clear\fR"
 Clear the symbol table, deleting all symbols.
 .IP "\fBsym set\fR \fIname\fR \fIvalue\fR"
@@ -599,8 +596,6 @@ The following are all valid examples of address expressions:
 .B main+0x3f
 .br
 .B __bss_end-__bss_start
-.SH SEE ALSO
-\fBnm\fR(1), \fBgdb\fR(1), \fBobjcopy\fR(1)
 .SH OPTIONS
 MSPDebug's behaviour can be configured via the following variables:
 .IP "\fBcolor\fR (boolean)"
@@ -621,16 +616,13 @@ no radix specifier, this value gives the input radix, which is
 If set, MSPDebug will supress most of its debug-related output. This option
 defaults to false, but can be set true on start-up using the \fB-q\fR
 command-line option.
+.SH SEE ALSO
+\fBnm\fR(1), \fBgdb\fR(1), \fBobjcopy\fR(1)
 .SH BUGS
 If you find any bugs, you should report them to the author at
 dlbeer@gmail.com. It would help if you could include a transcript
 of an MSPDebug session illustrating the program, as well as any
-relevant binaries or other files. Below, known bugs in the current
-version of MSPDebug are described.
-
-When using the GDB remote stub in simulation and an IO read request
-occurs, any request to interrupt from GDB will not be acknowledged
-until the IO request is either completed or aborted.
+relevant binaries or other files.
 .SH COPYRIGHT
 Copyright (C) 2009-2011 Daniel Beer <dlbeer@gmail.com>
 
