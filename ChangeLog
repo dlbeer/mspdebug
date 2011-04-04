@@ -1,3 +1,14 @@
+Version 0.15 - 5 Apr 2011
+	* Support for new chips: MSP430G2452, MSP430F5525,
+	  MSP430F47173, MSP430F5526.
+	* Added --force-reset option.
+	* Added "alias" command.
+	* IO peripheral simulator (interrupts, hardware multiplier,
+	  GPIO, Timer_A, Watchdog Timer+).
+	* Configurable block size for FET memory transfers.
+	* Fix build problems on Cygwin and OpenBSD.
+	* Various corrections to manual page.
+
 Version 0.14 - 7 Feb 2011
 	* Corrected email address in AUTHORS file.
 	* Support for new chips: MSP430F2272, MSP430F2122.
