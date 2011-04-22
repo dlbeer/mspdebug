@@ -313,6 +313,7 @@ static int flash_bsl_readmem(device_t dev_base,
 
 		if (recv_buf[0] == 0x3a) {
 			memcpy(mem, recv_buf + 1, ret - 1);
+			addr += ret - 1;
 			len -= ret - 1;
 			mem += ret - 1;
 		} else if (recv_buf[0] == 0x3b) {
@@ -505,6 +506,7 @@ static int flash_bsl_writemem(device_t dev_base,
 		/* data */
 		memcpy(&send_buf[4], mem, write_size);
 
+		addr += write_size;
 		mem += write_size;
 		len -= write_size;
 
