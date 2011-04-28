@@ -52,3 +52,6 @@ Jasper Lievisse Adriaanse <jasper@openbsd.org>:
 Ionut Nicu <ionut.nicu@mindbit.ro>:
 	* Support for MSP430F47173 and MSP430F5526.
 	* --force-reset option.
+
+Paul Fleischer <paul@xpg.dk>:
+	* Support for MSP430G2553.
