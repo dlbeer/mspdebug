@@ -154,6 +154,7 @@ static struct simio_device *tracer_create(char **arg_text)
 	tr = malloc(sizeof(*tr));
 	if (!tr) {
 		pr_error("tracer: couldn't allocate memory");
+		free(history);
 		return NULL;
 	}
 
