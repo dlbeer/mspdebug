@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for the eZ430
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2011 Daniel Beer
  * Copyright (C) 2010 Peter Jansen
  *
  * This program is free software; you can redistribute it and/or modify
@@ -32,6 +32,9 @@ struct olimex_transport {
 	int                     int_number;
 	struct usb_dev_handle   *handle;
 
+	int			in_ep;
+	int			out_ep;
+
 	uint8_t                 buf[64];
 	int                     len;
 	int                     offset;
@@ -49,11 +52,16 @@ struct olimex_transport {
  */
 
 #define USB_FET_VENDOR			0x15ba
-#define USB_FET_PRODUCT			0x0002
-#define USB_FET_INTERFACE_CLASS		255
 
-#define USB_FET_IN_EP			0x81
-#define USB_FET_OUT_EP			0x01
+#define V1_PRODUCT			0x0002
+#define V1_INTERFACE_CLASS		255
+#define V1_IN_EP			0x81
+#define V1_OUT_EP			0x01
+
+#define V2_PRODUCT			0x0031
+#define V2_INTERFACE_CLASS		10
+#define V2_IN_EP			0x82
+#define V2_OUT_EP			0x02
 
 #define CP210x_REQTYPE_HOST_TO_DEVICE   0x41
 
@@ -61,7 +69,7 @@ struct olimex_transport {
 #define CP210X_SET_BAUDDIV              0x01
 #define CP210X_SET_MHS                  0x07
 
-#define TIMEOUT		                1000
+#define TIMEOUT		                10000
 
 static int open_interface(struct olimex_transport *tr,
 			  struct usb_device *dev, int ino)
@@ -135,9 +143,19 @@ static int open_device(struct olimex_transport *tr, struct usb_device *dev)
 		struct usb_interface *intf = &c->interface[i];
 		struct usb_interface_descriptor *desc = &intf->altsetting[0];
 
-		if (desc->bInterfaceClass == USB_FET_INTERFACE_CLASS &&
-		    !open_interface(tr, dev, desc->bInterfaceNumber))
+		if (desc->bInterfaceClass == V1_INTERFACE_CLASS &&
+		    !open_interface(tr, dev, desc->bInterfaceNumber)) {
+			printc_dbg("olimex: rev 1 device\n");
+			tr->in_ep = V1_IN_EP;
+			tr->out_ep = V1_OUT_EP;
 			return 0;
+		} else if (desc->bInterfaceClass == V2_INTERFACE_CLASS &&
+			   !open_interface(tr, dev, desc->bInterfaceNumber)) {
+			printc_dbg("olimex: rev 2 device\n");
+			tr->in_ep = V2_IN_EP;
+			tr->out_ep = V2_OUT_EP;
+			return 0;
+		}
 	}
 
 	return -1;
@@ -153,7 +171,7 @@ static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 #ifdef DEBUG_OLIMEX
 		debug_hexdump(__FILE__": USB transfer out", data, len);
 #endif
-		sent = usb_bulk_write(tr->handle, USB_FET_OUT_EP,
+		sent = usb_bulk_write(tr->handle, tr->out_ep,
 				      (char *)data, len, TIMEOUT);
 		if (sent < 0) {
 			pr_error(__FILE__": can't send data");
@@ -175,7 +193,7 @@ static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 	printc(__FILE__": %s : read max %d\n", __FUNCTION__, max_len);
 #endif
 
-	rlen = usb_bulk_read(tr->handle, USB_FET_IN_EP, (char *)databuf,
+	rlen = usb_bulk_read(tr->handle, tr->in_ep, (char *)databuf,
 			     max_len, TIMEOUT);
 
 #ifdef DEBUG_OLIMEX
@@ -222,10 +240,13 @@ transport_t olimex_open(const char *devpath)
 	usb_find_busses();
 	usb_find_devices();
 
-	if (devpath)
+	if (devpath) {
 		dev = usbutil_find_by_loc(devpath);
-	else
-		dev = usbutil_find_by_id(USB_FET_VENDOR, USB_FET_PRODUCT);
+	} else {
+		dev = usbutil_find_by_id(USB_FET_VENDOR, V1_PRODUCT);
+		if (!dev)
+			dev = usbutil_find_by_id(USB_FET_VENDOR, V2_PRODUCT);
+	}
 
 	if (!dev) {
 		free(tr);
@@ -238,7 +259,7 @@ transport_t olimex_open(const char *devpath)
 	}
 
 	/* Flush out lingering data */
-	while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
+	while (usb_bulk_read(tr->handle, tr->in_ep,
 			     buf, sizeof(buf),
 			     100) >= 0);
 

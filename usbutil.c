@@ -30,7 +30,8 @@ static const char *device_help(const struct usb_device *dev)
 		const char *help;
 	} info[] = {
 		{0x0451, 0xf432, "eZ430-RF2500"},
-		{0x15ba, 0x0002, "Olimex MSP-JTAG-TINY"}
+		{0x15ba, 0x0002, "Olimex MSP-JTAG-TINY (v1)"},
+		{0x15ba, 0x0031, "Olimex MSP-JTAG-TINY (v2)"}
 	};
 	int i;
 
