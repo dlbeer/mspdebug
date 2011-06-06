@@ -46,6 +46,7 @@
 #include "vector.h"
 #include "fet_db.h"
 #include "flash_bsl.h"
+#include "gdbc.h"
 
 #include "uif.h"
 #include "olimex.h"
@@ -64,7 +65,8 @@ static const struct device_class *const driver_table[] = {
 	&device_sim,
 	&device_uif,
 	&device_bsl,
-	&device_flash_bsl
+	&device_flash_bsl,
+	&device_gdbc
 };
 
 static const char *version_text =

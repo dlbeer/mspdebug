@@ -51,20 +51,20 @@ void gdb_printf(struct gdb_data *data, const char *fmt, ...)
 	data->outlen += len;
 }
 
-static int gdb_read(struct gdb_data *data, int blocking)
+static int gdb_read(struct gdb_data *data, int timeout_ms)
 {
 	fd_set r;
 	int len;
 	struct timeval to = {
-		.tv_sec = 0,
-		.tv_usec = 0
+		.tv_sec = timeout_ms / 1000,
+		.tv_usec = timeout_ms % 1000
 	};
 
 	FD_ZERO(&r);
 	FD_SET(data->sock, &r);
 
 	if (select(data->sock + 1, &r, NULL, NULL,
-		   blocking ? NULL : &to) < 0) {
+		   timeout_ms < 0 ? NULL : &to) < 0) {
 		pr_error("gdb: select");
 		return -1;
 	}
@@ -90,9 +90,9 @@ static int gdb_read(struct gdb_data *data, int blocking)
 	return len;
 }
 
-int gdb_peek(struct gdb_data *data)
+int gdb_peek(struct gdb_data *data, int timeout_ms)
 {
-	if (data->head == data->tail && gdb_read(data, 0) < 0)
+	if (data->head == data->tail && gdb_read(data, timeout_ms) < 0)
 		return -1;
 
 	return data->head != data->tail;
@@ -103,7 +103,7 @@ int gdb_getc(struct gdb_data *data)
 	int c;
 
 	/* If the buffer is empty, receive some more data */
-	if (data->head == data->tail && gdb_read(data, 1) < 0)
+	if (data->head == data->tail && gdb_read(data, -1) < 0)
 		return -1;
 
 	c = data->xbuf[data->head];
@@ -128,20 +128,21 @@ int gdb_flush_ack(struct gdb_data *data)
 {
 	int c;
 
-	do {
-		data->outbuf[data->outlen] = 0;
 #ifdef DEBUG_GDB
-		printc("-> %s\n", data->outbuf);
+	printc("-> %s\n", data->outbuf);
 #endif
+	data->outbuf[data->outlen] = 0;
+
+	do {
 		if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
 			data->error = errno;
 			pr_error("gdb: flush_ack");
 			return -1;
 		}
 
-		c = gdb_getc(data);
-		if (c < 0)
-			return -1;
+		do {
+			c = gdb_getc(data);
+		} while (c != '+' && c != '-');
 	} while (c != '+');
 
 	data->outlen = 0;

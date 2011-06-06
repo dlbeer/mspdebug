@@ -66,6 +66,17 @@ const static struct opdb_key keys[] = {
 		.defval = {
 			.numeric = 64
 		}
+	},
+	{
+		.name = "gdbc_xfer_size",
+		.type = OPDB_TYPE_NUMERIC,
+		.help =
+"Maximum size of memory transfers for the GDB client. Increasing this\n"
+"value will result in faster transfers, but may cause problems with some\n"
+"servers.\n",
+		.defval = {
+			.numeric = 64
+		}
 	}
 };
 

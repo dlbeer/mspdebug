@@ -288,7 +288,7 @@ static int run(struct gdb_data *data, char *buf)
 		if (status == DEVICE_STATUS_INTR)
 			goto out;
 
-		while (gdb_peek(data)) {
+		while (gdb_peek(data, 0)) {
 			int c = gdb_getc(data);
 
 			if (c < 0)

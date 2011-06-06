@@ -16,32 +16,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef GDB_PROTO_H_
-#define GDB_PROTO_H_
+#ifndef GDBC_H_
+#define GDBC_H_
 
-#define GDB_MAX_XFER    8192
-#define GDB_BUF_SIZE	(GDB_MAX_XFER * 2 + 64)
+#include "device.h"
 
-struct gdb_data {
-	int             sock;
-	int             error;
-
-	char            xbuf[1024];
-	int             head;
-	int             tail;
-
-	char            outbuf[GDB_BUF_SIZE];
-	int             outlen;
-};
-
-void gdb_init(struct gdb_data *d, int sock);
-void gdb_printf(struct gdb_data *data, const char *fmt, ...);
-int gdb_send(struct gdb_data *data, const char *msg);
-void gdb_packet_start(struct gdb_data *data);
-void gdb_packet_end(struct gdb_data *data);
-int gdb_peek(struct gdb_data *data, int timeout_ms);
-int gdb_getc(struct gdb_data *data);
-int gdb_flush_ack(struct gdb_data *data);
-int gdb_read_packet(struct gdb_data *data, char *buf);
+/* GDB client implementation */
+extern const struct device_class device_gdbc;
 
 #endif

@@ -117,6 +117,11 @@ Connect RTS to the device's TEST pin and DTR to the device's RST pin.
 Use an appropriate serial level-shifter to make the connection, if necessary.
 If connecting to a device with non-multiplexed JTAG pins, connect RTS to
 the device's TCK pin via an inverter.
+.IP "\fBgdbc\fR"
+GDB client mode. Connect to a server which implements the GDB remote
+protocol and provide an interface to it. To use this driver, specify
+the remote address in \fIhostname:port\fR format using the \fB-d\fR
+option.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
@@ -608,6 +613,10 @@ speed, but may cause problems with some chips.
 Automatically restart the GDB server after disconnection. If this
 option is set, then the GDB server keeps running until an error occurs,
 or the user interrupts with Ctrl+C.
+.IP "\fBgdbc_xfer_size\fR (numeric)"
+Maximum size of memory transfers for the GDB client. Increasing this
+value will result in faster transfers, but may cause problems with some
+servers.
 .IP "\fBiradix\fR (numeric)"
 Default input radix for address expressions. For address values with
 no radix specifier, this value gives the input radix, which is
