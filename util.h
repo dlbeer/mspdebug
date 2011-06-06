@@ -57,4 +57,6 @@ static inline int ishex(int c)
 	return isdigit(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 }
 
+int hexval(int c);
+
 #endif

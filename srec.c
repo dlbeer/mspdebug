@@ -45,16 +45,6 @@ int srec_check(FILE *in)
 	return 1;
 }
 
-static int hexval(int c)
-{
-	if (isdigit(c))
-		return c - '0';
-	if (c >= 'A' && c <= 'F')
-		return c - 'A' + 10;
-
-	return c - 'a' + 10;
-}
-
 int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 {
 	char buf[128];

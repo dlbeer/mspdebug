@@ -317,3 +317,15 @@ void debug_hexdump(const char *label, const uint8_t *data, int len)
 		offset += i;
 	}
 }
+
+int hexval(int c)
+{
+	if (isdigit(c))
+		return c - '0';
+	if (isupper(c))
+		return c - 'A' + 10;
+	if (islower(c))
+		return c - 'a' + 10;
+
+	return 0;
+}

@@ -179,18 +179,6 @@ static void gdb_packet_end(struct gdb_data *data)
 	gdb_printf(data, "#%02x", c);
 }
 
-static int hexval(int c)
-{
-	if (isdigit(c))
-		return c - '0';
-	if (isupper(c))
-		return c - 'A' + 10;
-	if (islower(c))
-		return c - 'a' + 10;
-
-	return 0;
-}
-
 static int gdb_send(struct gdb_data *data, const char *msg)
 {
 	gdb_packet_start(data);
