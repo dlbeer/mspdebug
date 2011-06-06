@@ -97,8 +97,8 @@ Linux kernel, and should appear as /dev/tty\fIXX\fR when attached.
 USB connection is not supported for this driver.
 .IP "\fBuif-bsl\fR"
 Connect to the bootloader on a FET430UIF device. These devices contain
-MSP430F419 chips. By sending a special command sequence, you can obtain
-access to the bootloader and inspect memory on the MSP430F419 in the
+MSP430F1612 chips. By sending a special command sequence, you can obtain
+access to the bootloader and inspect memory on the MSP430F1612 in the
 programming device itself.
 
 Currently, only memory read/write and erase are supported. CPU control
