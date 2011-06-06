@@ -358,6 +358,14 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 	return gdb_send(data, "OK");
 }
 
+static int restart_program(struct gdb_data *data)
+{
+	if (device_ctl(DEVICE_CTL_RESET) < 0)
+		return gdb_send(data, "E00");
+
+	return gdb_send(data, "OK");
+}
+
 static int gdb_send_supported(struct gdb_data *data)
 {
 	gdb_packet_start(data);
@@ -378,6 +386,10 @@ static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 	case 'z':
 	case 'Z':
 		return set_breakpoint(data, buf[0] == 'Z', buf + 1);
+
+	case 'r': /* Restart */
+	case 'R':
+		return restart_program(data);
 
 	case 'g': /* Read registers */
 		return read_registers(data);
