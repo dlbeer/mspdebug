@@ -34,158 +34,7 @@
 #include "output.h"
 #include "reader.h"
 #include "expr.h"
-
-#define MAX_MEM_XFER    8192
-
-/************************************************************************
- * GDB IO routines
- */
-
-struct gdb_data {
-	int             sock;
-	int             error;
-
-	char            xbuf[1024];
-	int             head;
-	int             tail;
-
-	char            outbuf[MAX_MEM_XFER * 2 + 64];
-	int             outlen;
-};
-
-static void gdb_printf(struct gdb_data *data, const char *fmt, ...)
-{
-	va_list ap;
-	int len;
-
-	va_start(ap, fmt);
-	len = vsnprintf(data->outbuf + data->outlen,
-			sizeof(data->outbuf) - data->outlen,
-			fmt, ap);
-	va_end(ap);
-
-	data->outlen += len;
-}
-
-static int gdb_read(struct gdb_data *data, int blocking)
-{
-	fd_set r;
-	int len;
-	struct timeval to = {
-		.tv_sec = 0,
-		.tv_usec = 0
-	};
-
-	FD_ZERO(&r);
-	FD_SET(data->sock, &r);
-
-	if (select(data->sock + 1, &r, NULL, NULL,
-		   blocking ? NULL : &to) < 0) {
-		pr_error("gdb: select");
-		return -1;
-	}
-
-	if (!FD_ISSET(data->sock, &r))
-		return 0;
-
-	len = recv(data->sock, data->xbuf, sizeof(data->xbuf), 0);
-
-	if (len < 0) {
-		data->error = errno;
-		pr_error("gdb: recv");
-		return -1;
-	}
-
-	if (!len) {
-		printc("Connection closed\n");
-		return -1;
-	}
-
-	data->head = 0;
-	data->tail = len;
-	return len;
-}
-
-static int gdb_peek(struct gdb_data *data)
-{
-	if (data->head == data->tail && gdb_read(data, 0) < 0)
-		return -1;
-
-	return data->head != data->tail;
-}
-
-static int gdb_getc(struct gdb_data *data)
-{
-	int c;
-
-	/* If the buffer is empty, receive some more data */
-	if (data->head == data->tail && gdb_read(data, 1) < 0)
-		return -1;
-
-	c = data->xbuf[data->head];
-	data->head++;
-
-	return c;
-}
-
-static int gdb_flush(struct gdb_data *data)
-{
-	if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
-		data->error = errno;
-		pr_error("gdb: flush");
-		return -1;
-	}
-
-	data->outlen = 0;
-	return 0;
-}
-
-static int gdb_flush_ack(struct gdb_data *data)
-{
-	int c;
-
-	do {
-		data->outbuf[data->outlen] = 0;
-#ifdef DEBUG_GDB
-		printc("-> %s\n", data->outbuf);
-#endif
-		if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
-			data->error = errno;
-			pr_error("gdb: flush_ack");
-			return -1;
-		}
-
-		c = gdb_getc(data);
-		if (c < 0)
-			return -1;
-	} while (c != '+');
-
-	data->outlen = 0;
-	return 0;
-}
-
-static void gdb_packet_start(struct gdb_data *data)
-{
-	gdb_printf(data, "$");
-}
-
-static void gdb_packet_end(struct gdb_data *data)
-{
-	int i;
-	int c = 0;
-
-	for (i = 1; i < data->outlen; i++)
-		c = (c + data->outbuf[i]) & 0xff;
-	gdb_printf(data, "#%02x", c);
-}
-
-static int gdb_send(struct gdb_data *data, const char *msg)
-{
-	gdb_packet_start(data);
-	gdb_printf(data, "%s", msg);
-	gdb_packet_end(data);
-	return gdb_flush_ack(data);
-}
+#include "gdb_proto.h"
 
 /************************************************************************
  * GDB server
@@ -210,7 +59,7 @@ static int read_registers(struct gdb_data *data)
 }
 
 struct monitor_buf {
-	char    buf[MAX_MEM_XFER];
+	char    buf[GDB_MAX_XFER];
 	int     len;
 	int	trunc;
 };
@@ -296,7 +145,7 @@ static int read_memory(struct gdb_data *data, char *text)
 {
 	char *length_text = strchr(text, ',');
 	address_t length, addr;
-	uint8_t buf[MAX_MEM_XFER];
+	uint8_t buf[GDB_MAX_XFER];
 	int i;
 
 	if (!length_text) {
@@ -330,7 +179,7 @@ static int write_memory(struct gdb_data *data, char *text)
 	char *data_text = strchr(text, ':');
 	char *length_text = strchr(text, ',');
 	address_t length, addr;
-	uint8_t buf[MAX_MEM_XFER];
+	uint8_t buf[GDB_MAX_XFER];
 	int buflen = 0;
 
 	if (!(data_text && length_text)) {
@@ -512,7 +361,7 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 static int gdb_send_supported(struct gdb_data *data)
 {
 	gdb_packet_start(data);
-	gdb_printf(data, "PacketSize=%x", MAX_MEM_XFER * 2);
+	gdb_printf(data, "PacketSize=%x", GDB_MAX_XFER * 2);
 	gdb_packet_end(data);
 	return gdb_flush_ack(data);
 }
@@ -569,61 +418,12 @@ static int process_gdb_command(struct gdb_data *data, char *buf, int len)
 static void gdb_reader_loop(struct gdb_data *data)
 {
 	for (;;) {
-		char buf[MAX_MEM_XFER * 2 + 64];
+		char buf[GDB_BUF_SIZE];
 		int len = 0;
-		int cksum_calc = 0;
-		int cksum_recv = 0;
-		int c;
 
-		/* Wait for packet start */
-		do {
-			c = gdb_getc(data);
-			if (c < 0)
-				return;
-		} while (c != '$');
-
-		/* Read packet payload */
-		while (len + 1 < sizeof(buf)) {
-			c = gdb_getc(data);
-			if (c < 0)
-				return;
-			if (c == '#')
-				break;
-
-			buf[len++] = c;
-			cksum_calc = (cksum_calc + c) & 0xff;
-		}
-		buf[len] = 0;
-
-		/* Read packet checksum */
-		c = gdb_getc(data);
-		if (c < 0)
+		len = gdb_read_packet(data, buf);
+		if (len < 0)
 			return;
-		cksum_recv = hexval(c);
-		c = gdb_getc(data);
-		if (c < 0)
-			return;
-		cksum_recv = (cksum_recv << 4) | hexval(c);
-
-#ifdef DEBUG_GDB
-		printc("<- $%s#%02x\n", buf, cksum_recv);
-#endif
-
-		if (cksum_recv != cksum_calc) {
-			printc_err("gdb: bad checksum (calc = 0x%02x, "
-				"recv = 0x%02x)\n", cksum_calc, cksum_recv);
-			printc_err("gdb: packet data was: %s\n", buf);
-			gdb_printf(data, "-");
-			if (gdb_flush(data) < 0)
-				return;
-			continue;
-		}
-
-		/* Send acknowledgement */
-		gdb_printf(data, "+");
-		if (gdb_flush(data) < 0)
-			return;
-
 		if (len && process_gdb_command(data, buf, len) < 0)
 			return;
 	}
@@ -679,11 +479,7 @@ static int gdb_server(int port)
 	printc("Client connected from %s:%d\n",
 	       inet_ntoa(addr.sin_addr), htons(addr.sin_port));
 
-	data.sock = client;
-	data.error = 0;
-	data.head = 0;
-	data.tail = 0;
-	data.outlen = 0;
+	gdb_init(&data, client);
 
 	/* Put the hardware breakpoint setting into a known state. */
 	printc("Clearing all breakpoints...\n");
