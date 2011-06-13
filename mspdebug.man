@@ -37,7 +37,8 @@ Set the programming voltage. The voltage should be specified as an integer
 in millivolts. It defaults to 3000 (3.0 V).
 .IP "\-j"
 Use JTAG instead of Spy-Bi-Wire to communicate with the MSP430. This
-option only works on FET430UIF devices.
+option doesn't work with eZ430 or eZ430-RF2500 devices, which support
+Spy-Bi-Wire only.
 .IP "\-d \fIdevice\fR"
 Specify that the driver should connect via a tty device rather than USB.
 The supported connection methods vary depending on the driver. See the
@@ -58,7 +59,8 @@ for UIF, RF2500 and Olimex devices)>
 .IP "\-\-fet\-force\-id \fIstring\fR"
 When using a FET device, force the connected chip to be recognised by
 MSPDebug as one of the given type during initialization. This overrides
-the device ID returned by the FET.
+the device ID returned by the FET. The given string should be a chip
+name in long form, for example "MSP430F2274".
 .IP "\-\-usb\-list"
 List available USB devices and exit.
 .IP "\-\-force-reset"
