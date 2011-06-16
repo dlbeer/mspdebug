@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 
 #include "gdb_proto.h"
 #include "output.h"
