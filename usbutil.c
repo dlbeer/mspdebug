@@ -88,7 +88,8 @@ void usbutil_list(void)
 	}
 }
 
-struct usb_device *usbutil_find_by_id(int vendor, int product, const char *requested_serial)
+struct usb_device *usbutil_find_by_id(int vendor, int product,
+				      const char *requested_serial)
 {
 	struct usb_bus *bus;
 

@@ -164,7 +164,8 @@ int write_all(int fd, const uint8_t *data, int len)
 	return 0;
 }
 
-static int open_serial_and_set_cflags(const char *device, int rate, tcflag_t set)
+static int open_serial_and_set_cflags(const char *device,
+				      int rate, tcflag_t set)
 {
 	int fd = open(device, O_RDWR | O_NOCTTY);
 	struct termios attr;

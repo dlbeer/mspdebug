@@ -98,7 +98,8 @@ static void crc_selftest(void) {
 #define TX_BSL_VERSION 0x19
 #define TX_BUFFER_SIZE 0x1a
 
-static int flash_bsl_send(struct flash_bsl_device *dev, const uint8_t *data, int len)
+static int flash_bsl_send(struct flash_bsl_device *dev,
+			  const uint8_t *data, int len)
 {
 	uint16_t crc;
 	uint8_t cmd_buf[MAX_PACKET + 5];
@@ -413,7 +414,8 @@ static int flash_bsl_unlock(struct flash_bsl_device *dev)
 #endif
 	}
 
-	if (flash_bsl_send(dev, rx_password_cmd, dev->long_password ? 33 : 17) < 0) {
+	if (flash_bsl_send(dev, rx_password_cmd,
+			   dev->long_password ? 33 : 17) < 0) {
 		printc_err("flash_bsl_unlock: send password failed\n");
 		return -1;
 	}
@@ -669,7 +671,8 @@ static device_t flash_bsl_open(const struct device_args *args)
 	}
 
 
-	if (flash_bsl_send(dev, tx_bsl_version_command, sizeof(tx_bsl_version_command)) < 0) {
+	if (flash_bsl_send(dev, tx_bsl_version_command,
+			   sizeof(tx_bsl_version_command)) < 0) {
 		printc_err("flash_bsl: failed to read BSL version");
 		goto fail;
 	}

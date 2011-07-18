@@ -25,14 +25,14 @@
 #include "expr.h"
 
 /* Multiplier register addresses - taken from mspgcc */
-#define MPY                0x0130  /* Multiply Unsigned/Operand 1 */
-#define MPYS               0x0132  /* Multiply Signed/Operand 1 */
-#define MAC                0x0134  /* Multiply Unsigned and Accumulate/Operand 1 */
-#define MACS               0x0136  /* Multiply Signed and Accumulate/Operand 1 */
-#define OP2                0x0138  /* Operand 2 */
-#define RESLO              0x013A  /* Result Low Word */
-#define RESHI              0x013C  /* Result High Word */
-#define SUMEXT             0x013E  /* Sum Extend */
+#define MPY            0x0130  /* Multiply Unsigned/Operand 1 */
+#define MPYS           0x0132  /* Multiply Signed/Operand 1 */
+#define MAC            0x0134  /* Multiply Unsigned and Accumulate/Operand 1 */
+#define MACS           0x0136  /* Multiply Signed and Accumulate/Operand 1 */
+#define OP2            0x0138  /* Operand 2 */
+#define RESLO          0x013A  /* Result Low Word */
+#define RESHI          0x013C  /* Result High Word */
+#define SUMEXT         0x013E  /* Sum Extend */
 
 struct hwmult {
 	struct simio_device		base;
