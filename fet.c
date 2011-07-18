@@ -1053,7 +1053,7 @@ static device_t fet_open_rf2500(const struct device_args *args)
 		return NULL;
 	}
 
-        trans = rf2500_open(args->path);
+        trans = rf2500_open(args->path, args->requested_serial);
         if (!trans)
                 return NULL;
 
@@ -1082,7 +1082,7 @@ static device_t fet_open_olimex(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = uif_open(args->path, UIF_TYPE_OLIMEX);
 	else
-		trans = olimex_open(args->path);
+		trans = olimex_open(args->path, args->requested_serial);
 
         if (!trans)
                 return NULL;

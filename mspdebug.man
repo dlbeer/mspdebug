@@ -46,6 +46,9 @@ section \fBDRIVERS\fR below for details.
 .IP "\-U \fIbus\fR:\fIdevice\fR"
 Specify a particular USB device to connect to. Without this option,
 the first device of the appropriate type is opened.
+.IP "\-s \fIserial\fR"
+Specify a particular USB device serial number to connect to. Use this
+option to distinguish between multiple devices of the same type.
 .IP "\-n"
 Do not process the startup file (~/.mspdebug).
 .IP "\--long-password"

@@ -179,7 +179,7 @@ static void usbtr_destroy(transport_t tr_base)
 	free(tr);
 }
 
-transport_t rf2500_open(const char *devpath)
+transport_t rf2500_open(const char *devpath, const char *requested_serial)
 {
 	struct rf2500_transport *tr = malloc(sizeof(*tr));
 	struct usb_device *dev;
@@ -201,7 +201,8 @@ transport_t rf2500_open(const char *devpath)
 	if (devpath)
 		dev = usbutil_find_by_loc(devpath);
 	else
-		dev = usbutil_find_by_id(USB_FET_VENDOR, USB_FET_PRODUCT);
+		dev = usbutil_find_by_id(USB_FET_VENDOR, USB_FET_PRODUCT,
+					 requested_serial);
 
 	if (!dev) {
 		free(tr);

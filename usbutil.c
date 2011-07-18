@@ -43,43 +43,78 @@ static const char *device_help(const struct usb_device *dev)
 	return "";
 }
 
+static int read_serial(struct usb_device *dev, char *buf, int max_len)
+{
+	struct usb_dev_handle *dh = usb_open(dev);
+
+	if (!dh)
+		return -1;
+
+	if (usb_get_string_simple(dh, dev->descriptor.iSerialNumber,
+				  buf, max_len) < 0) {
+		usb_close(dh);
+		return -1;
+	}
+
+	usb_close(dh);
+	return 0;
+}
+
 void usbutil_list(void)
 {
 	const struct usb_bus *bus;
 
 	for (bus = usb_get_busses(); bus; bus = bus->next) {
-		const struct usb_device *dev;
+		struct usb_device *dev;
 		int busnum = atoi(bus->dirname);
 
 		printc("Devices on bus %03d:\n", busnum);
 
 		for (dev = bus->devices; dev; dev = dev->next) {
 			int devnum = atoi(dev->filename);
+			char serial[128];
 
-			printc("    %03d:%03d %04x:%04x %s\n",
+			printc("    %03d:%03d %04x:%04x %s",
 			       busnum, devnum,
 			       dev->descriptor.idVendor,
 			       dev->descriptor.idProduct,
 			       device_help(dev));
+
+			if (!read_serial(dev, serial, sizeof(serial)))
+				printc(" [serial: %s]\n", serial);
+			else
+				printc("\n");
 		}
 	}
 }
 
-struct usb_device *usbutil_find_by_id(int vendor, int product)
+struct usb_device *usbutil_find_by_id(int vendor, int product, const char *requested_serial)
 {
 	struct usb_bus *bus;
 
 	for (bus = usb_get_busses(); bus; bus = bus->next) {
 		struct usb_device *dev;
 
-		for (dev = bus->devices; dev; dev = dev->next)
+		for (dev = bus->devices; dev; dev = dev->next) {
 			if (dev->descriptor.idVendor == vendor &&
-			    dev->descriptor.idProduct == product)
-				return dev;
+			    dev->descriptor.idProduct == product) {
+				char buf[128];
+
+				if (!requested_serial ||
+				    (!read_serial(dev, buf, sizeof(buf)) &&
+				     !strcasecmp(requested_serial, buf)))
+					return dev;
+			}
+		}
 	}
 
-	printc_err("usbutil: unable to find a device matching "
-		"%04x:%04x\n", vendor, product);
+	if(requested_serial)
+		printc_err("usbutil: unable to find device matching "
+			"%04x:%04x with serial %s\n", vendor, product,
+			requested_serial);
+	else
+		printc_err("usbutil: unable to find a device matching "
+			"%04x:%04x\n", vendor, product);
 
 	return NULL;
 }

@@ -66,6 +66,7 @@ struct device_args {
 	int			vcc_mv;
 	const char		*path;
 	const char		*forced_chip_id;
+	const char		*requested_serial;
 };
 
 struct device_class {

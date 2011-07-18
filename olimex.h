@@ -28,6 +28,6 @@
  *
  * A particular USB device may be specified in bus:dev form.
  */
-transport_t olimex_open(const char *usb_device);
+transport_t olimex_open(const char *usb_device, const char *requested_serial);
 
 #endif

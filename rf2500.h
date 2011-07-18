@@ -27,6 +27,6 @@
  *
  * A particular device may be specified in bus:dev form.
  */
-transport_t rf2500_open(const char *dev_path);
+transport_t rf2500_open(const char *dev_path, const char *requested_serial);
 
 #endif

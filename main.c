@@ -88,6 +88,8 @@ static void usage(const char *progname)
 "        Connect via the given tty device, rather than USB.\n"
 "    -U bus:dev\n"
 "        Specify a particular USB device to connect to.\n"
+"    -s serial\n"
+"        Specify a particular device serial number to connect to.\n"
 "    -j\n"
 "        Use JTAG, rather than Spy-Bi-Wire (UIF devices only).\n"
 "    -v voltage\n"
@@ -178,7 +180,7 @@ static int parse_cmdline_args(int argc, char **argv,
 	};
 	int want_usb = 0;
 
-	while ((opt = getopt_long(argc, argv, "d:jv:nU:q",
+	while ((opt = getopt_long(argc, argv, "d:jv:nU:s:q",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
 		case 'q':
@@ -206,6 +208,10 @@ static int parse_cmdline_args(int argc, char **argv,
 		case 'U':
 			args->devarg.path = optarg;
 			want_usb = 1;
+			break;
+
+		case 's':
+			args->devarg.requested_serial = optarg;
 			break;
 
 		case 'L':
@@ -300,6 +306,7 @@ int main(int argc, char **argv)
 	opdb_reset();
 
 	args.devarg.vcc_mv = 3000;
+	args.devarg.requested_serial = NULL;
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		return -1;
 
