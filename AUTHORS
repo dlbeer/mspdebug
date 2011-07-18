@@ -58,3 +58,6 @@ Paul Fleischer <paul@xpg.dk>:
 
 Kurt Snieckus <ksnieck@gmail.com>:
 	* Testing and analysis for MSP430FR5739.
+
+James Nuss <jamesnuss@nanometrics.ca>:
+	* Support for MSP430F5418.
