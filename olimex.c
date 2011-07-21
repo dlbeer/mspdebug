@@ -102,6 +102,12 @@ static int open_interface(struct olimex_transport *tr,
 	}
 #endif
 
+	if (usb_set_configuration(tr->handle, 1) < 0) {
+		pr_error(__FILE__": can't set configuration 1");
+		usb_close(tr->handle);
+		return -1;
+	}
+
 	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
 		pr_error(__FILE__": can't claim interface");
 		usb_close(tr->handle);
