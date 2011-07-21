@@ -41,7 +41,7 @@ static void sigint_handler(int signum)
 
 void ctrlc_init(void)
 {
-#ifdef WIN32
+#if defined(WIN32) || defined(__CYGWIN__)
        signal(SIGINT, sigint_handler);
 #else
        const static struct sigaction siga = {
