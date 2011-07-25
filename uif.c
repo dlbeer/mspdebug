@@ -36,8 +36,10 @@
 #include "util.h"
 #include "output.h"
 
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#ifndef B460800
 #define B460800 460800
+#endif
+#ifndef B500000
 #define B500000 500000
 #endif
 
@@ -115,13 +117,6 @@ static int open_olimex_iso(const char *device)
                 return -1;
 
         return fd;
-}
-#else
-static int open_olimex_iso(const char *device)
-{
-	printc_err("open_olimex_iso: this driver is only supported on "
-		   "Linux\n");
-	return -1;
 }
 #endif
 
