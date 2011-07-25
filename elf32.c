@@ -51,7 +51,7 @@ static int read_ehdr(struct elf32_info *info, FILE *in)
 {
 	/* Read and check the ELF header */
 	rewind(in);
-	if (fread(&info->file_ehdr, sizeof(info->file_ehdr), 1, in) < 0) {
+	if (fread(&info->file_ehdr, sizeof(info->file_ehdr), 1, in) == 0) {
 		pr_error("elf32: couldn't read ELF header");
 		return -1;
 	}
@@ -83,7 +83,7 @@ static int read_phdr(struct elf32_info *info, FILE *in)
 		}
 
 		if (fread(&info->file_phdrs[i],
-			  sizeof(info->file_phdrs[0]), 1, in) < 0) {
+			  sizeof(info->file_phdrs[0]), 1, in) == 0) {
 			printc_err("elf32: can't read phdr %d: %s\n",
 				i, strerror(errno));
 			return -1;
@@ -112,7 +112,7 @@ static int read_shdr(struct elf32_info *info, FILE *in)
 		}
 
 		if (fread(&info->file_shdrs[i],
-			  sizeof(info->file_shdrs[0]), 1, in) < 0) {
+			  sizeof(info->file_shdrs[0]), 1, in) == 0) {
 			printc_err("elf32: can't read shdr %d: %s\n",
 				i, strerror(errno));
 			return -1;
