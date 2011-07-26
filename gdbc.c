@@ -18,14 +18,15 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "sockets.h"
 #include "output.h"
 #include "gdbc.h"
 #include "gdb_proto.h"
 #include "opdb.h"
+#include "util.h"
 
 struct gdb_client {
 	struct device			base;
@@ -378,7 +379,8 @@ static int connect_to(const char *spec)
 	ent = gethostbyname(hostname);
 	if (!ent) {
 #ifdef WIN32
-		printc_err("No such host: %s: %s\n", hostname);
+		printc_err("No such host: %s: %s\n", hostname,
+			   last_error());
 #else
 		printc_err("No such host: %s: %s\n", hostname,
 			   hstrerror(h_errno));
@@ -388,7 +390,7 @@ static int connect_to(const char *spec)
 
 	sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (!sock) {
-		printc_err("socket: %s\n", strerror(errno));
+		printc_err("socket: %s\n", last_error());
 		return -1;
 	}
 
@@ -399,7 +401,7 @@ static int connect_to(const char *spec)
 		   inet_ntoa(addr.sin_addr), port);
 
 	if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		printc_err("connect: %s\n", strerror(errno));
+		printc_err("connect: %s\n", last_error());
 		closesocket(sock);
 		return -1;
 	}
@@ -418,7 +420,7 @@ static device_t gdbc_open(const struct device_args *args)
 	dev = malloc(sizeof(struct gdb_client));
 	if (!dev) {
 		printc_err("gdbc: can't allocate memory: %s\n",
-			   strerror(errno));
+			   last_error());
 		return NULL;
 	}
 

@@ -18,7 +18,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+
 #include "coff.h"
 #include "util.h"
 #include "output.h"
@@ -108,7 +108,7 @@ static int read_block(FILE *in, int offset, int size, void *buf)
 
 	if (fseek(in, offset, SEEK_SET) < 0) {
 		printc_err("coff: can't seek to offset %d: %s\n",
-			offset, strerror(errno));
+			offset, last_error());
 		return -1;
 	}
 
@@ -116,7 +116,7 @@ static int read_block(FILE *in, int offset, int size, void *buf)
 	if (len < 0) {
 		printc_err("coff: can't read %d bytes from "
 			"offset %d: %s\n",
-			size, offset, strerror(errno));
+			size, offset, last_error());
 		return -1;
 	}
 
@@ -206,7 +206,7 @@ static int load_section(FILE *in, uint32_t addr, uint32_t offset,
 	section = malloc(size);
 	if (!section) {
 		printc_err("coff: couldn't allocate memory for "
-			"section at 0x%x: %s\n", offset, strerror(errno));
+			"section at 0x%x: %s\n", offset, last_error());
 		return -1;
 	}
 

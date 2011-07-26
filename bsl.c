@@ -18,7 +18,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
 #include <stdint.h>
 #include <sys/stat.h>
@@ -369,7 +368,7 @@ static device_t bsl_open(const struct device_args *args)
 	dev->serial_fd = sport_open(args->path, B460800, 0);
 	if (SPORT_ISERR(dev->serial_fd)) {
 		printc_err("bsl: can't open %s: %s\n",
-			   args->path, strerror(errno));
+			   args->path, last_error());
 		free(dev);
 		return NULL;
 	}

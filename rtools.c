@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <ctype.h>
 
 #include "util.h"
@@ -349,7 +348,7 @@ static int do_isearch(address_t addr, address_t len,
 	mbuf = malloc(len);
 	if (!mbuf) {
 		printc_err("isearch: couldn't allocate memory: %s\n",
-			strerror(errno));
+			last_error());
 		return -1;
 	}
 
@@ -917,7 +916,7 @@ int cmd_cgraph(char **arg)
 	memory = malloc(len);
 	if (!memory) {
 		printc_err("cgraph: couldn't allocate memory: %s\n",
-			strerror(errno));
+			last_error());
 		return -1;
 	}
 

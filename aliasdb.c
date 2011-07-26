@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 
 #include "aliasdb.h"
 #include "vector.h"
@@ -171,7 +170,7 @@ int cmd_alias(char **arg)
 
 	if (vector_push(&alias_list, &na, 1) < 0) {
 		printc_err("alias: can't allocate memory: %s\n",
-			   strerror(errno));
+			   last_error());
 		return -1;
 	}
 

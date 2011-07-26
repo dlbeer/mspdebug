@@ -170,7 +170,7 @@ int sport_read(sport_t s, uint8_t *data, int len)
 		return -1;
 
 	if (!result) {
-		errno = EAGAIN;
+		SetLastError(WAIT_TIMEOUT);
 		return -1;
 	}
 
@@ -185,7 +185,7 @@ int sport_write(sport_t s, const uint8_t *data, int len)
 		return -1;
 
 	if (!result) {
-		errno = EAGAIN;
+		SetLastError(WAIT_TIMEOUT);
 		return -1;
 	}
 

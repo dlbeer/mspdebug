@@ -31,6 +31,9 @@
 /* This type fits an MSP430X register value */
 typedef uint32_t address_t;
 
+/* Retrive a string describing the last system error */
+const char *last_error(void);
+
 /* Check and catch ^C from the user */
 void ctrlc_init(void);
 void ctrlc_reset(void);

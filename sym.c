@@ -22,7 +22,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <regex.h>
-#include <errno.h>
+
 #include "stab.h"
 #include "expr.h"
 #include "binfile.h"
@@ -58,7 +58,7 @@ static int cmd_sym_load_add(int clear, char **arg)
 
 	in = fopen(*arg, "r");
 	if (!in) {
-		printc_err("sym: %s: %s\n", *arg, strerror(errno));
+		printc_err("sym: %s: %s\n", *arg, last_error());
 		return -1;
 	}
 
@@ -103,7 +103,7 @@ static int cmd_sym_savemap(char **arg)
 	savemap_out = fopen(fname, "w");
 	if (!savemap_out) {
 		printc_err("sym: couldn't write to %s: %s\n", fname,
-			strerror(errno));
+			last_error());
 		return -1;
 	}
 
@@ -113,7 +113,7 @@ static int cmd_sym_savemap(char **arg)
 	}
 
 	if (fclose(savemap_out) < 0) {
-		printc_err("sym: error on close: %s\n", strerror(errno));
+		printc_err("sym: error on close: %s\n", last_error());
 		return -1;
 	}
 

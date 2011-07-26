@@ -20,9 +20,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+
 #include "btree.h"
 #include "output.h"
+#include "util.h"
 
 #define MAX_HEIGHT 16
 
@@ -154,7 +155,7 @@ static struct btree_page *allocate_page(btree_t bt, int height)
 	p = malloc(size);
 	if (!p) {
 		printc_err("btree: couldn't allocate page: %s\n",
-			   strerror(errno));
+			   last_error());
 		return NULL;
 	}
 
@@ -436,7 +437,7 @@ btree_t btree_alloc(const struct btree_def *def)
 	bt = malloc(sizeof(*bt));
 	if (!bt) {
 		printc_err("btree: couldn't allocate tree: %s\n",
-			strerror(errno));
+			last_error());
 		return NULL;
 	}
 
@@ -447,7 +448,7 @@ btree_t btree_alloc(const struct btree_def *def)
 	bt->root = allocate_page(bt, 0);
 	if (!bt->root) {
 		printc_err("btree: couldn't allocate root node: %s\n",
-			strerror(errno));
+			   last_error());
 		free(bt);
 		return NULL;
 	}

@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <assert.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -101,7 +100,7 @@ static int open_olimex_iso(const char *device)
         if (ioctl(fd, TIOCSSERIAL, &serial_info) < 0) {
 		printc_err("open_olimex_iso: can't do "
 			   "ioctl TIOCSSERIAL: %s\n",
-			   strerror(errno));
+			   last_error());
 		return -1;
         }
 
@@ -149,7 +148,7 @@ transport_t uif_open(const char *device, uif_type_t type)
 
 	if (SPORT_ISERR(tr->serial_fd)) {
 		printc_err("uif: can't open serial device: %s: %s\n",
-			   device, strerror(errno));
+			   device, last_error());
 		free(tr);
 		return NULL;
 	}

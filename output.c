@@ -20,9 +20,10 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <errno.h>
+
 #include "opdb.h"
 #include "output.h"
+#include "util.h"
 
 struct outbuf {
 	char	buf[4096];
@@ -109,7 +110,7 @@ int printc_err(const char *fmt, ...)
 
 void pr_error(const char *prefix)
 {
-	printc_err("%s: %s\n", prefix, strerror(errno));
+	printc_err("%s: %s\n", prefix, last_error());
 }
 
 void capture_start(capture_func_t func, void *data)

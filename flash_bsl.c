@@ -19,7 +19,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
 #include <stdint.h>
 #include <sys/stat.h>
@@ -124,13 +123,13 @@ static int flash_bsl_send(struct flash_bsl_device *dev,
 
 	if (sport_write_all(dev->serial_fd, cmd_buf, len + 5) < 0) {
 		printc_err("flash_bsl: serial write failed: %s\n",
-			   strerror(errno));
+			   last_error());
 		return -1;
 	}
 
 	if (sport_read_all(dev->serial_fd, &response, 1) < 0) {
 		printc_err("flash_bsl: serial read failed: %s\n",
-			   strerror(errno));
+			   last_error());
 		return -1;
 	}
 
@@ -177,7 +176,7 @@ static int flash_bsl_recv(struct flash_bsl_device *dev,
 
 	if (sport_read_all(dev->serial_fd, header, 3) < 0) {
 		printc_err("flash_bsl: read response failed: %s\n",
-			   strerror(errno));
+			   last_error());
 		return -1;
 	}
 
@@ -635,7 +634,7 @@ static device_t flash_bsl_open(const struct device_args *args)
 	dev->serial_fd = sport_open(args->path, B9600, SPORT_EVEN_PARITY);
 	if (SPORT_ISERR(dev->serial_fd)) {
 		printc_err("flash_bsl: can't open %s: %s\n",
-			   args->path, strerror(errno));
+			   args->path, last_error());
 		free(dev);
 		return NULL;
 	}

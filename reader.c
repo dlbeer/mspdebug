@@ -21,7 +21,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
 
 #ifdef USE_READLINE
 #include <readline/readline.h>
@@ -229,7 +228,7 @@ int process_file(const char *filename, int show)
 	in = fopen(filename, "r");
 	if (!in) {
 		printc_err("read: can't open %s: %s\n",
-			filename, strerror(errno));
+			filename, last_error());
 		return -1;
 	}
 

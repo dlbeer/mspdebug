@@ -26,6 +26,10 @@
 #include <signal.h>
 #include <assert.h>
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include "util.h"
 #include "output.h"
 
@@ -220,5 +224,30 @@ char *strsep(char **strp, const char *delim)
 
 	*strp = NULL;
 	return start;
+}
+#endif
+
+#ifdef WIN32
+const char *last_error(void)
+{
+	DWORD err = GetLastError();
+	static char msg_buf[128];
+	int len;
+
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0,
+		      msg_buf, sizeof(msg_buf), NULL);
+
+	/* Trim trailing newline characters */
+	len = strlen(msg_buf);
+	while (len > 0 && isspace(msg_buf[len - 1]))
+		len--;
+	msg_buf[len] = 0;
+
+	return msg_buf;
+}
+#else
+const char *last_error(void)
+{
+	return strerror(errno);
 }
 #endif

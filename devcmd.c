@@ -20,8 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
 #include <unistd.h>
+
 #include "device.h"
 #include "binfile.h"
 #include "stab.h"
@@ -498,7 +498,7 @@ static int do_cmd_prog(char **arg, int prog_flags)
 
 	in = fopen(*arg, "r");
 	if (!in) {
-		printc_err("prog: %s: %s\n", *arg, strerror(errno));
+		printc_err("prog: %s: %s\n", *arg, last_error());
 		return -1;
 	}
 

@@ -17,11 +17,12 @@
  */
 
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
+
 #include "elf32.h"
 #include "elf_format.h"
 #include "output.h"
+#include "util.h"
 
 #ifndef EM_MSP430
 #define EM_MSP430	0x69
@@ -81,7 +82,7 @@ static int read_phdr(struct elf32_info *info, FILE *in)
 		if (fread(&info->file_phdrs[i],
 			  sizeof(info->file_phdrs[0]), 1, in) == 0) {
 			printc_err("elf32: can't read phdr %d: %s\n",
-				i, strerror(errno));
+				i, last_error());
 			return -1;
 		}
 	}
@@ -110,7 +111,7 @@ static int read_shdr(struct elf32_info *info, FILE *in)
 		if (fread(&info->file_shdrs[i],
 			  sizeof(info->file_shdrs[0]), 1, in) == 0) {
 			printc_err("elf32: can't read shdr %d: %s\n",
-				i, strerror(errno));
+				i, last_error());
 			return -1;
 		}
 	}

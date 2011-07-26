@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -466,7 +465,7 @@ static int gdb_server(int port)
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		printc_err("gdb: can't bind to port %d: %s\n",
-			port, strerror(errno));
+			port, last_error());
 		closesocket(sock);
 		return -1;
 	}
