@@ -56,7 +56,7 @@ static int cmd_sym_load_add(int clear, char **arg)
 	if (clear && prompt_abort(MODIFY_SYMS))
 		return 0;
 
-	in = fopen(*arg, "r");
+	in = fopen(*arg, "rb");
 	if (!in) {
 		printc_err("sym: %s: %s\n", *arg, last_error());
 		return -1;

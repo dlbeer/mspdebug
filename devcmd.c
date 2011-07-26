@@ -496,7 +496,7 @@ static int do_cmd_prog(char **arg, int prog_flags)
 	if (prompt_abort(MODIFY_SYMS))
 		return 0;
 
-	in = fopen(*arg, "r");
+	in = fopen(*arg, "rb");
 	if (!in) {
 		printc_err("prog: %s: %s\n", *arg, last_error());
 		return -1;
