@@ -21,6 +21,7 @@
 #include <errno.h>
 
 #include "sport.h"
+#include "util.h"
 
 #ifndef WIN32
 
@@ -101,10 +102,10 @@ int sport_write(sport_t s, const uint8_t *data, int len)
 sport_t sport_open(const char *device, int rate, int flags)
 {
 	HANDLE hs = CreateFile(device, GENERIC_READ | GENERIC_WRITE,
-			       0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+			       0, 0, OPEN_EXISTING,
+			       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
 			       0);
 	DCB params = {0};
-	COMMTIMEOUTS timeouts = {0};
 
 	if (hs == INVALID_HANDLE_VALUE)
 		return INVALID_HANDLE_VALUE;
@@ -120,17 +121,6 @@ sport_t sport_open(const char *device, int rate, int flags)
 	params.Parity = (flags & SPORT_EVEN_PARITY) ? EVENPARITY : NOPARITY;
 
 	if (!SetCommState(hs, &params)) {
-		CloseHandle(hs);
-		return INVALID_HANDLE_VALUE;
-	}
-
-	timeouts.ReadIntervalTimeout = 5000;
-	timeouts.ReadTotalTimeoutConstant = 5000;
-	timeouts.ReadTotalTimeoutMultiplier = 0;
-	timeouts.WriteTotalTimeoutConstant = 5000;
-	timeouts.WriteTotalTimeoutMultiplier = 10;
-
-	if (!SetCommTimeouts(hs, &timeouts)) {
 		CloseHandle(hs);
 		return INVALID_HANDLE_VALUE;
 	}
@@ -162,34 +152,53 @@ int sport_set_modem(sport_t s, int bits)
 	return 0;
 }
 
-int sport_read(sport_t s, uint8_t *data, int len)
+static int xfer_wait(sport_t s, LPOVERLAPPED ovl)
 {
 	DWORD result = 0;
 
-	if (!ReadFile(s, (void *)data, len, &result, NULL))
-		return -1;
+	while (!GetOverlappedResult(s, ovl, &result, FALSE)) {
+		DWORD r;
 
-	if (!result) {
-		SetLastError(WAIT_TIMEOUT);
-		return -1;
+		if (GetLastError() != ERROR_IO_INCOMPLETE)
+			return -1;
+
+		if (ctrlc_check()) {
+			CancelIo(s);
+			SetLastError(ERROR_OPERATION_ABORTED);
+			return -1;
+		}
+
+		r = WaitForSingleObject(ctrlc_win32_event(), 5000);
+		if (r == WAIT_TIMEOUT) {
+			CancelIo(s);
+			SetLastError(WAIT_TIMEOUT);
+			return -1;
+		}
 	}
 
 	return result;
 }
 
+int sport_read(sport_t s, uint8_t *data, int len)
+{
+	OVERLAPPED ovl = {0};
+
+	ovl.hEvent = ctrlc_win32_event();
+	ctrlc_reset();
+
+	ReadFile(s, (void *)data, len, NULL, &ovl);
+	return xfer_wait(s, &ovl);
+}
+
 int sport_write(sport_t s, const uint8_t *data, int len)
 {
-	DWORD result = 0;
+	OVERLAPPED ovl = {0};
 
-	if (!WriteFile(s, (void *)data, len, &result, NULL))
-		return -1;
+	ovl.hEvent = ctrlc_win32_event();
+	ctrlc_reset();
 
-	if (!result) {
-		SetLastError(WAIT_TIMEOUT);
-		return -1;
-	}
-
-	return result;
+	WriteFile(s, (void *)data, len, NULL, &ovl);
+	return xfer_wait(s, &ovl);
 }
 
 #endif
