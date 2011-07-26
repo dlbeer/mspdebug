@@ -19,13 +19,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <unistd.h>
 
+#include "sockets.h"
 #include "output.h"
 #include "gdbc.h"
 #include "gdb_proto.h"
@@ -74,7 +70,7 @@ static void gdbc_destroy(device_t dev_base)
 	struct gdb_client *c = (struct gdb_client *)dev_base;
 
 	shutdown(c->gdb.sock, 2);
-	close(c->gdb.sock);
+	closesocket(c->gdb.sock);
 	free(c);
 }
 
@@ -400,7 +396,7 @@ static int connect_to(const char *spec)
 
 	if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		printc_err("connect: %s\n", strerror(errno));
-		close(sock);
+		closesocket(sock);
 		return -1;
 	}
 

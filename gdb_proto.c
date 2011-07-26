@@ -19,12 +19,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
 
+#include "sockets.h"
 #include "gdb_proto.h"
 #include "output.h"
 #include "util.h"
