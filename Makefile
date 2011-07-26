@@ -43,30 +43,43 @@ else
   endif
 endif
 
-MSPDEBUG_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
+ifeq ($(OS),Windows_NT)
+	WIN32_LIBS = -lws2_32 -lregex
+	BINARY = mspdebug.exe
+else
+	WIN32_LIBS =
+	BINARY = mspdebug
+endif
 
-all: mspdebug
+GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
+
+MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
+MSPDEBUG_LIBS = -lusb $(READLINE_LIBS) $(WIN32_LIBS)
+MSPDEBUG_CFLAGS = $(CFLAGS) $(PORTS_CFLAGS) $(GCC_CFLAGS)
+
+all: $(BINARY)
 
 clean:
-	/bin/rm -f *.o
-	/bin/rm -f mspdebug
+	rm -f *.o
+	rm -f $(BINARY)
 
-install: mspdebug mspdebug.man
+install: $(BINARY) mspdebug.man
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man1
-	$(INSTALL) -m 0755 mspdebug $(DESTDIR)$(PREFIX)/bin/mspdebug
-	$(INSTALL) -m 0644 mspdebug.man $(DESTDIR)$(PREFIX)/share/man/man1/mspdebug.1
+	$(INSTALL) -m 0755 $(BINARY) $(DESTDIR)$(PREFIX)/bin/mspdebug
+	$(INSTALL) -m 0644 mspdebug.man \
+		$(DESTDIR)$(PREFIX)/share/man/man1/mspdebug.1
 
 .SUFFIXES: .c .o
 
-mspdebug: main.o fet.o rf2500.o dis.o uif.o olimex.o ihex.o elf32.o stab.o \
-          util.o bsl.o sim.o symmap.o gdb.o btree.o rtools.o sym.o devcmd.o \
-	  reader.o vector.o output_util.o expr.o fet_error.o binfile.o \
-	  fet_db.o usbutil.o titext.o srec.o device.o coff.o opdb.o output.o \
-	  cmddb.o stdcmd.o prog.o flash_bsl.o list.o simio.o simio_tracer.o \
-	  simio_timer.o simio_wdt.o simio_hwmult.o simio_gpio.o aliasdb.o \
-	  gdb_proto.o gdbc.o sport.o
-	$(CC) $(LDFLAGS) $(PORTS_LDFLAGS) -o $@ $^ -lusb $(READLINE_LIBS)
+$(BINARY): main.o fet.o rf2500.o dis.o uif.o olimex.o ihex.o elf32.o stab.o \
+           util.o bsl.o sim.o symmap.o gdb.o btree.o rtools.o sym.o devcmd.o \
+	   reader.o vector.o output_util.o expr.o fet_error.o binfile.o \
+	   fet_db.o usbutil.o titext.o srec.o device.o coff.o opdb.o output.o \
+	   cmddb.o stdcmd.o prog.o flash_bsl.o list.o simio.o simio_tracer.o \
+	   simio_timer.o simio_wdt.o simio_hwmult.o simio_gpio.o aliasdb.o \
+	   gdb_proto.o gdbc.o sport.o
+	$(CC) $(MSPDEBUG_LDFLAGS) -o $@ $^ $(MSPDEBUG_LIBS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(PORTS_CFLAGS) $(READLINE_CFLAGS) $(MSPDEBUG_CFLAGS) -o $@ -c $*.c
+	$(CC) $(MSPDEBUG_CFLAGS) -o $@ -c $*.c

@@ -457,7 +457,8 @@ static int gdb_server(int port)
 	}
 
 	arg = 1;
-	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) < 0)
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+		       (void *)&arg, sizeof(arg)) < 0)
 		pr_error("gdb: warning: can't reuse socket address");
 
 	addr.sin_family = AF_INET;

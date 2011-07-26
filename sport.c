@@ -22,6 +22,8 @@
 
 #include "sport.h"
 
+#ifndef WIN32
+
 sport_t sport_open(const char *device, int rate, int flags)
 {
 	int fd = open(device, O_RDWR | O_NOCTTY);
@@ -93,6 +95,104 @@ int sport_write(sport_t s, const uint8_t *data, int len)
 {
 	return write(s, data, len);
 }
+
+#else /* WIN32 */
+
+sport_t sport_open(const char *device, int rate, int flags)
+{
+	HANDLE hs = CreateFile(device, GENERIC_READ | GENERIC_WRITE,
+			       0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+			       0);
+	DCB params = {0};
+	COMMTIMEOUTS timeouts = {0};
+
+	if (hs == INVALID_HANDLE_VALUE)
+		return INVALID_HANDLE_VALUE;
+
+	if (!GetCommState(hs, &params)) {
+		CloseHandle(hs);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	params.BaudRate = rate;
+	params.ByteSize = 8;
+	params.StopBits = ONESTOPBIT;
+	params.Parity = (flags & SPORT_EVEN_PARITY) ? EVENPARITY : NOPARITY;
+
+	if (!SetCommState(hs, &params)) {
+		CloseHandle(hs);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	timeouts.ReadIntervalTimeout = 5000;
+	timeouts.ReadTotalTimeoutConstant = 5000;
+	timeouts.ReadTotalTimeoutMultiplier = 0;
+	timeouts.WriteTotalTimeoutConstant = 5000;
+	timeouts.WriteTotalTimeoutMultiplier = 10;
+
+	if (!SetCommTimeouts(hs, &timeouts)) {
+		CloseHandle(hs);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	return hs;
+}
+
+void sport_close(sport_t s)
+{
+	CloseHandle(s);
+}
+
+int sport_flush(sport_t s)
+{
+	if (!PurgeComm(s, PURGE_RXABORT | PURGE_RXCLEAR))
+		return -1;
+
+	return 0;
+}
+
+int sport_set_modem(sport_t s, int bits)
+{
+	if (!EscapeCommFunction(s, (bits & SPORT_MC_DTR) ? SETDTR : CLRDTR))
+		return -1;
+
+	if (!EscapeCommFunction(s, (bits & SPORT_MC_RTS) ? SETRTS : CLRRTS))
+		return -1;
+
+	return 0;
+}
+
+int sport_read(sport_t s, uint8_t *data, int len)
+{
+	DWORD result = 0;
+
+	if (!ReadFile(s, (void *)data, len, &result, NULL))
+		return -1;
+
+	if (!result) {
+		errno = EAGAIN;
+		return -1;
+	}
+
+	return result;
+}
+
+int sport_write(sport_t s, const uint8_t *data, int len)
+{
+	DWORD result = 0;
+
+	if (!WriteFile(s, (void *)data, len, &result, NULL))
+		return -1;
+
+	if (!result) {
+		errno = EAGAIN;
+		return -1;
+	}
+
+	return result;
+}
+
+#endif
 
 int sport_read_all(sport_t s, uint8_t *data, int len)
 {

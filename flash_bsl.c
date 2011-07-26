@@ -123,16 +123,14 @@ static int flash_bsl_send(struct flash_bsl_device *dev,
 	cmd_buf[len + 4] = (crc >> 8) & 0xff;
 
 	if (sport_write_all(dev->serial_fd, cmd_buf, len + 5) < 0) {
-		printc_err("flash_bsl: serial write failed\n");
+		printc_err("flash_bsl: serial write failed: %s\n",
+			   strerror(errno));
 		return -1;
 	}
 
 	if (sport_read_all(dev->serial_fd, &response, 1) < 0) {
-		if (errno == ETIMEDOUT) {
-			printc_err("flash_bsl: serial read timed out\n");
-		} else {
-			printc_err("flash_bsl: serial read failed\n");
-		}
+		printc_err("flash_bsl: serial read failed: %s\n",
+			   strerror(errno));
 		return -1;
 	}
 
@@ -178,14 +176,9 @@ static int flash_bsl_recv(struct flash_bsl_device *dev,
 	uint16_t crc_value;
 
 	if (sport_read_all(dev->serial_fd, header, 3) < 0) {
-		if (errno == ETIMEDOUT) {
-			printc_err("flash_bsl: response timed out\n");
-			return -1;
-		} else {
-			perror("read response header");
-			printc_err("flash_bsl: read response failed\n");
-			return -1;
-		}
+		printc_err("flash_bsl: read response failed: %s\n",
+			   strerror(errno));
+		return -1;
 	}
 
 	if (header[0] != 0x80) {
@@ -558,23 +551,23 @@ static int enter_via_dtr_rts(struct flash_bsl_device *dev)
 	sport_t fd = dev->serial_fd;
 
 	/* drive RST# line low */
-	if (sport_set_modem(fd, TIOCM_RTS | TIOCM_DTR) != 0) {
+	if (sport_set_modem(fd, SPORT_MC_RTS | SPORT_MC_DTR) != 0) {
 		return -1;
 	}
 	entry_delay( );
 
 	/* drive TEST line high then low again */
-	if (sport_set_modem(fd, TIOCM_DTR) != 0) {
+	if (sport_set_modem(fd, SPORT_MC_DTR) != 0) {
 		return -1;
 	}
 	entry_delay( );
-	if (sport_set_modem(fd, TIOCM_RTS | TIOCM_DTR) != 0) {
+	if (sport_set_modem(fd, SPORT_MC_RTS | SPORT_MC_DTR) != 0) {
 		return -1;
 	}
 	entry_delay( );
 
 	/* drive TEST line high followed by RST# line */
-	if (sport_set_modem(fd, TIOCM_DTR) != 0) {
+	if (sport_set_modem(fd, SPORT_MC_DTR) != 0) {
 		return -1;
 	}
 	entry_delay( );
@@ -582,7 +575,7 @@ static int enter_via_dtr_rts(struct flash_bsl_device *dev)
 		return -1;
 	}
 	entry_delay( );
-	if (sport_set_modem(fd, TIOCM_RTS) != 0) {
+	if (sport_set_modem(fd, SPORT_MC_RTS) != 0) {
 		return -1;
 	}
 	entry_delay( );
@@ -597,13 +590,13 @@ static void exit_via_dtr_rts(struct flash_bsl_device *dev)
 	sport_t fd = dev->serial_fd;
 
 	/* RST# and TEST LOW */
-        sport_set_modem(fd, TIOCM_RTS | TIOCM_DTR);
+        sport_set_modem(fd, SPORT_MC_RTS | SPORT_MC_DTR);
 
 	/* wait a brief period */
 	entry_delay( );
 
 	/* RST# HIGH */
-	sport_set_modem(fd, TIOCM_DTR);
+	sport_set_modem(fd, SPORT_MC_DTR);
 }
 
 static void flash_bsl_destroy(device_t dev_base)

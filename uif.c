@@ -147,9 +147,9 @@ transport_t uif_open(const char *device, uif_type_t type)
 		break;
 	}
 
-	if (tr->serial_fd < 0) {
+	if (SPORT_ISERR(tr->serial_fd)) {
 		printc_err("uif: can't open serial device: %s: %s\n",
-			device, strerror(errno));
+			   device, strerror(errno));
 		free(tr);
 		return NULL;
 	}

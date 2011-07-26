@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2011 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #ifndef SPORT_H_
 #define SPORT_H_
 
+#ifndef WIN32
+
 #include <stdint.h>
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -34,6 +36,34 @@
 typedef int sport_t;
 
 #define SPORT_ISERR(x) ((x) < 0)
+
+#define SPORT_MC_DTR		TIOCM_DTR
+#define SPORT_MC_RTS		TIOCM_RTS
+
+#else /* WIN32 */
+
+#include <windows.h>
+
+typedef HANDLE sport_t;
+
+#define SPORT_ISERR(x) ((x) == INVALID_HANDLE_VALUE)
+
+#ifndef CBR_460800
+#define CBR_460800 460800
+#endif
+
+#ifndef CBR_500000
+#define CBR_500000 500000
+#endif
+
+#define B9600			CBR_9600
+#define B460800			CBR_460800
+#define B500000			CBR_500000
+
+#define SPORT_MC_DTR		0x01
+#define SPORT_MC_RTS		0x02
+
+#endif
 
 /* Various utility functions for IO */
 

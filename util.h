@@ -52,4 +52,8 @@ static inline int ishex(int c)
 
 int hexval(int c);
 
+#ifdef WIN32
+char *strsep(char **strp, const char *delim);
+#endif
+
 #endif

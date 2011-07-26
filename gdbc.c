@@ -377,8 +377,12 @@ static int connect_to(const char *spec)
 	printc_dbg("Looking up %s...\n", hostname);
 	ent = gethostbyname(hostname);
 	if (!ent) {
+#ifdef WIN32
+		printc_err("No such host: %s: %s\n", hostname);
+#else
 		printc_err("No such host: %s: %s\n", hostname,
 			   hstrerror(h_errno));
+#endif
 		return -1;
 	}
 

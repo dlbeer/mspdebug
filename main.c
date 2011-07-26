@@ -175,7 +175,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"usb-list",            0, 0, 'I'},
 		{"version",             0, 0, 'V'},
 		{"long-password",       0, 0, 'P'},
-		{"force-reset",       	0, 0, 'R'},
+		{"force-reset",		0, 0, 'R'},
 		{NULL, 0, 0, 0}
 	};
 	int want_usb = 0;
@@ -298,6 +298,28 @@ int setup_driver(struct cmdline_args *args)
 	return 0;
 }
 
+#ifdef WIN32
+static int sockets_init(void)
+{
+	WSADATA data;
+
+	if (WSAStartup(MAKEWORD(2, 2), &data)) {
+		printc_err("Winsock init failed");
+		return -1;
+	}
+
+	return 0;
+}
+
+static void sockets_exit(void)
+{
+	WSACleanup();
+}
+#else
+static int sockets_init(void) { return 0; }
+static void sockets_exit(void) { }
+#endif
+
 int main(int argc, char **argv)
 {
 	struct cmdline_args args = {0};
@@ -310,9 +332,14 @@ int main(int argc, char **argv)
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		return -1;
 
-	printc_dbg("%s\n", version_text);
-	if (setup_driver(&args) < 0)
+	if (sockets_init() < 0)
 		return -1;
+
+	printc_dbg("%s\n", version_text);
+	if (setup_driver(&args) < 0) {
+		sockets_exit();
+		return -1;
+	}
 
 	simio_init();
 
@@ -335,6 +362,7 @@ int main(int argc, char **argv)
 	simio_exit();
 	stab_exit();
 	device_destroy();
+	sockets_exit();
 
 	return ret;
 }

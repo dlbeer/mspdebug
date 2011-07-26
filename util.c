@@ -194,3 +194,31 @@ int hexval(int c)
 
 	return 0;
 }
+
+#ifdef WIN32
+char *strsep(char **strp, const char *delim)
+{
+	char *start = *strp;
+	char *end = start;
+
+	if (!start)
+		return NULL;
+
+	while (*end) {
+		const char *d = delim;
+
+		while (*d) {
+			if (*d == *end) {
+				*(end++) = 0;
+				*strp = end;
+				return start;
+			}
+		}
+
+		end++;
+	}
+
+	*strp = NULL;
+	return start;
+}
+#endif
