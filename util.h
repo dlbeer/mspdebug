@@ -57,6 +57,8 @@ int hexval(int c);
 
 #ifdef WIN32
 char *strsep(char **strp, const char *delim);
+
+HANDLE ctrlc_win32_event(void);
 #endif
 
 #endif

@@ -35,6 +35,37 @@
 
 static volatile int ctrlc_flag;
 
+#ifdef WIN32
+static HANDLE ctrlc_event;
+
+static WINAPI BOOL ctrlc_handler(DWORD event)
+{
+	if (event == CTRL_C_EVENT) {
+		ctrlc_flag = 1;
+		SetEvent(ctrlc_event);
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+void ctrlc_init(void)
+{
+	ctrlc_event = CreateEvent(0, TRUE, FALSE, NULL);
+	SetConsoleCtrlHandler(ctrlc_handler, TRUE);
+}
+
+void ctrlc_reset(void)
+{
+	ctrlc_flag = 0;
+	ResetEvent(ctrlc_event);
+}
+
+HANDLE ctrlc_win32_event(void)
+{
+	return ctrlc_event;
+}
+#else /* WIN32 */
 static void sigint_handler(int signum)
 {
 	ctrlc_flag = 1;
@@ -42,7 +73,7 @@ static void sigint_handler(int signum)
 
 void ctrlc_init(void)
 {
-#if defined(WIN32) || defined(__CYGWIN__)
+#if defined(__CYGWIN__)
        signal(SIGINT, sigint_handler);
 #else
        const static struct sigaction siga = {
@@ -58,6 +89,7 @@ void ctrlc_reset(void)
 {
 	ctrlc_flag = 0;
 }
+#endif
 
 int ctrlc_check(void)
 {
