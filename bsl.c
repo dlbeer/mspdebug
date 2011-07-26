@@ -22,23 +22,18 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include "bsl.h"
 #include "util.h"
 #include "output.h"
 #include "fet_error.h"
-
-#if defined(__APPLE__) || defined(__OpenBSD__)
-#define B460800 460800
-#endif
+#include "sport.h"
 
 struct bsl_device {
 	struct device   base;
 
-	int             serial_fd;
+	sport_t         serial_fd;
 	uint8_t         reply_buf[256];
 	int             reply_len;
 };
@@ -51,7 +46,7 @@ static int bsl_ack(struct bsl_device *dev)
 {
 	uint8_t reply;
 
-	if (read_with_timeout(dev->serial_fd, &reply, 1) < 0) {
+	if (sport_read(dev->serial_fd, &reply, 1) < 0) {
 		printc_err("bsl: failed to receive reply\n");
 		return -1;
 	}
@@ -74,13 +69,13 @@ static int bsl_sync(struct bsl_device *dev)
 	static const uint8_t c = DATA_HDR;
 	int tries = 2;
 
-	if (tcflush(dev->serial_fd, TCIFLUSH) < 0) {
+	if (sport_flush(dev->serial_fd) < 0) {
 		pr_error("bsl: tcflush");
 		return -1;
 	}
 
 	while (tries--)
-		if (!(write_all(dev->serial_fd, &c, 1) || bsl_ack(dev)))
+		if (!(sport_write_all(dev->serial_fd, &c, 1) || bsl_ack(dev)))
 			return 0;
 
 	printc_err("bsl: sync failed\n");
@@ -122,7 +117,7 @@ static int send_command(struct bsl_device *dev,
 	pktbuf[pktlen + 4] = cklow;
 	pktbuf[pktlen + 5] = ckhigh;
 
-	return write_all(dev->serial_fd, pktbuf, pktlen + 6);
+	return sport_write_all(dev->serial_fd, pktbuf, pktlen + 6);
 }
 
 static int verify_checksum(struct bsl_device *dev)
@@ -150,10 +145,10 @@ static int fetch_reply(struct bsl_device *dev)
 	dev->reply_len = 0;
 
 	for (;;) {
-		int r = read_with_timeout(dev->serial_fd,
-					  dev->reply_buf + dev->reply_len,
-					  sizeof(dev->reply_buf) -
-					  dev->reply_len);
+		int r = sport_read(dev->serial_fd,
+				   dev->reply_buf + dev->reply_len,
+				   sizeof(dev->reply_buf) -
+				   dev->reply_len);
 
 		if (r < 0)
 			return -1;
@@ -208,7 +203,7 @@ static void bsl_destroy(device_t dev_base)
 	struct bsl_device *dev = (struct bsl_device *)dev_base;
 
 	bsl_xfer(dev, CMD_RESET, 0, NULL, 0);
-	close(dev->serial_fd);
+	sport_close(dev->serial_fd);
 	free(dev);
 }
 
@@ -326,29 +321,20 @@ static int bsl_erase(device_t dev_base, device_erase_type_t type,
 static int enter_via_fet(struct bsl_device *dev)
 {
 	uint8_t buf[16];
-	uint8_t *data = buf;
-	int len = 8;
 
 	/* Enter bootloader command */
-	if (write_all(dev->serial_fd,
-		      (uint8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6)) {
+	if (sport_write_all(dev->serial_fd,
+		            (uint8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6)) {
 		printc_err("bsl: couldn't write bootloader transition "
 			"command\n");
 		return -1;
 	}
 
 	/* Wait for reply */
-	while (len) {
-		int r = read_with_timeout(dev->serial_fd, data, len);
-
-		if (r < 0) {
-			printc_err("bsl: couldn't read bootloader "
-				"transition acknowledgement\n");
-			return -1;
-		}
-
-	        data += r;
-		len -= r;
+	if (sport_read_all(dev->serial_fd, buf, 8) < 0) {
+		printc_err("bsl: couldn't read bootloader "
+			"transition acknowledgement\n");
+		return -1;
 	}
 
 	/* Check that it's what we expect */
@@ -380,8 +366,8 @@ static device_t bsl_open(const struct device_args *args)
 
 	dev->base.type = &device_bsl;
 
-	dev->serial_fd = open_serial(args->path, B460800);
-	if (dev->serial_fd < 0) {
+	dev->serial_fd = sport_open(args->path, B460800, 0);
+	if (SPORT_ISERR(dev->serial_fd)) {
 		printc_err("bsl: can't open %s: %s\n",
 			   args->path, strerror(errno));
 		free(dev);
@@ -412,7 +398,7 @@ static device_t bsl_open(const struct device_args *args)
 	return (device_t)dev;
 
  fail:
-	close(dev->serial_fd);
+	sport_close(dev->serial_fd);
 	free(dev);
 	return NULL;
 }

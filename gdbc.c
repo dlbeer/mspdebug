@@ -278,8 +278,7 @@ static int gdbc_ctl(device_t dev_base, device_ctl_t op)
 
 	case DEVICE_CTL_HALT:
 		if (dev->is_running) {
-			if (write_all(dev->gdb.sock,
-				      (const uint8_t *)"\003", 1) < 0) {
+			if (send(dev->gdb.sock, "\003", 1, 0) < 1) {
 				pr_error("gdbc: write");
 				return -1;
 			}

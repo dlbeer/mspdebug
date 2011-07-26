@@ -22,28 +22,23 @@
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include "flash_bsl.h"
 #include "util.h"
 #include "output.h"
 #include "fet_error.h"
+#include "sport.h"
 
 struct flash_bsl_device {
 	struct device   base;
 
-	int				serial_fd;
-	int				long_password;
+	sport_t		serial_fd;
+	int		long_password;
 };
 
-
-
 #define MAX_PACKET 256
-
 
 /* adapted from TI's published BSL source code */
 #define CRC_INIT 0xffff
@@ -66,21 +61,24 @@ static void crc_selftest(void) {
 	uint16_t crc_expected = 0x5590;
         uint16_t crc_actual = crc_ccitt((uint8_t *)"\x52\x02", 2);
 	if (crc_expected != crc_actual) {
-		printc_err("flash_bsl: CRC malfunction (expected 0x%04x got 0x%04x)\n",
+		printc_err("flash_bsl: CRC malfunction "
+			   "(expected 0x%04x got 0x%04x)\n",
 			crc_expected, crc_actual);
 	}
 
 	crc_expected = 0x121d;
 	crc_actual = crc_ccitt((uint8_t *)"\x3a\x04\x01", 3);
 	if (crc_expected != crc_actual) {
-		printc_err("flash_bsl: CRC malfunction (expected 0x%04x got 0x%04x)\n",
+		printc_err("flash_bsl: CRC malfunction "
+			   "(expected 0x%04x got 0x%04x)\n",
 			crc_expected, crc_actual);
 	}
 
 	crc_expected = 0x528b;
 	crc_actual = crc_ccitt((uint8_t *)"\x1a", 1);
 	if (crc_expected != crc_actual) {
-		printc_err("flash_bsl: CRC malfunction (expected 0x%04x got 0x%04x)\n",
+		printc_err("flash_bsl: CRC malfunction "
+			   "(expected 0x%04x got 0x%04x)\n",
 			crc_expected, crc_actual);
 	}
 
@@ -112,7 +110,8 @@ static int flash_bsl_send(struct flash_bsl_device *dev,
 	crc = crc_ccitt(data, len);
 
 	if (len > MAX_PACKET) {
-		printc_err("flash_bsl: attempted to transmit long packet (len=%d)\n", len);
+		printc_err("flash_bsl: attempted to transmit "
+			   "long packet (len=%d)\n", len);
 		return -1;
 	}
 
@@ -123,12 +122,12 @@ static int flash_bsl_send(struct flash_bsl_device *dev,
 	cmd_buf[len + 3] = (crc & 0xff);
 	cmd_buf[len + 4] = (crc >> 8) & 0xff;
 
-	if (write_all(dev->serial_fd, cmd_buf, len + 5) < 0) {
+	if (sport_write_all(dev->serial_fd, cmd_buf, len + 5) < 0) {
 		printc_err("flash_bsl: serial write failed\n");
 		return -1;
 	}
 
-	if (read_all_with_timeout(dev->serial_fd, &response, 1) < 0) {
+	if (sport_read_all(dev->serial_fd, &response, 1) < 0) {
 		if (errno == ETIMEDOUT) {
 			printc_err("flash_bsl: serial read timed out\n");
 		} else {
@@ -140,16 +139,19 @@ static int flash_bsl_send(struct flash_bsl_device *dev,
 	if (response != 0) {
 		switch (response) {
 		case 0x51:
-			printc_err("flash_bsl: BSL reports incorrect packet header\n");
+			printc_err("flash_bsl: BSL reports incorrect "
+				   "packet header\n");
 			break;
 		case 0x52:
-			printc_err("flash_bsl: BSL reports checksum incorrect\n");
+			printc_err("flash_bsl: BSL reports checksum "
+				   "incorrect\n");
 			break;
 		case 0x53:
 			printc_err("flash_bsl: BSL got zero-size packet\n");
 			break;
 		case 0x54:
-			printc_err("flash_bsl: BSL receive buffer overflowed\n");
+			printc_err("flash_bsl: BSL receive buffer "
+				   "overflowed\n");
 			break;
 		case 0x55:
 			printc_err("flash_bsl: (known-)unknown error\n");
@@ -175,7 +177,7 @@ static int flash_bsl_recv(struct flash_bsl_device *dev,
 	uint16_t recv_len;
 	uint16_t crc_value;
 
-	if (read_all_with_timeout(dev->serial_fd, header, 3) < 0) {
+	if (sport_read_all(dev->serial_fd, header, 3) < 0) {
 		if (errno == ETIMEDOUT) {
 			printc_err("flash_bsl: response timed out\n");
 			return -1;
@@ -204,13 +206,13 @@ static int flash_bsl_recv(struct flash_bsl_device *dev,
 		return -1;
 	}
 
-	if (read_all_with_timeout(dev->serial_fd, recv_buf, recv_len) < 0) {
+	if (sport_read_all(dev->serial_fd, recv_buf, recv_len) < 0) {
 		perror("receive message");
 		printc_err("flash_bsl: error receiving message\n");
 		return -1;
 	}
 
-	if (read_all_with_timeout(dev->serial_fd, crc_bytes, 2) < 0) {
+	if (sport_read_all(dev->serial_fd, crc_bytes, 2) < 0) {
 		perror("receive message CRC");
 		printc_err("flash_bsl: error receiving message CRC\n");
 		return -1;
@@ -547,51 +549,40 @@ static void entry_delay(void)
 	usleep(1000);
 }
 
-static int set_serial_bits(int fd, int bits)
-{
-	if (ioctl(fd, TIOCMSET, &bits) >= 0) {
-		return 0;
-	} else {
-		return -1;
-	}
-}
-
 static int enter_via_dtr_rts(struct flash_bsl_device *dev)
 {
 	/*
 	 * Implement the sequence shown on page 8 of TI document SLAU319A,
 	 * via serial-port control lines.
 	 */
-
-	int fd = dev->serial_fd;
-
+	sport_t fd = dev->serial_fd;
 
 	/* drive RST# line low */
-	if (set_serial_bits(fd, TIOCM_RTS | TIOCM_DTR) != 0) {
+	if (sport_set_modem(fd, TIOCM_RTS | TIOCM_DTR) != 0) {
 		return -1;
 	}
 	entry_delay( );
 
 	/* drive TEST line high then low again */
-	if (set_serial_bits(fd, TIOCM_DTR) != 0) {
+	if (sport_set_modem(fd, TIOCM_DTR) != 0) {
 		return -1;
 	}
 	entry_delay( );
-	if (set_serial_bits(fd, TIOCM_RTS | TIOCM_DTR) != 0) {
+	if (sport_set_modem(fd, TIOCM_RTS | TIOCM_DTR) != 0) {
 		return -1;
 	}
 	entry_delay( );
 
 	/* drive TEST line high followed by RST# line */
-	if (set_serial_bits(fd, TIOCM_DTR) != 0) {
+	if (sport_set_modem(fd, TIOCM_DTR) != 0) {
 		return -1;
 	}
 	entry_delay( );
-	if (set_serial_bits(fd, 0) != 0) {
+	if (sport_set_modem(fd, 0) != 0) {
 		return -1;
 	}
 	entry_delay( );
-	if (set_serial_bits(fd, TIOCM_RTS) != 0) {
+	if (sport_set_modem(fd, TIOCM_RTS) != 0) {
 		return -1;
 	}
 	entry_delay( );
@@ -603,16 +594,16 @@ static int enter_via_dtr_rts(struct flash_bsl_device *dev)
 
 static void exit_via_dtr_rts(struct flash_bsl_device *dev)
 {
-	int fd = dev->serial_fd;
+	sport_t fd = dev->serial_fd;
 
 	/* RST# and TEST LOW */
-        set_serial_bits(fd, TIOCM_RTS | TIOCM_DTR);
+        sport_set_modem(fd, TIOCM_RTS | TIOCM_DTR);
 
 	/* wait a brief period */
 	entry_delay( );
 
 	/* RST# HIGH */
-	set_serial_bits(fd, TIOCM_DTR);
+	sport_set_modem(fd, TIOCM_DTR);
 }
 
 static void flash_bsl_destroy(device_t dev_base)
@@ -621,7 +612,7 @@ static void flash_bsl_destroy(device_t dev_base)
 
 	exit_via_dtr_rts(dev);
 
-	close(dev->serial_fd);
+	sport_close(dev->serial_fd);
 	free(dev);
 }
 
@@ -648,8 +639,8 @@ static device_t flash_bsl_open(const struct device_args *args)
 	memset(dev, 0, sizeof(*dev));
 	dev->base.type = &device_flash_bsl;
 
-	dev->serial_fd = open_serial_even_parity(args->path, B9600);
-	if (dev->serial_fd < 0) {
+	dev->serial_fd = sport_open(args->path, B9600, SPORT_EVEN_PARITY);
+	if (SPORT_ISERR(dev->serial_fd)) {
 		printc_err("flash_bsl: can't open %s: %s\n",
 			   args->path, strerror(errno));
 		free(dev);
@@ -678,8 +669,8 @@ static device_t flash_bsl_open(const struct device_args *args)
 	}
 
 	if (flash_bsl_recv(dev, tx_bsl_version_response,
-		sizeof(tx_bsl_version_response)) < sizeof(tx_bsl_version_response)) {
-
+	    sizeof(tx_bsl_version_response)) <
+	    sizeof(tx_bsl_version_response)) {
 		printc_err("flash_bsl: BSL responded with invalid version");
 		goto fail;
 	}
@@ -690,7 +681,7 @@ static device_t flash_bsl_open(const struct device_args *args)
 	return (device_t)dev;
 
  fail:
-	close(dev->serial_fd);
+	sport_close(dev->serial_fd);
 	free(dev);
 	return NULL;
 }
