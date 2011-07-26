@@ -19,12 +19,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#if defined(__APPLE__) || defined(__OpenBSD__)
-#include <libelf.h>
-#else
-#include <elf.h>
-#endif
 #include "elf32.h"
+#include "elf_format.h"
 #include "output.h"
 
 #ifndef EM_MSP430
