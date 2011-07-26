@@ -450,7 +450,7 @@ static int gdb_server(int port)
 	int i;
 
 	sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (sock < 0) {
+	if (SOCKET_ISERR(sock)) {
 		pr_error("gdb: can't create socket");
 		return -1;
 	}
@@ -479,8 +479,8 @@ static int gdb_server(int port)
 	printc("Bound to port %d. Now waiting for connection...\n", port);
 
 	len = sizeof(addr);
-	client = accept(sock, (struct sockaddr *)&addr, &len);
-	if (client < 0) {
+	client = sockets_accept(sock, (struct sockaddr *)&addr, &len);
+	if (SOCKET_ISERR(client)) {
 		pr_error("gdb: failed to accept connection");
 		closesocket(sock);
 		return -1;

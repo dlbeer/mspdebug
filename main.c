@@ -326,6 +326,7 @@ int main(int argc, char **argv)
 	int ret = 0;
 
 	opdb_reset();
+	ctrlc_init();
 
 	args.devarg.vcc_mv = 3000;
 	args.devarg.requested_serial = NULL;
@@ -355,7 +356,6 @@ int main(int argc, char **argv)
 			}
 		}
 	} else {
-		ctrlc_init();
 		reader_loop();
 	}
 

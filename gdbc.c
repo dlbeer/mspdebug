@@ -275,7 +275,7 @@ static int gdbc_ctl(device_t dev_base, device_ctl_t op)
 
 	case DEVICE_CTL_HALT:
 		if (dev->is_running) {
-			if (send(dev->gdb.sock, "\003", 1, 0) < 1) {
+			if (sockets_send(dev->gdb.sock, "\003", 1, 0) < 1) {
 				pr_error("gdbc: write");
 				return -1;
 			}
@@ -389,7 +389,7 @@ static int connect_to(const char *spec)
 	}
 
 	sock = socket(PF_INET, SOCK_STREAM, 0);
-	if (!sock) {
+	if (SOCKET_ISERR(sock)) {
 		printc_err("socket: %s\n", last_error());
 		return -1;
 	}
@@ -400,7 +400,8 @@ static int connect_to(const char *spec)
 	printc_dbg("Connecting to %s:%d...\n",
 		   inet_ntoa(addr.sin_addr), port);
 
-	if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+	if (sockets_connect(sock, (struct sockaddr *)&addr,
+			    sizeof(addr)) < 0) {
 		printc_err("connect: %s\n", last_error());
 		closesocket(sock);
 		return -1;

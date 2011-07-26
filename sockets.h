@@ -20,10 +20,12 @@
 #define SOCKETS_H_
 
 #ifdef WIN32
-#include <winsock.h>
+#include <winsock2.h>
 #include <stdio.h>
 
 typedef int socklen_t;
+
+#define SOCKET_ISERR(x) ((x) == INVALID_SOCKET)
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -33,6 +35,19 @@ typedef int socklen_t;
 #include <fcntl.h>
 
 #define closesocket close
+
+typedef int SOCKET;
+
+#define SOCKET_ISERR(x) ((x) < 0)
 #endif
+
+/* These are versions of the blocking IO calls which can be interrupted
+ * by the user pressing Ctrl+C.
+ */
+SOCKET sockets_accept(SOCKET s, struct sockaddr *addr, socklen_t *addrlen);
+int sockets_connect(SOCKET s, const struct sockaddr *addr, socklen_t addrlen);
+ssize_t sockets_send(SOCKET s, const void *buf, size_t len, int flags);
+ssize_t sockets_recv(SOCKET s, void *buf, size_t len, int flags,
+		     int timeout_ms);
 
 #endif

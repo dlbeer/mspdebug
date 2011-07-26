@@ -53,26 +53,8 @@ void gdb_printf(struct gdb_data *data, const char *fmt, ...)
 
 static int gdb_read(struct gdb_data *data, int timeout_ms)
 {
-	fd_set r;
-	int len;
-	struct timeval to = {
-		.tv_sec = timeout_ms / 1000,
-		.tv_usec = timeout_ms % 1000
-	};
-
-	FD_ZERO(&r);
-	FD_SET(data->sock, &r);
-
-	if (select(data->sock + 1, &r, NULL, NULL,
-		   timeout_ms < 0 ? NULL : &to) < 0) {
-		pr_error("gdb: select");
-		return -1;
-	}
-
-	if (!FD_ISSET(data->sock, &r))
-		return 0;
-
-	len = recv(data->sock, data->xbuf, sizeof(data->xbuf), 0);
+	int len = sockets_recv(data->sock, data->xbuf, sizeof(data->xbuf), 0,
+			       timeout_ms);
 
 	if (len < 0) {
 		data->error = errno;
@@ -114,7 +96,7 @@ int gdb_getc(struct gdb_data *data)
 
 static int gdb_flush(struct gdb_data *data)
 {
-	if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
+	if (sockets_send(data->sock, data->outbuf, data->outlen, 0) < 0) {
 		data->error = errno;
 		pr_error("gdb: flush");
 		return -1;
@@ -134,7 +116,8 @@ int gdb_flush_ack(struct gdb_data *data)
 	data->outbuf[data->outlen] = 0;
 
 	do {
-		if (send(data->sock, data->outbuf, data->outlen, 0) < 0) {
+		if (sockets_send(data->sock, data->outbuf,
+				 data->outlen, 0) < 0) {
 			data->error = errno;
 			pr_error("gdb: flush_ack");
 			return -1;

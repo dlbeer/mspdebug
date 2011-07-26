@@ -22,6 +22,10 @@
 #include <stdint.h>
 #include <ctype.h>
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 #define LE_BYTE(b, x) ((int)((uint8_t *)(b))[x])
