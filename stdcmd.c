@@ -103,7 +103,11 @@ int cmd_help(char **arg)
 		vector_destroy(&v);
 
 		printc("Type \"help <topic>\" for more information.\n");
+#ifdef WIN32
+		printc("Press Ctrl+Z, Enter to quit.\n");
+#else
 		printc("Press Ctrl+D to quit.\n");
+#endif
 	}
 
 	return 0;
