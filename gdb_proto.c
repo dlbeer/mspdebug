@@ -63,6 +63,7 @@ static int gdb_read(struct gdb_data *data, int timeout_ms)
 	}
 
 	if (!len) {
+		data->error = EPIPE;
 		printc("Connection closed\n");
 		return -1;
 	}
@@ -125,6 +126,8 @@ int gdb_flush_ack(struct gdb_data *data)
 
 		do {
 			c = gdb_getc(data);
+			if (c < 0)
+				return -1;
 		} while (c != '+' && c != '-');
 	} while (c != '+');
 
