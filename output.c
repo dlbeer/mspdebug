@@ -29,6 +29,10 @@ struct outbuf {
 	char	buf[4096];
 	int	len;
 	int	in_code;
+
+	int	ansi_cur;
+	int	ansi_num;
+	int	ansi_next;
 };
 
 static struct outbuf stdout_buf;
@@ -37,31 +41,82 @@ static struct outbuf stderr_buf;
 static capture_func_t capture_func;
 static void *capture_data;
 
+static void process_ansi_part(struct outbuf *out)
+{
+	if (!out->ansi_num) {
+		out->ansi_next = 7;
+	} else if (out->ansi_num == 1) {
+		out->ansi_next |= 0x8;
+	} else if (out->ansi_num >= 30) {
+		const int attr = out->ansi_num % 10;
+		const int col = ((attr & 1) << 2) |
+		      (attr & 2) |
+		      ((attr & 4) >> 2);
+
+		if (out->ansi_num >= 40)
+			out->ansi_next = (out->ansi_next & 0x0f) |
+					(col << 4);
+		else
+			out->ansi_next = (out->ansi_next & 0xf0) | col;
+	}
+
+	out->ansi_num = 0;
+}
+
 static int write_text(struct outbuf *out, const char *buf, FILE *fout)
 {
 	int want_color = opdb_get_boolean("color");
 	int len = 0;
 
+	if (!out->ansi_cur)
+		out->ansi_cur = 7;
+
 	while (*buf) {
-		if (*buf == 27)
+		if (*buf == 27) {
 			out->in_code = 1;
+			out->ansi_num = 0;
+			out->ansi_next = out->ansi_cur;
+		}
 
 		if (!out->in_code)
 			len++;
 
 		if (*buf == '\n') {
+			fputc('\n', fout);
 			out->buf[out->len] = 0;
-			fprintf(fout, "%s\n", out->buf);
 			if (capture_func)
 				capture_func(capture_data, out->buf);
 			out->len = 0;
-		} else if ((want_color || !out->in_code) &&
-			   out->len + 1 < sizeof(out->buf)) {
-			out->buf[out->len++] = *buf;
-		}
+		} else if (out->in_code) {
+			if (isdigit(*buf)) {
+				out->ansi_num =
+					out->ansi_num * 10 + *buf - '0';
+			} else if (*buf == ';') {
+				process_ansi_part(out);
+			} else if (isalpha(*buf)) {
+				process_ansi_part(out);
+				out->in_code = 0;
+				if (*buf == 'm')
+					out->ansi_cur = out->ansi_next;
+#ifdef WIN32
+				if (want_color && *buf == 'm') {
+					fflush(fout);
+					SetConsoleTextAttribute(GetStdHandle
+					  (STD_OUTPUT_HANDLE), out->ansi_cur);
+				}
+#endif
+			}
 
-		if (isalpha(*buf))
-			out->in_code = 0;
+#ifndef WIN32
+			if (want_color)
+				fputc(*buf, fout);
+#endif
+		} else {
+			if (out->len + 1 < sizeof(out->buf))
+				out->buf[out->len++] = *buf;
+
+			fputc(*buf, fout);
+		}
 
 		buf++;
 	}
