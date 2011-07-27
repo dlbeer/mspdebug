@@ -87,9 +87,18 @@ int sockets_connect(SOCKET s, const struct sockaddr *addr, socklen_t addrlen)
 
 	sockets_begin(s, FD_CONNECT);
 
+	connect(s, addr, addrlen);
 	do {
-		ret = connect(s, addr, addrlen);
-	} while (ret < 0 && !sockets_wait(INFINITE));
+		WSANETWORKEVENTS evts;
+
+		WSAEnumNetworkEvents(s, NULL, &evts);
+		if (evts.lNetworkEvents & FD_CONNECT) {
+			error_save = evts.iErrorCode[FD_CONNECT_BIT];
+			if (!error_save)
+				ret = 0;
+			break;
+		}
+	} while (!sockets_wait(INFINITE));
 
 	sockets_end(s);
 	return ret;
@@ -99,7 +108,7 @@ ssize_t sockets_send(SOCKET s, const void *buf, size_t len, int flags)
 {
 	int ret = -1;
 
-	sockets_begin(s, FD_WRITE);
+	sockets_begin(s, FD_WRITE | FD_CLOSE);
 
 	do {
 		ret = send(s, buf, len, flags);
@@ -115,7 +124,7 @@ ssize_t sockets_recv(SOCKET s, void *buf, size_t len, int flags,
 	int ret = -1;
 	DWORD to_arg = (timeout_ms >= 0) ? timeout_ms : INFINITE;
 
-	sockets_begin(s, FD_READ);
+	sockets_begin(s, FD_READ | FD_CLOSE);
 
 	do {
 		ret = recv(s, buf, len, flags);
