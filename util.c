@@ -283,3 +283,46 @@ const char *last_error(void)
 	return strerror(errno);
 }
 #endif
+
+/* Expand leading `~/' in path names. Caller must free the returned ptr */
+char *expand_tilde(const char *path)
+{
+	char *home, *expanded;
+	size_t len;
+
+	if (!path)
+		return NULL;
+
+	if (!*path)
+		return strdup("");
+
+	expanded = NULL;
+
+	if (*path == '~' && *(path + 1) == '/') {
+		home = getenv("HOME");
+
+		if (home) {
+			/* Trailing '\0' will fit in leading '~'s place */
+			len = strlen(home) + strlen(path);
+			expanded = (char *)malloc(len);
+
+			if (expanded)
+				snprintf(expanded, len, "%s%s", home, path + 1);
+			else
+				printc_err("%s: malloc: %s\n", __FUNCTION__, last_error());
+
+		} else {
+			printc_err("%s: getenv: %s\n", __FUNCTION__, last_error());
+		}
+	} else {
+		expanded = (char *)malloc(strlen(path) + 1);
+
+		if (expanded)
+			strcpy(expanded, path);
+		else
+			printc_err("%s: malloc: %s\n", __FUNCTION__, last_error());
+	}
+
+	/* Caller must free()! */
+	return expanded;
+}

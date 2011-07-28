@@ -333,7 +333,15 @@ struct hexout_data {
 
 static int hexout_start(struct hexout_data *hexout, const char *filename)
 {
-	hexout->file = fopen(filename, "w");
+	char * path = NULL;
+
+	path = expand_tilde(filename);
+	if (!path)
+		return -1;
+
+	hexout->file = fopen(path, "w");
+	free(path);
+
 	if (!hexout->file) {
 		pr_error("hexout: couldn't open output file");
 		return -1;
@@ -492,11 +500,17 @@ static int do_cmd_prog(char **arg, int prog_flags)
 {
 	FILE *in;
 	struct prog_data prog;
+	char * path;
 
 	if (prompt_abort(MODIFY_SYMS))
 		return 0;
 
-	in = fopen(*arg, "rb");
+	path = expand_tilde(*arg);
+	if (!path)
+		return -1;
+
+	in = fopen(path, "rb");
+	free(path);
 	if (!in) {
 		printc_err("prog: %s: %s\n", *arg, last_error());
 		return -1;

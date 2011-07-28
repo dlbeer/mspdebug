@@ -65,4 +65,7 @@ char *strsep(char **strp, const char *delim);
 HANDLE ctrlc_win32_event(void);
 #endif
 
+/* Expand `~' in path names. Caller must free the returned ptr */
+char *expand_tilde(const char *path);
+
 #endif

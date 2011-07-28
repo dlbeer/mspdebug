@@ -227,10 +227,15 @@ int process_command(char *cmd)
 int process_file(const char *filename, int show)
 {
 	FILE *in;
-	char buf[1024];
+	char buf[1024], *path;
 	int line_no = 0;
 
+	path = expand_tilde(filename);
+	if (!path)
+		return -1;
+
 	in = fopen(filename, "r");
+	free(path);
 	if (!in) {
 		printc_err("read: can't open %s: %s\n",
 			filename, last_error());

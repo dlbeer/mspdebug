@@ -52,11 +52,17 @@ int cmd_eval(char **arg)
 static int cmd_sym_load_add(int clear, char **arg)
 {
 	FILE *in;
+	char * path;
 
 	if (clear && prompt_abort(MODIFY_SYMS))
 		return 0;
 
-	in = fopen(*arg, "rb");
+	path = expand_tilde(*arg);
+	if (!path)
+		return -1;
+
+	in = fopen(path, "rb");
+	free(path);
 	if (!in) {
 		printc_err("sym: %s: %s\n", *arg, last_error());
 		return -1;
@@ -75,6 +81,7 @@ static int cmd_sym_load_add(int clear, char **arg)
 	}
 
 	fclose(in);
+
 	return 0;
 }
 
