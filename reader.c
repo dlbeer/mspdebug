@@ -134,6 +134,11 @@ static int do_command(char *arg, int interactive)
 		arg = translated;
 		cmd_text = get_arg(&arg);
 
+		/* Allow ^[# to stash a command in history without
+		 * attempting to execute */
+		if (*cmd_text == '#')
+			return 0;
+
 		if (!cmddb_get(cmd_text, &cmd)) {
 			int old = in_reader_loop;
 			int ret;
