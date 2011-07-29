@@ -106,6 +106,7 @@ sport_t sport_open(const char *device, int rate, int flags)
 			       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
 			       0);
 	DCB params = {0};
+	COMMTIMEOUTS timeouts = {0};
 
 	if (hs == INVALID_HANDLE_VALUE)
 		return INVALID_HANDLE_VALUE;
@@ -121,6 +122,12 @@ sport_t sport_open(const char *device, int rate, int flags)
 	params.Parity = (flags & SPORT_EVEN_PARITY) ? EVENPARITY : NOPARITY;
 
 	if (!SetCommState(hs, &params)) {
+		CloseHandle(hs);
+		return INVALID_HANDLE_VALUE;
+	}
+
+	timeouts.ReadIntervalTimeout = 50;
+	if (!SetCommTimeouts(hs, &timeouts)) {
 		CloseHandle(hs);
 		return INVALID_HANDLE_VALUE;
 	}
