@@ -74,11 +74,13 @@ static int open_interface(struct rf2500_transport *tr,
 			"detach kernel driver");
 #endif
 
+#ifdef WIN32
 	if (usb_set_configuration(tr->handle, 1) < 0) {
 		pr_error("rf2500: can't set configuration 1");
 		usb_close(tr->handle);
 		return -1;
 	}
+#endif
 
 	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
 		pr_error("rf2500: can't claim interface");
