@@ -234,7 +234,7 @@ int process_file(const char *filename, int show)
 	if (!path)
 		return -1;
 
-	in = fopen(filename, "r");
+	in = fopen(path, "r");
 	free(path);
 	if (!in) {
 		printc_err("read: can't open %s: %s\n",
