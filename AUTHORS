@@ -61,3 +61,7 @@ Kurt Snieckus <ksnieck@gmail.com>:
 
 James Nuss <jamesnuss@nanometrics.ca>:
 	* Support for MSP430F5418.
+
+Tamas Tevesz <ice@extreme.hu>:
+	* Improvements to interactive interface.
+	* Support for MSP430AFE253.
