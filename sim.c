@@ -110,7 +110,7 @@ static int fetch_operand(struct sim_device *dev,
 			return 0;
 		}
 		addr = dev->regs[reg];
-		dev->regs[reg] += 2;
+		dev->regs[reg] += is_byte ? 1 : 2;
 		break;
 	}
 
