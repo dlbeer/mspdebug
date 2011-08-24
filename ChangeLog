@@ -1,3 +1,13 @@
+Version 0.17 - 24 Aug 2011
+	* Support for new chips: MSP430FR5739, MSP430F5418,
+	  MSP430AFE253, MSP430F5527, MSP430F5510, MSP430F5528.
+	* Added -s option to distinguish programming tools by serial
+	  number.
+	* Ported to Win32 (can be compiled with MinGW).
+	* Bug fixes for GDB stub interface and simulator.
+	* Reader now supports tilde-expansion and ^[# key.
+	* Better diagnostics for FET devices (more error codes).
+
 Version 0.16 - 14 Jun 2011
 	* Support for new chips: MSP430G2252, MSP430G2553, MSP430F235,
 	  MSP430F427.

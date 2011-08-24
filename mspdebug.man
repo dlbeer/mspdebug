@@ -1,4 +1,4 @@
-.TH mspdebug 1 "14 Jun 2011" "Version 0.16"
+.TH mspdebug 1 "24 Aug 2011" "Version 0.17"
 .SH NAME
 MSPDebug - debugging tool for MSP430 MCUs
 .SH SYNOPSIS
@@ -6,8 +6,8 @@ MSPDebug - debugging tool for MSP430 MCUs
 .SH DESCRIPTION
 MSPDebug is a command-line tool designed for debugging and programming
 the MSP430 family of MCUs. It supports the eZ430-F2013, eZ430-RF2500,
-FET430UIF and Olimex MSP-JTAG-TINY programming tools, as well as a
-simulation mode.
+Launchpad, FET430UIF and Olimex MSP-JTAG-TINY programming tools, as
+well as a simulation mode.
 
 When started with appropriate options, MSPDebug will attempt to
 connect to the debugging tool specified and identify the device under
@@ -75,7 +75,8 @@ Show program version and copyright information.
 A driver name must be specified on the command line for MSPDebug to
 connect to. Valid driver names are listed here.
 .IP "\fBrf2500\fR"
-Connect to an eZ430-RF2500 device. Only USB connection is supported.
+Connect to an eZ430-RF2500 or Launchpad device. Only USB connection is
+supported.
 .IP "\fBolimex\fR"
 Connect to an Olimex MSP-JTAG-TINY device. Both USB and tty access are
 supported.
@@ -450,23 +451,25 @@ renamed.
 The following chips are supported when using FET-compatible drivers:
 .PP
 .RS 0
-CC430F5133    MSP430F1612   MSP430F235    MSP430F4270   MSP430F5526
+CC430F5133    MSP430F1612   MSP430F2370   MSP430F47197  MSP430F5527
 .RS 0
-CC430F5137    MSP430F169    MSP430F2370   MSP430F47173  MSP430F5529
+CC430F5137    MSP430F169    MSP430F247    MSP430F4784   MSP430F5528
 .RS 0
-CC430F6137    MSP430F2013   MSP430F247    MSP430F47197  MSP430FG4618
+CC430F6137    MSP430F2013   MSP430F249    MSP430F5418   MSP430F5529
 .RS 0
-MSP430F1121   MSP430F2122   MSP430F249    MSP430F4784   MSP430G2231
+MSP430AFE253  MSP430F2122   MSP430F2616   MSP430F5437   MSP430FG4618
 .RS 0
-MSP430F1232   MSP430F2131   MSP430F2616   MSP430F5437   MSP430G2252
+MSP430F1121   MSP430F2131   MSP430F2617   MSP430F5437A  MSP430FR5739
 .RS 0
-MSP430F147    MSP430F2132   MSP430F2617   MSP430F5437A  MSP430G2452
+MSP430F1232   MSP430F2132   MSP430F2618   MSP430F5438   MSP430G2231
 .RS 0
-MSP430F148    MSP430F2234   MSP430F2618   MSP430F5438   MSP430G2553
+MSP430F147    MSP430F2234   MSP430F413    MSP430F5438A  MSP430G2252
 .RS 0
-MSP430F149    MSP430F2272   MSP430F413    MSP430F5438A
+MSP430F148    MSP430F2272   MSP430F427    MSP430F5510   MSP430G2452
 .RS 0
-MSP430F1611   MSP430F2274   MSP430F427    MSP430F5525
+MSP430F149    MSP430F2274   MSP430F4270   MSP430F5525   MSP430G2553
+.RS 0
+MSP430F1611   MSP430F235    MSP430F47173  MSP430F5526
 .SH BINARY FORMATS
 The following binary/symbol formats are supported by MSPDebug:
 
