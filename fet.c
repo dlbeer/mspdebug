@@ -646,7 +646,8 @@ static device_status_t fet_poll(device_t dev_base)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	if (usleep(50000) < 0)
+	ctrlc_reset();
+	if ((usleep(50000) < 0) || ctrlc_check())
 		return DEVICE_STATUS_INTR;
 
 	if (xfer(dev, C_STATE, NULL, 0, 1, 0) < 0) {
