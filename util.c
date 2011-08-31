@@ -249,6 +249,8 @@ char *strsep(char **strp, const char *delim)
 				*strp = end;
 				return start;
 			}
+
+			d++;
 		}
 
 		end++;
