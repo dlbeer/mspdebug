@@ -611,8 +611,8 @@ Any command which accepts a memory address, length or register value
 as an argument may be given an address expression. An address
 expression consists of an algebraic combination of values.
 
-An address value may be either a symbol name, a hex value preceeded
-with the specifier "0x", a decimal value preceeded with the specifier
+An address value may be either a symbol name, a hex value preceded
+with the specifier "0x", a decimal value preceded with the specifier
 "0d", or a number in the default input radix (without a specifier). See
 the option \fBiradix\fR for more information.
 
