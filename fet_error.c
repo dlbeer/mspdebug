@@ -95,8 +95,10 @@ static const char *error_strings[] =
 	"Could not unlock BSL memory segments",					// 61
 	"Could not perform access, BSL memory segments are protected",		// 62
 	"FOUND_OTHER_DEVICE (errcode=63)", /* XXX */				// 63
-	"Wrong Password provided to open JTAG",					// 64
-	"Invalid error number",							// 65
+	"Wrong password provided to open JTAG",					// 64
+	"Internal error",							// 65
+	"Only one UIF must be connected during update to v3",			// 66
+	"Invalid error number",							// 67
 };
 
 const char *fet_error(int code)
