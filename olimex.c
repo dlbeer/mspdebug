@@ -272,7 +272,7 @@ transport_t olimex_open(const char *devpath, const char *requested_serial)
 	/* Flush out lingering data */
 	while (usb_bulk_read(tr->handle, tr->in_ep,
 			     buf, sizeof(buf),
-			     100) >= 0);
+			     100) > 0);
 
 	return (transport_t)tr;
 }

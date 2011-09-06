@@ -231,7 +231,7 @@ transport_t rf2500_open(const char *devpath, const char *requested_serial)
 #ifndef __APPLE__
 	while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
 			     buf, sizeof(buf),
-			     100) >= 0);
+			     100) > 0);
 #endif
 
 	return (transport_t)tr;
