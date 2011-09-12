@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <errno.h>
 #include <string.h>
 
 #include "sockets.h"
@@ -57,13 +56,13 @@ static int gdb_read(struct gdb_data *data, int timeout_ms)
 			       timeout_ms);
 
 	if (len < 0) {
-		data->error = errno;
+		data->error = 1;
 		pr_error("gdb: recv");
 		return -1;
 	}
 
 	if (!len) {
-		data->error = EPIPE;
+		data->error = 1;
 		printc("Connection closed\n");
 		return -1;
 	}
@@ -98,7 +97,7 @@ int gdb_getc(struct gdb_data *data)
 static int gdb_flush(struct gdb_data *data)
 {
 	if (sockets_send(data->sock, data->outbuf, data->outlen, 0) < 0) {
-		data->error = errno;
+		data->error = 1;
 		pr_error("gdb: flush");
 		return -1;
 	}
@@ -119,7 +118,7 @@ int gdb_flush_ack(struct gdb_data *data)
 	do {
 		if (sockets_send(data->sock, data->outbuf,
 				 data->outlen, 0) < 0) {
-			data->error = errno;
+			data->error = 1;
 			pr_error("gdb: flush_ack");
 			return -1;
 		}
