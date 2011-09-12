@@ -22,7 +22,6 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <regex.h>
-#include <errno.h>
 #include <assert.h>
 #include "btree.h"
 #include "stab.h"

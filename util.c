@@ -22,7 +22,6 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <errno.h>
 #include <signal.h>
 #include <assert.h>
 
