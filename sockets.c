@@ -120,7 +120,7 @@ ssize_t sockets_send(SOCKET s, const void *buf, size_t len, int flags)
 }
 
 ssize_t sockets_recv(SOCKET s, void *buf, size_t len, int flags,
-		     int timeout_ms)
+		     int timeout_ms, int *was_timeout)
 {
 	int ret = -1;
 	DWORD to_arg = (timeout_ms >= 0) ? timeout_ms : INFINITE;
@@ -130,6 +130,9 @@ ssize_t sockets_recv(SOCKET s, void *buf, size_t len, int flags,
 	do {
 		ret = recv(s, buf, len, flags);
 	} while (ret < 0 && !sockets_wait(to_arg));
+
+	if (was_timeout)
+		*was_timeout = (ret < 0 && (error_save == WAIT_TIMEOUT));
 
 	sockets_end(s);
 	return ret;
@@ -151,7 +154,7 @@ ssize_t sockets_send(SOCKET s, const void *buf, size_t len, int flags)
 }
 
 ssize_t sockets_recv(SOCKET s, void *buf, size_t buf_len, int flags,
-		     int timeout_ms)
+		     int timeout_ms, int *was_timeout)
 {
 	fd_set r;
 	struct timeval to = {
@@ -165,6 +168,9 @@ ssize_t sockets_recv(SOCKET s, void *buf, size_t buf_len, int flags,
 	if (select(s + 1, &r, NULL, NULL,
 		   timeout_ms < 0 ? NULL : &to) < 0)
 		return -1;
+
+	if (was_timeout)
+		*was_timeout = !FD_ISSET(s, &r);
 
 	if (!FD_ISSET(s, &r)) {
 		errno = ETIMEDOUT;

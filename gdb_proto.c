@@ -50,10 +50,15 @@ void gdb_printf(struct gdb_data *data, const char *fmt, ...)
 	data->outlen += len;
 }
 
+/* Returns -1 for error, 0 for timeout, >0 if data received. */
 static int gdb_read(struct gdb_data *data, int timeout_ms)
 {
+	int was_timeout;
 	int len = sockets_recv(data->sock, data->xbuf, sizeof(data->xbuf), 0,
-			       timeout_ms);
+			       timeout_ms, &was_timeout);
+
+	if (was_timeout)
+		return 0;
 
 	if (len < 0) {
 		data->error = 1;
@@ -74,8 +79,8 @@ static int gdb_read(struct gdb_data *data, int timeout_ms)
 
 int gdb_peek(struct gdb_data *data, int timeout_ms)
 {
-	if (data->head == data->tail && gdb_read(data, timeout_ms) < 0)
-		return -1;
+	if (data->head == data->tail)
+		return gdb_read(data, timeout_ms);
 
 	return data->head != data->tail;
 }
@@ -85,7 +90,7 @@ int gdb_getc(struct gdb_data *data)
 	int c;
 
 	/* If the buffer is empty, receive some more data */
-	if (data->head == data->tail && gdb_read(data, -1) < 0)
+	if (data->head == data->tail && gdb_read(data, -1) <= 0)
 		return -1;
 
 	c = data->xbuf[data->head];

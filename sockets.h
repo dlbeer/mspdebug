@@ -48,6 +48,6 @@ SOCKET sockets_accept(SOCKET s, struct sockaddr *addr, socklen_t *addrlen);
 int sockets_connect(SOCKET s, const struct sockaddr *addr, socklen_t addrlen);
 ssize_t sockets_send(SOCKET s, const void *buf, size_t len, int flags);
 ssize_t sockets_recv(SOCKET s, void *buf, size_t len, int flags,
-		     int timeout_ms);
+		     int timeout_ms, int *was_timeout);
 
 #endif
