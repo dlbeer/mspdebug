@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 
 #include "sockets.h"
 #include "output.h"
@@ -325,11 +324,12 @@ static device_status_t gdbc_poll(device_t dev_base)
 	if (!dev->is_running)
 		return DEVICE_STATUS_HALTED;
 
+	ctrlc_reset();
 	len = gdb_peek(&dev->gdb, 50);
-	if (len < 0) {
-		if (errno == EINTR)
-			return DEVICE_STATUS_INTR;
+	if (ctrlc_check())
+		return DEVICE_STATUS_INTR;
 
+	if (len < 0) {
 		dev->is_running = 0;
 		return DEVICE_STATUS_ERROR;
 	}
