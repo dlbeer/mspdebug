@@ -51,7 +51,7 @@ else
 	BINARY = mspdebug
 endif
 
-INCLUDES = -I. -Isimio -Iformats -Idrivers -Iutil
+INCLUDES = -I. -Isimio -Iformats -Idrivers -Iutil -Iui
 GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb $(INCLUDES)
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
@@ -61,7 +61,6 @@ MSPDEBUG_CFLAGS = $(CFLAGS) $(READLINE_CFLAGS) $(PORTS_CFLAGS) $(GCC_CFLAGS)
 all: $(BINARY)
 
 clean:
-	rm -f *.o
 	rm -f */*.o
 	rm -f $(BINARY)
 
@@ -75,14 +74,6 @@ install: $(BINARY) mspdebug.man
 .SUFFIXES: .c .o
 
 OBJ=\
-    main.o \
-    gdb.o \
-    rtools.o \
-    sym.o \
-    devcmd.o \
-    reader.o \
-    cmddb.o \
-    stdcmd.o \
     util/btree.o \
     util/expr.o \
     util/list.o \
@@ -122,7 +113,15 @@ OBJ=\
     simio/simio_wdt.o \
     simio/simio_hwmult.o \
     simio/simio_gpio.o \
-    aliasdb.o \
+    ui/gdb.o \
+    ui/rtools.o \
+    ui/sym.o \
+    ui/devcmd.o \
+    ui/reader.o \
+    ui/cmddb.o \
+    ui/stdcmd.o \
+    ui/aliasdb.o \
+    ui/main.o
 
 $(BINARY): $(OBJ)
 	$(CC) $(MSPDEBUG_LDFLAGS) -o $@ $^ $(MSPDEBUG_LIBS)
