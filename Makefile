@@ -51,7 +51,8 @@ else
 	BINARY = mspdebug
 endif
 
-GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
+INCLUDES = -I. -Isimio
+GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb $(INCLUDES)
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
 MSPDEBUG_LIBS = -lusb $(READLINE_LIBS) $(WIN32_LIBS)
@@ -61,6 +62,7 @@ all: $(BINARY)
 
 clean:
 	rm -f *.o
+	rm -f */*.o
 	rm -f $(BINARY)
 
 install: $(BINARY) mspdebug.man
@@ -72,13 +74,57 @@ install: $(BINARY) mspdebug.man
 
 .SUFFIXES: .c .o
 
-$(BINARY): main.o fet.o rf2500.o dis.o uif.o olimex.o ihex.o elf32.o stab.o \
-           util.o bsl.o sim.o symmap.o gdb.o btree.o rtools.o sym.o devcmd.o \
-	   reader.o vector.o output_util.o expr.o fet_error.o binfile.o \
-	   fet_db.o usbutil.o titext.o srec.o device.o coff.o opdb.o output.o \
-	   cmddb.o stdcmd.o prog.o flash_bsl.o list.o simio.o simio_tracer.o \
-	   simio_timer.o simio_wdt.o simio_hwmult.o simio_gpio.o aliasdb.o \
-	   gdb_proto.o gdbc.o sport.o sockets.o
+OBJ=\
+    main.o \
+    fet.o \
+    rf2500.o \
+    dis.o \
+    uif.o \
+    olimex.o \
+    ihex.o \
+    elf32.o \
+    stab.o \
+    util.o \
+    bsl.o \
+    sim.o \
+    symmap.o \
+    gdb.o \
+    btree.o \
+    rtools.o \
+    sym.o \
+    devcmd.o \
+    reader.o \
+    vector.o \
+    output_util.o \
+    expr.o \
+    fet_error.o \
+    binfile.o \
+    fet_db.o \
+    usbutil.o \
+    titext.o \
+    srec.o \
+    device.o \
+    coff.o \
+    opdb.o \
+    output.o \
+    cmddb.o \
+    stdcmd.o \
+    prog.o \
+    flash_bsl.o \
+    list.o \
+    simio/simio.o \
+    simio/simio_tracer.o \
+    simio/simio_timer.o \
+    simio/simio_wdt.o \
+    simio/simio_hwmult.o \
+    simio/simio_gpio.o \
+    aliasdb.o \
+    gdb_proto.o \
+    gdbc.o \
+    sport.o \
+    sockets.o \
+
+$(BINARY): $(OBJ)
 	$(CC) $(MSPDEBUG_LDFLAGS) -o $@ $^ $(MSPDEBUG_LIBS)
 
 .c.o:
