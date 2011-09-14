@@ -6,8 +6,8 @@ MSPDebug - debugging tool for MSP430 MCUs
 .SH DESCRIPTION
 MSPDebug is a command-line tool designed for debugging and programming
 the MSP430 family of MCUs. It supports the eZ430-F2013, eZ430-RF2500,
-Launchpad, FET430UIF and Olimex MSP-JTAG-TINY programming tools, as
-well as a simulation mode.
+Launchpad, Chronos, FET430UIF and Olimex MSP-JTAG-TINY programming tools,
+as well as a simulation mode.
 
 When started with appropriate options, MSPDebug will attempt to
 connect to the debugging tool specified and identify the device under
@@ -75,8 +75,8 @@ Show program version and copyright information.
 A driver name must be specified on the command line for MSPDebug to
 connect to. Valid driver names are listed here.
 .IP "\fBrf2500\fR"
-Connect to an eZ430-RF2500 or Launchpad device. Only USB connection is
-supported.
+Connect to an eZ430-RF2500, Launchpad or Chronos device. Only USB
+connection is supported.
 .IP "\fBolimex\fR"
 Connect to an Olimex MSP-JTAG-TINY device. Both USB and tty access are
 supported.
