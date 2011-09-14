@@ -51,7 +51,7 @@ else
 	BINARY = mspdebug
 endif
 
-INCLUDES = -I. -Isimio
+INCLUDES = -I. -Isimio -Iformats
 GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb $(INCLUDES)
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
@@ -81,13 +81,10 @@ OBJ=\
     dis.o \
     uif.o \
     olimex.o \
-    ihex.o \
-    elf32.o \
     stab.o \
     util.o \
     bsl.o \
     sim.o \
-    symmap.o \
     gdb.o \
     btree.o \
     rtools.o \
@@ -98,13 +95,9 @@ OBJ=\
     output_util.o \
     expr.o \
     fet_error.o \
-    binfile.o \
     fet_db.o \
     usbutil.o \
-    titext.o \
-    srec.o \
     device.o \
-    coff.o \
     opdb.o \
     output.o \
     cmddb.o \
@@ -112,6 +105,13 @@ OBJ=\
     prog.o \
     flash_bsl.o \
     list.o \
+    formats/binfile.o \
+    formats/coff.o \
+    formats/elf32.o \
+    formats/ihex.o \
+    formats/symmap.o \
+    formats/srec.o \
+    formats/titext.o \
     simio/simio.o \
     simio/simio_tracer.o \
     simio/simio_timer.o \
