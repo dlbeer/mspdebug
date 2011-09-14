@@ -51,7 +51,7 @@ else
 	BINARY = mspdebug
 endif
 
-INCLUDES = -I. -Isimio -Iformats -Idrivers
+INCLUDES = -I. -Isimio -Iformats -Idrivers -Iutil
 GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb $(INCLUDES)
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
@@ -76,25 +76,28 @@ install: $(BINARY) mspdebug.man
 
 OBJ=\
     main.o \
-    dis.o \
-    stab.o \
-    util.o \
     gdb.o \
-    btree.o \
     rtools.o \
     sym.o \
     devcmd.o \
     reader.o \
-    vector.o \
-    output_util.o \
-    expr.o \
-    usbutil.o \
-    opdb.o \
-    output.o \
     cmddb.o \
     stdcmd.o \
-    prog.o \
-    list.o \
+    util/btree.o \
+    util/expr.o \
+    util/list.o \
+    util/sockets.o \
+    util/sport.o \
+    util/usbutil.o \
+    util/util.o \
+    util/vector.o \
+    util/output.o \
+    util/output_util.o \
+    util/opdb.o \
+    util/prog.o \
+    util/stab.o \
+    util/dis.o \
+    util/gdb_proto.o \
     drivers/device.o \
     drivers/bsl.o \
     drivers/fet.o \
@@ -120,9 +123,6 @@ OBJ=\
     simio/simio_hwmult.o \
     simio/simio_gpio.o \
     aliasdb.o \
-    gdb_proto.o \
-    sport.o \
-    sockets.o \
 
 $(BINARY): $(OBJ)
 	$(CC) $(MSPDEBUG_LDFLAGS) -o $@ $^ $(MSPDEBUG_LIBS)
