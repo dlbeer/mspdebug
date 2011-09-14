@@ -51,7 +51,7 @@ else
 	BINARY = mspdebug
 endif
 
-INCLUDES = -I. -Isimio -Iformats
+INCLUDES = -I. -Isimio -Iformats -Idrivers
 GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb $(INCLUDES)
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
@@ -76,15 +76,9 @@ install: $(BINARY) mspdebug.man
 
 OBJ=\
     main.o \
-    fet.o \
-    rf2500.o \
     dis.o \
-    uif.o \
-    olimex.o \
     stab.o \
     util.o \
-    bsl.o \
-    sim.o \
     gdb.o \
     btree.o \
     rtools.o \
@@ -94,17 +88,24 @@ OBJ=\
     vector.o \
     output_util.o \
     expr.o \
-    fet_error.o \
-    fet_db.o \
     usbutil.o \
-    device.o \
     opdb.o \
     output.o \
     cmddb.o \
     stdcmd.o \
     prog.o \
-    flash_bsl.o \
     list.o \
+    drivers/device.o \
+    drivers/bsl.o \
+    drivers/fet.o \
+    drivers/fet_error.o \
+    drivers/fet_db.o \
+    drivers/flash_bsl.o \
+    drivers/gdbc.o \
+    drivers/olimex.o \
+    drivers/rf2500.o \
+    drivers/sim.o \
+    drivers/uif.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \
@@ -120,7 +121,6 @@ OBJ=\
     simio/simio_gpio.o \
     aliasdb.o \
     gdb_proto.o \
-    gdbc.o \
     sport.o \
     sockets.o \
 
