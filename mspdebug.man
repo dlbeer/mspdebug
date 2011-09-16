@@ -100,7 +100,12 @@ should be the filename of the appropriate tty device. The TI serial
 converter chips on these devices are supported by newer versions of the
 Linux kernel, and should appear as /dev/tty\fIXX\fR when attached.
 
-USB connection is not supported for this driver.
+USB connection is supported for this driver. The USB interface chip in
+these devices is a TI3410, which requires a firmware download on
+startup. MSPDebug will search for a file called ti_3410.fw.ihex in
+the configured library directory and the current directory. You can
+specify an alternate location for the file via the
+\fBMSPDEBUG_TI3410_FW\fR environment variable.
 .IP "\fBuif-bsl\fR"
 Connect to the bootloader on a FET430UIF device. These devices contain
 MSP430F1612 chips. By sending a special command sequence, you can obtain
@@ -654,6 +659,17 @@ no radix specifier, this value gives the input radix, which is
 If set, MSPDebug will supress most of its debug-related output. This option
 defaults to false, but can be set true on start-up using the \fB-q\fR
 command-line option.
+.SH ENVIRONMENT
+.IP "\fBMSPDEBUG_TI3410_FW\fI"
+Specifies the location of TI3410 firmware, for raw USB access to FET430UIF
+or eZ430 devices. This variable should contain the path to an Intel HEX
+file containing suitable firmware for the TI3410.
+.SH FILES
+.IP "~/.mspdebug"
+File containing commands to be executed on startup.
+.IP "ti_3410.fw.ihex"
+Firmware image for the TI3410 USB interface chip. This file is only
+required for raw USB access to FET430UIF or eZ430 devices.
 .SH SEE ALSO
 \fBnm\fR(1), \fBgdb\fR(1), \fBobjcopy\fR(1)
 .SH BUGS

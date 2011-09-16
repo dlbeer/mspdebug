@@ -52,11 +52,13 @@ else
 endif
 
 INCLUDES = -I. -Isimio -Iformats -Idrivers -Iutil -Iui
-GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb $(INCLUDES)
+GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
+CONFIG_CFLAGS = -DLIB_DIR=\"$(PREFIX)/lib\"
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
 MSPDEBUG_LIBS = -lusb $(READLINE_LIBS) $(WIN32_LIBS)
-MSPDEBUG_CFLAGS = $(CFLAGS) $(READLINE_CFLAGS) $(PORTS_CFLAGS) $(GCC_CFLAGS)
+MSPDEBUG_CFLAGS = $(CFLAGS) $(READLINE_CFLAGS) $(PORTS_CFLAGS)\
+ $(GCC_CFLAGS) $(INCLUDES) $(CONFIG_CFLAGS)
 
 all: $(BINARY)
 
@@ -66,10 +68,13 @@ clean:
 
 install: $(BINARY) mspdebug.man
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man1
 	$(INSTALL) -m 0755 $(BINARY) $(DESTDIR)$(PREFIX)/bin/mspdebug
+	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man1
 	$(INSTALL) -m 0644 mspdebug.man \
 		$(DESTDIR)$(PREFIX)/share/man/man1/mspdebug.1
+	mkdir -p $(DESTDIR)$(PREFIX)/lib/mspdebug
+	$(INSTALL) -m 0644 ti_3410.fw.ihex \
+		$(DESTDIR)$(PREFIX)/lib/mspdebug/ti_3410.fw.ihex
 
 .SUFFIXES: .c .o
 

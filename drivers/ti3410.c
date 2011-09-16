@@ -25,6 +25,7 @@
 #include "util.h"
 #include "usbutil.h"
 #include "output.h"
+#include "ihex.h"
 
 /************************************************************************
  * Definitions taken from drivers/usb/serial/ti_usb_3410_5052.h in the
@@ -108,6 +109,8 @@
 #define TI_RW_DATA_DOUBLE_WORD          0x04
 
 #define TI_TRANSFER_TIMEOUT		2
+#define TI_FIRMWARE_BUF_SIZE		16284
+#define TI_DOWNLOAD_MAX_PACKET_SIZE     64
 
 /************************************************************************/
 
@@ -123,6 +126,9 @@ struct ti3410_transport {
 #define USB_FET_IN_EP			0x81
 #define USB_FET_OUT_EP			0x01
 #define USB_FET_INT_EP			0x83
+
+#define USB_FDL_INTERFACE		0
+#define USB_FDL_OUT_EP			0x01
 
 #define TIMEOUT				1000
 #define READ_TIMEOUT			5000
@@ -349,6 +355,175 @@ static void ti3410_destroy(transport_t tr_base)
 	free(tr);
 }
 
+struct firmware {
+	uint8_t		buf[TI_FIRMWARE_BUF_SIZE];
+	unsigned int	size;
+};
+
+static FILE *find_firmware(void)
+{
+	char path[256];
+	const char *env;
+	FILE *in;
+
+	printc_dbg("Searching for firmware for TI3410...\n");
+
+	env = getenv("MSPDEBUG_TI3410_FW");
+	if (env) {
+		snprintf(path, sizeof(path), "%s", env);
+		printc_dbg("    - checking %s\n", path);
+		in = fopen(path, "r");
+		if (in)
+			return in;
+	}
+
+	snprintf(path, sizeof(path), "%s",
+		 LIB_DIR "/mspdebug/ti_3410.fw.ihex");
+	printc_dbg("    - checking %s\n", path);
+	in = fopen(path, "r");
+	if (in)
+		return in;
+
+	snprintf(path, sizeof(path), "%s", "ti_3410.fw.ihex");
+	printc_dbg("    - checking %s\n", path);
+	in = fopen(path, "r");
+	if (in)
+		return in;
+
+	printc_err("ti3410: unable to locate firmware\n");
+	return NULL;
+}
+
+static int do_extract(void *user_data, address_t addr,
+		      const uint8_t *data, int len)
+{
+	struct firmware *f = (struct firmware *)user_data;
+
+	if (f->size != addr) {
+		printc_err("ti3410: firmware gap at 0x%x (ends at 0x%0x)\n",
+			   f->size, addr);
+		return -1;
+	}
+
+	if (f->size + len > sizeof(f->buf)) {
+		printc_err("ti3410: maximum firmware size exceeded\n");
+		return -1;
+	}
+
+	memcpy(f->buf + f->size, data, len);
+	f->size += len;
+	return 0;
+}
+
+static int load_firmware(struct firmware *f)
+{
+	FILE *in = find_firmware();
+
+	if (!in)
+		return -1;
+
+	if (!ihex_check(in)) {
+		printc_err("ti3410: not a valid IHEX file\n");
+		fclose(in);
+		return -1;
+	}
+
+	memset(f, 0, sizeof(*f));
+	if (ihex_extract(in, do_extract, f) < 0) {
+		printc_err("ti3410: failed to load firmware\n");
+		fclose(in);
+		return -1;
+	}
+
+	fclose(in);
+	return 0;
+}
+
+static void prepare_firmware(struct firmware *f)
+{
+	uint8_t cksum = 0;
+	uint16_t real_size = f->size - 3;
+	int i;
+
+	for (i = 3; i < f->size; i++)
+		cksum += f->buf[i];
+
+	f->buf[0] = real_size & 0xff;
+	f->buf[1] = real_size >> 8;
+	f->buf[2] = cksum;
+
+	printc_dbg("Loaded %d byte firmware image (checksum = 0x%02x)\n",
+		   f->size, cksum);
+}
+
+static int do_download(struct usb_device *dev, const struct firmware *f)
+{
+	struct usb_dev_handle *hnd;
+	int offset = 0;
+
+	printc_dbg("Starting download...\n");
+
+	hnd = usb_open(dev);
+	if (!hnd) {
+		pr_error("ti3410: failed to open USB device");
+		return -1;
+	}
+
+#if defined(__linux__)
+        if (usb_detach_kernel_driver_np(hnd, USB_FDL_INTERFACE) < 0)
+                pr_error("ti3410: warning: can't "
+                         "detach kernel driver");
+#endif
+
+	if (usb_claim_interface(hnd, USB_FDL_INTERFACE) < 0) {
+		pr_error("ti3410: can't claim interface");
+		usb_close(hnd);
+		return -1;
+	}
+
+	while (offset < f->size) {
+		int plen = f->size - offset;
+		int r;
+
+		if (plen > TI_DOWNLOAD_MAX_PACKET_SIZE)
+			plen = TI_DOWNLOAD_MAX_PACKET_SIZE;
+
+                r = usb_bulk_write(hnd, USB_FDL_OUT_EP,
+				   (char *)f->buf + offset, plen, TIMEOUT);
+		if (r < 0) {
+			pr_error("ti3410: bulk write failed");
+			usb_close(hnd);
+			return -1;
+		}
+
+		offset += r;
+	}
+
+	usleep(100000);
+	if (usb_reset(hnd) < 0)
+		pr_error("ti3410: warning: reset failed");
+
+	usb_close(hnd);
+	return 0;
+}
+
+static int download_firmware(struct usb_device *dev)
+{
+	struct firmware frm;
+
+	if (load_firmware(&frm) < 0)
+		return -1;
+
+	prepare_firmware(&frm);
+
+	if (do_download(dev, &frm) < 0)
+		return -1;
+
+	printc_dbg("Waiting for TI3410 reset...\n");
+	sleep(2);
+	return 0;
+}
+
 transport_t ti3410_open(const char *devpath, const char *requested_serial)
 {
 	struct ti3410_transport *tr = malloc(sizeof(*tr));
@@ -376,6 +551,27 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial)
 	if (!dev) {
 		free(tr);
 		return NULL;
+	}
+
+	if (dev->descriptor.bNumConfigurations == 1) {
+		if (download_firmware(dev) < 0) {
+			printc_err("ti3410: firmware download failed\n");
+			free(tr);
+			return NULL;
+		}
+
+		usb_find_devices();
+
+		if (devpath)
+			dev = usbutil_find_by_loc(devpath);
+		else
+			dev = usbutil_find_by_id(USB_FET_VENDOR, USB_FET_PRODUCT,
+						 requested_serial);
+
+		if (!dev) {
+			free(tr);
+			return NULL;
+		}
 	}
 
 	if (open_device(tr, dev) < 0) {
