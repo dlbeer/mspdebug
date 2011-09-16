@@ -100,6 +100,7 @@ OBJ=\
     drivers/rf2500.o \
     drivers/sim.o \
     drivers/uif.o \
+    drivers/ti3410.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \

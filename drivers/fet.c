@@ -37,6 +37,7 @@
 #include "uif.h"
 #include "olimex.h"
 #include "rf2500.h"
+#include "ti3410.h"
 
 /* Send data in separate packets, as in the RF2500 */
 #define FET_PROTO_SEPARATE_DATA		0x01
@@ -1145,12 +1146,11 @@ static device_t fet_open_uif(const struct device_args *args)
 {
 	transport_t trans;
 
-	if (!(args->flags & DEVICE_FLAG_TTY)) {
-		printc_err("This driver does not support raw USB access.\n");
-		return NULL;
-	}
+	if (args->flags & DEVICE_FLAG_TTY)
+		trans = uif_open(args->path, UIF_TYPE_FET);
+	else
+		trans = ti3410_open(args->path, args->requested_serial);
 
-	trans = uif_open(args->path, UIF_TYPE_FET);
 	if (!trans)
 		return NULL;
 
