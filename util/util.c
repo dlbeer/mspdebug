@@ -32,15 +32,17 @@
 #include "util.h"
 #include "output.h"
 
-static volatile int ctrlc_flag;
-
 #ifdef WIN32
+static int ctrlc_flag;
 static HANDLE ctrlc_event;
+static CRITICAL_SECTION ctrlc_cs;
 
 static WINAPI BOOL ctrlc_handler(DWORD event)
 {
 	if (event == CTRL_C_EVENT) {
+		EnterCriticalSection(&ctrlc_cs);
 		ctrlc_flag = 1;
+		LeaveCriticalSection(&ctrlc_cs);
 		SetEvent(ctrlc_event);
 		return TRUE;
 	}
@@ -51,12 +53,33 @@ static WINAPI BOOL ctrlc_handler(DWORD event)
 void ctrlc_init(void)
 {
 	ctrlc_event = CreateEvent(0, TRUE, FALSE, NULL);
+	InitializeCriticalSection(&ctrlc_cs);
 	SetConsoleCtrlHandler(ctrlc_handler, TRUE);
+}
+
+void ctrlc_exit(void)
+{
+	SetConsoleCtrlHandler(NULL, TRUE);
+	DeleteCriticalSection(&ctrlc_cs);
+	CloseHandle(ctrlc_event);
+}
+
+int ctrlc_check(void)
+{
+	int cc;
+
+	EnterCriticalSection(&ctrlc_cs);
+	cc = ctrlc_flag;
+	LeaveCriticalSection(&ctrlc_cs);
+
+	return cc;
 }
 
 void ctrlc_reset(void)
 {
+	EnterCriticalSection(&ctrlc_cs);
 	ctrlc_flag = 0;
+	LeaveCriticalSection(&ctrlc_cs);
 	ResetEvent(ctrlc_event);
 }
 
@@ -65,6 +88,8 @@ HANDLE ctrlc_win32_event(void)
 	return ctrlc_event;
 }
 #else /* WIN32 */
+static volatile int ctrlc_flag;
+
 static void sigint_handler(int signum)
 {
 	ctrlc_flag = 1;
@@ -84,16 +109,21 @@ void ctrlc_init(void)
 #endif
 }
 
+void ctrlc_exit(void)
+{
+	signal(SIGINT, SIG_DFL);
+}
+
 void ctrlc_reset(void)
 {
 	ctrlc_flag = 0;
 }
-#endif
 
 int ctrlc_check(void)
 {
 	return ctrlc_flag;
 }
+#endif
 
 char *get_arg(char **text)
 {
@@ -310,10 +340,12 @@ char *expand_tilde(const char *path)
 			if (expanded)
 				snprintf(expanded, len, "%s%s", home, path + 1);
 			else
-				printc_err("%s: malloc: %s\n", __FUNCTION__, last_error());
+				printc_err("%s: malloc: %s\n", __FUNCTION__,
+					   last_error());
 
 		} else {
-			printc_err("%s: getenv: %s\n", __FUNCTION__, last_error());
+			printc_err("%s: getenv: %s\n", __FUNCTION__,
+				   last_error());
 		}
 	} else {
 		expanded = (char *)malloc(strlen(path) + 1);
@@ -321,7 +353,8 @@ char *expand_tilde(const char *path)
 		if (expanded)
 			strcpy(expanded, path);
 		else
-			printc_err("%s: malloc: %s\n", __FUNCTION__, last_error());
+			printc_err("%s: malloc: %s\n", __FUNCTION__,
+				   last_error());
 	}
 
 	/* Caller must free()! */

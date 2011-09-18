@@ -40,6 +40,7 @@ const char *last_error(void);
 
 /* Check and catch ^C from the user */
 void ctrlc_init(void);
+void ctrlc_exit(void);
 void ctrlc_reset(void);
 int ctrlc_check(void);
 
