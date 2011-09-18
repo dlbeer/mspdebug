@@ -86,7 +86,7 @@ int sport_read(sport_t s, uint8_t *data, int len)
 
 		if (!r)
 			errno = ETIMEDOUT;
-		if (r <= 0 && errno != EINTR)
+		if (r <= 0)
 			return -1;
 	} while (r <= 0);
 
