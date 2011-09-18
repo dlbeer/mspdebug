@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <usb.h>
 
 #include "ti3410.h"
@@ -520,7 +521,7 @@ static int download_firmware(struct usb_device *dev)
 		return -1;
 
 	printc_dbg("Waiting for TI3410 reset...\n");
-	sleep(2);
+	usleep(2000000);
 	return 0;
 }
 

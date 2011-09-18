@@ -44,9 +44,11 @@ else
 endif
 
 ifeq ($(OS),Windows_NT)
+	MSPDEBUG_CC = gcc
 	WIN32_LIBS = -lws2_32 -lregex
 	BINARY = mspdebug.exe
 else
+	MSPDEBUG_CC = $(CC)
 	WIN32_LIBS =
 	BINARY = mspdebug
 endif
@@ -130,7 +132,7 @@ OBJ=\
     ui/main.o
 
 $(BINARY): $(OBJ)
-	$(CC) $(MSPDEBUG_LDFLAGS) -o $@ $^ $(MSPDEBUG_LIBS)
+	$(MSPDEBUG_CC) $(MSPDEBUG_LDFLAGS) -o $@ $^ $(MSPDEBUG_LIBS)
 
 .c.o:
-	$(CC) $(MSPDEBUG_CFLAGS) -o $@ -c $*.c
+	$(MSPDEBUG_CC) $(MSPDEBUG_CFLAGS) -o $@ -c $*.c
