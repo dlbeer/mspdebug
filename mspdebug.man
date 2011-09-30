@@ -28,8 +28,11 @@ reader.
 Command-line options accepted by MSPDebug are described below. If
 commands are specified on the end of the command-line, then they are
 executed after connecting to the device, and the interactive prompt is
-not started. See the section labelled \fBCOMMANDS\fR for more
-information.
+not started. Please be aware that commands consisting of multiple
+words need to be enclosed in quotation marks, otherwise they are
+treated as single commands. Thus the common prog command would be
+used as "prog main.elf".
+See the section labelled \fBCOMMANDS\fR for more information.
 .IP "\-q"
 Start in quiet mode. See the "quiet" option described below.
 .IP "\-v \fIvoltage\fR"
