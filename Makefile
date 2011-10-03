@@ -21,6 +21,11 @@ INSTALL = /usr/bin/install
 PREFIX ?= /usr/local
 LDFLAGS ?= -s
 
+BINDIR = ${PREFIX}/bin/
+MANDIR = ${PREFIX}/share/man/man1
+LIBDIR = ${PREFIX}/lib/
+
+
 ifdef WITHOUT_READLINE
 	READLINE_CFLAGS =
 	READLINE_LIBS =
@@ -55,7 +60,7 @@ endif
 
 INCLUDES = -I. -Isimio -Iformats -Idrivers -Iutil -Iui
 GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
-CONFIG_CFLAGS = -DLIB_DIR=\"$(PREFIX)/lib\"
+CONFIG_CFLAGS = -DLIB_DIR=\"$(LIBDIR)\"
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
 MSPDEBUG_LIBS = -lusb $(READLINE_LIBS) $(WIN32_LIBS)
@@ -69,14 +74,13 @@ clean:
 	rm -f $(BINARY)
 
 install: $(BINARY) mspdebug.man
-	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	$(INSTALL) -m 0755 $(BINARY) $(DESTDIR)$(PREFIX)/bin/mspdebug
-	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man1
-	$(INSTALL) -m 0644 mspdebug.man \
-		$(DESTDIR)$(PREFIX)/share/man/man1/mspdebug.1
-	mkdir -p $(DESTDIR)$(PREFIX)/lib/mspdebug
+	mkdir -p $(DESTDIR)$(BINDIR)
+	$(INSTALL) -m 0755 $(BINARY) $(DESTDIR)$(BINDIR)
+	mkdir -p $(DESTDIR)$(MANDIR)
+	$(INSTALL) -m 0644 mspdebug.man $(DESTDIR)$(MANDIR)/mspdebug.1
+	mkdir -p $(DESTDIR)$(LIBDIR)/mspdebug
 	$(INSTALL) -m 0644 ti_3410.fw.ihex \
-		$(DESTDIR)$(PREFIX)/lib/mspdebug/ti_3410.fw.ihex
+		$(DESTDIR)$(LIBDIR)/mspdebug/ti_3410.fw.ihex
 
 .SUFFIXES: .c .o
 
