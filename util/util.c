@@ -348,11 +348,9 @@ char *expand_tilde(const char *path)
 				   last_error());
 		}
 	} else {
-		expanded = (char *)malloc(strlen(path) + 1);
+		expanded = strdup(path);
 
-		if (expanded)
-			strcpy(expanded, path);
-		else
+		if (!expanded)
 			printc_err("%s: malloc: %s\n", __FUNCTION__,
 				   last_error());
 	}
