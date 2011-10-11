@@ -75,7 +75,7 @@ int cmd_md(char **arg)
 				len_text);
 			return -1;
 		}
-	} else if (offset + length > 0x10000) {
+	} else if (offset < 0x10000 && offset + length > 0x10000) {
 		length = 0x10000 - offset;
 	}
 
