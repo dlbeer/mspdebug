@@ -198,6 +198,7 @@ static int load_section(FILE *in, uint32_t addr, uint32_t offset,
 			uint32_t size,
 			binfile_imgcb_t cb, void *user_data)
 {
+	struct binfile_chunk ch = {0};
 	uint8_t *section;
 
 	if (!size)
@@ -217,7 +218,11 @@ static int load_section(FILE *in, uint32_t addr, uint32_t offset,
 		return -1;
 	}
 
-	if (cb(user_data, addr, section, size) < 0) {
+	ch.addr = addr;
+	ch.len = size;
+	ch.data = section;
+
+	if (cb(user_data, &ch) < 0) {
 		free(section);
 		return -1;
 	}

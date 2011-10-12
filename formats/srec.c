@@ -110,6 +110,7 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 		if (buf[1] >= '1' && buf[1] <= '3') {
 			int addrbytes = buf[1] - '1' + 2;
 			address_t addr = 0;
+			struct binfile_chunk ch = {0};
 
 			for (i = 0; i < addrbytes; i++)
 				addr = (addr << 8) | bytes[i + 1];
@@ -120,10 +121,12 @@ int srec_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 				return -1;
 			}
 
-			if (cb(user_data, addr, bytes + addrbytes + 1,
-			       count - 2 - addrbytes) < 0) {
-				printc_err("srec: error on line %d\n",
-					lno);
+			ch.addr = addr;
+			ch.data = bytes + addrbytes + 1;
+			ch.len = count - 2 - addrbytes;
+
+			if (cb(user_data, &ch) < 0) {
+				printc_err("srec: error on line %d\n", lno);
 				return -1;
 			}
 		}

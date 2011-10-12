@@ -23,9 +23,16 @@
 #include <stdint.h>
 #include "stab.h"
 
+struct binfile_chunk {
+	const char		*name;
+	address_t		addr;
+	const uint8_t		*data;
+	int			len;
+};
+
 /* Callback for binary image data */
 typedef int (*binfile_imgcb_t)(void *user_data,
-			       address_t addr, const uint8_t *data, int len);
+			       const struct binfile_chunk *ch);
 
 #define BINFILE_HAS_SYMS        0x01
 #define BINFILE_HAS_TEXT        0x02

@@ -134,27 +134,40 @@ static uint32_t file_to_phys(struct elf32_info *info, uint32_t v)
 }
 
 static int feed_section(struct elf32_info *info,
-			FILE *in, uint32_t offset, uint32_t size,
+			FILE *in, const Elf32_Shdr *sh,
 			binfile_imgcb_t cb, void *user_data)
 {
+	uint32_t offset = sh->sh_offset;
+	uint32_t size = sh->sh_size;
 	uint8_t buf[1024];
 	uint32_t addr = file_to_phys(info, offset);
+	const char *name = NULL;
 
 	if (fseek(in, offset, SEEK_SET) < 0) {
 		pr_error("elf32: can't seek to section");
 		return -1;
 	}
 
+	if (info->string_tab &&
+	    sh->sh_name < info->string_len)
+		name = info->string_tab + sh->sh_name;
+
 	while (size) {
 		int ask = size > sizeof(buf) ? sizeof(buf) : size;
 		int len = fread(buf, 1, ask, in);
+		struct binfile_chunk ch = {0};
 
 		if (len < 0) {
 			pr_error("elf32: can't read section");
 			return -1;
 		}
 
-		if (cb(user_data, addr, buf, len) < 0)
+		ch.name = name;
+		ch.addr = addr;
+		ch.data = buf;
+		ch.len = len;
+
+		if (cb(user_data, &ch) < 0)
 			return -1;
 
 		size -= len;
@@ -184,53 +197,7 @@ static int read_all(struct elf32_info *info, FILE *in)
 	return 0;
 }
 
-int elf32_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
-{
-	struct elf32_info info;
-	int i;
-
-	if (read_all(&info, in) < 0)
-		return -1;
-
-	for (i = 0; i < info.file_ehdr.e_shnum; i++) {
-		Elf32_Shdr *s = &info.file_shdrs[i];
-
-		if (s->sh_type == SHT_PROGBITS && s->sh_flags & SHF_ALLOC &&
-		    feed_section(&info, in, s->sh_offset, s->sh_size,
-				 cb, user_data) < 0)
-			return -1;
-	}
-
-	return 0;
-}
-
-int elf32_check(FILE *in)
-{
-	int i;
-
-	rewind(in);
-	for (i = 0; i < sizeof(elf32_id); i++)
-		if (fgetc(in) != elf32_id[i])
-			return 0;
-
-	return 1;
-}
-
-static Elf32_Shdr *find_shdr(struct elf32_info *info, Elf32_Word type)
-{
-	int i;
-
-	for (i = 0; i < info->file_ehdr.e_shnum; i++) {
-		Elf32_Shdr *s = &info->file_shdrs[i];
-
-		if (s->sh_type == type)
-			return s;
-	}
-
-	return NULL;
-}
-
-static int syms_load_strings(struct elf32_info *info, FILE *in, Elf32_Shdr *s)
+static int load_strings(struct elf32_info *info, FILE *in, Elf32_Shdr *s)
 {
 	int len = s->sh_size;
 
@@ -262,6 +229,62 @@ static int syms_load_strings(struct elf32_info *info, FILE *in, Elf32_Shdr *s)
 
 	info->string_tab[info->string_len] = 0;
 	return 0;
+}
+
+int elf32_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
+{
+	struct elf32_info info;
+	int i;
+	int ret = 0;
+
+	if (read_all(&info, in) < 0)
+		return -1;
+
+	if (load_strings(&info, in,
+			 &info.file_shdrs[info.file_ehdr.e_shstrndx]) < 0) {
+		printc_err("elf32: warning: can't load section string "
+			   "table\n");
+		info.string_tab = NULL;
+	}
+
+	for (i = 0; i < info.file_ehdr.e_shnum; i++) {
+		Elf32_Shdr *s = &info.file_shdrs[i];
+
+		if (s->sh_type == SHT_PROGBITS && s->sh_flags & SHF_ALLOC &&
+		    feed_section(&info, in, s, cb, user_data) < 0)
+			ret = -1;
+	}
+
+	if (info.string_tab)
+		free(info.string_tab);
+
+	return ret;
+}
+
+int elf32_check(FILE *in)
+{
+	int i;
+
+	rewind(in);
+	for (i = 0; i < sizeof(elf32_id); i++)
+		if (fgetc(in) != elf32_id[i])
+			return 0;
+
+	return 1;
+}
+
+static Elf32_Shdr *find_shdr(struct elf32_info *info, Elf32_Word type)
+{
+	int i;
+
+	for (i = 0; i < info->file_ehdr.e_shnum; i++) {
+		Elf32_Shdr *s = &info->file_shdrs[i];
+
+		if (s->sh_type == type)
+			return s;
+	}
+
+	return NULL;
 }
 
 #define N_SYMS	128
@@ -342,7 +365,7 @@ int elf32_syms(FILE *in)
 		return -1;
 	}
 
-	if (syms_load_strings(&info, in, &info.file_shdrs[s->sh_link]) < 0 ||
+	if (load_strings(&info, in, &info.file_shdrs[s->sh_link]) < 0 ||
 	    syms_load_syms(&info, in, s) < 0)
 		ret = -1;
 

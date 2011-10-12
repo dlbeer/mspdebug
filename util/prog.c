@@ -41,7 +41,11 @@ int prog_flush(struct prog_data *prog)
 		prog->have_erased = 1;
 	}
 
-	printc_dbg("Writing %4d bytes to %04x...\n", prog->len, prog->addr);
+	printc_dbg("Writing %4d bytes to %04x", prog->len, prog->addr);
+	if (prog->section[0])
+		printc_dbg(" [section: %s]", prog->section);
+	printc_dbg("...\n");
+
 	if (device_writemem(prog->addr, prog->buf, prog->len) < 0)
 		return -1;
 
@@ -50,16 +54,28 @@ int prog_flush(struct prog_data *prog)
 	return 0;
 }
 
-int prog_feed(struct prog_data *prog, address_t addr,
-	      const uint8_t *data, int len)
+int prog_feed(struct prog_data *prog, const struct binfile_chunk *ch)
 {
-	/* Flush if this section is discontiguous */
-	if (prog->len && prog->addr + prog->len != addr &&
-	    prog_flush(prog) < 0)
-		return -1;
+	const char *section = ch->name ? ch->name : "";
+	const uint8_t *data = ch->data;
+	int len = ch->len;
 
-	if (!prog->len)
-		prog->addr = addr;
+	/* Flush if this chunk is discontiguous, or in a different
+	 * section.
+	 */
+	if (prog->len &&
+            ((prog->addr + prog->len != ch->addr) ||
+	     strcmp(prog->section, section))) {
+		if (prog_flush(prog) < 0)
+			return -1;
+	}
+
+	if (!prog->len) {
+		prog->addr = ch->addr;
+
+		strncpy(prog->section, section, sizeof(prog->section));
+		prog->section[sizeof(prog->section) - 1] = 0;
+	}
 
 	/* Add the buffer in piece by piece, flushing when it gets
 	 * full.

@@ -19,9 +19,12 @@
 #ifndef PROG_H_
 #define PROG_H_
 
+#include "binfile.h"
+
 #define PROG_BUFSIZE    4096
 
 struct prog_data {
+	char		section[64];
 	uint8_t         buf[PROG_BUFSIZE];
 	address_t       addr;
 	int             len;
@@ -32,8 +35,7 @@ struct prog_data {
 #define PROG_WANT_ERASE        0x01
 
 void prog_init(struct prog_data *data, int flags);
-int prog_feed(struct prog_data *data, address_t addr,
-	      const uint8_t *buffer, int count);
+int prog_feed(struct prog_data *data, const struct binfile_chunk *ch);
 int prog_flush(struct prog_data *data);
 
 #endif

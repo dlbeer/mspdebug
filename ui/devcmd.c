@@ -490,10 +490,9 @@ fail:
 	return -1;
 }
 
-static int cmd_prog_feed(void *user_data, address_t addr,
-			 const uint8_t *data, int len)
+static int cmd_prog_feed(void *user_data, const struct binfile_chunk *ch)
 {
-	return prog_feed((struct prog_data *)user_data, addr, data, len);
+	return prog_feed((struct prog_data *)user_data, ch);
 }
 
 static int do_cmd_prog(char **arg, int prog_flags)

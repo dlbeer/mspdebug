@@ -395,24 +395,23 @@ static FILE *find_firmware(void)
 	return NULL;
 }
 
-static int do_extract(void *user_data, address_t addr,
-		      const uint8_t *data, int len)
+static int do_extract(void *user_data, const struct binfile_chunk *ch)
 {
 	struct firmware *f = (struct firmware *)user_data;
 
-	if (f->size != addr) {
+	if (f->size != ch->addr) {
 		printc_err("ti3410: firmware gap at 0x%x (ends at 0x%0x)\n",
-			   f->size, addr);
+			   f->size, ch->addr);
 		return -1;
 	}
 
-	if (f->size + len > sizeof(f->buf)) {
+	if (f->size + ch->len > sizeof(f->buf)) {
 		printc_err("ti3410: maximum firmware size exceeded\n");
 		return -1;
 	}
 
-	memcpy(f->buf + f->size, data, len);
-	f->size += len;
+	memcpy(f->buf + f->size, ch->data, ch->len);
+	f->size += ch->len;
 	return 0;
 }
 

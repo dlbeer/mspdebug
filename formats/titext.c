@@ -75,6 +75,7 @@ static int process_data_line(address_t address, const char *buf,
 	int data_len = 0;
 	int value = 0;
 	int vc = 0;
+	struct binfile_chunk ch = {0};
 
 	while (*buf) {
 		int c = *(buf++);
@@ -118,7 +119,10 @@ static int process_data_line(address_t address, const char *buf,
 		data[data_len++] = value;
 	}
 
-	if (cb(user_data, address, data, data_len) < 0)
+	ch.addr = address;
+	ch.data = data;
+	ch.len = data_len;
+	if (cb(user_data, &ch) < 0)
 		return -1;
 
 	return data_len;

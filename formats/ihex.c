@@ -37,6 +37,7 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 	uint8_t *payload;
 	int data_len;
 	int i;
+	struct binfile_chunk ch = {0};
 
 	if (nbytes < 5)
 		return 0;
@@ -60,8 +61,10 @@ static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
 
 	switch (type) {
 	case 0:
-		return cb(user_data, address + *segment_offset,
-			  payload, data_len);
+		ch.addr = address + *segment_offset;
+		ch.data = payload;
+		ch.len = data_len;
+		return cb(user_data, &ch);
 
 	case 1:
 	case 3:
