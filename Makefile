@@ -100,6 +100,7 @@ OBJ=\
     util/stab.o \
     util/dis.o \
     util/gdb_proto.o \
+    util/dynload.o \
     drivers/device.o \
     drivers/bsl.o \
     drivers/fet.o \
