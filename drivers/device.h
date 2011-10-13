@@ -60,6 +60,7 @@ struct device_breakpoint {
 #define DEVICE_FLAG_LONG_PW	0x02
 #define DEVICE_FLAG_TTY		0x04 /* default is USB */
 #define DEVICE_FLAG_FORCE_RESET	0x08
+#define DEVICE_FLAG_DO_FWUPDATE 0x10
 
 struct device_args {
 	int			flags;

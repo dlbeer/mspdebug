@@ -113,6 +113,7 @@ OBJ=\
     drivers/sim.o \
     drivers/uif.o \
     drivers/ti3410.o \
+    drivers/tilib.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \

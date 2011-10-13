@@ -50,6 +50,7 @@
 #include "uif.h"
 #include "olimex.h"
 #include "rf2500.h"
+#include "tilib.h"
 
 struct cmdline_args {
 	const char		*driver_name;
@@ -65,7 +66,8 @@ static const struct device_class *const driver_table[] = {
 	&device_uif,
 	&device_bsl,
 	&device_flash_bsl,
-	&device_gdbc
+	&device_gdbc,
+	&device_tilib
 };
 
 static const char *version_text =
@@ -107,6 +109,8 @@ static void usage(const char *progname)
 "        Show a list of available USB devices.\n"
 "    --force-reset\n"
 "        Force target reset in initialization sequence.\n"
+"    --allow-fw-update\n"
+"        Update FET firmware (tilib only) if necessary.\n"
 "    --version\n"
 "        Show copyright and version information.\n"
 "\n"
@@ -175,6 +179,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"version",             0, 0, 'V'},
 		{"long-password",       0, 0, 'P'},
 		{"force-reset",		0, 0, 'R'},
+		{"allow-fw-update",	0, 0, 'A'},
 		{NULL, 0, 0, 0}
 	};
 	int want_usb = 0;
@@ -190,6 +195,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 				opdb_set("quiet", &v);
 			}
+			break;
+
+		case 'A':
+			args->devarg.flags |= DEVICE_FLAG_DO_FWUPDATE;
 			break;
 
 		case 'I':
