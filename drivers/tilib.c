@@ -118,7 +118,7 @@ static uint32_t event_fetch(struct tilib_device *dev)
 	dev->mailbox = 0;
 	threads_lock_release(&dev->mb_lock);
 
-	return 0;
+	return ret;
 }
 
 static void *get_func(dynload_handle_t hnd, const char *name)
@@ -315,6 +315,20 @@ static int refresh_bps(struct tilib_device *dev)
 		if (bp->flags & DEVICE_BP_ENABLED) {
 			param.bpMode = BP_CODE;
 			param.lAddrVal = bp->addr;
+			param.bpType = BP_MAB;
+			param.lReg = 0; /* not used */
+			param.bpAccess = BP_FETCH;
+			param.bpAction = BP_BRK;
+			param.bpOperat = BP_EQUAL;
+			param.lMask = 0; /* what's this? */
+			param.lRangeEndAdVa = 0; /* not used */
+			param.bpRangeAction = 0; /* not used */
+			param.bpCondition = BP_NO_COND;
+			param.lCondMdbVal = 0;
+			param.bpCondAccess = BP_FETCH;
+			param.lCondMask = 0; /* what's this? */
+			param.bpCondOperat = BP_EQUAL;
+			param.wExtCombine = 0; /* not used? */
 		} else {
 			param.bpMode = BP_CLEAR;
 		}
