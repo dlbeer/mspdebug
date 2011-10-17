@@ -17,6 +17,7 @@
  */
 
 #include "dynload.h"
+#include "util.h"
 
 #ifdef WIN32
 
