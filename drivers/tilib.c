@@ -317,6 +317,8 @@ static int refresh_bps(struct tilib_device *dev)
 			report_error(dev, "MSP430_EEM_SetBreakpoint");
 			return -1;
 		}
+
+		bp->flags &= ~DEVICE_BP_DIRTY;
 	}
 
 	return 0;
@@ -397,7 +399,7 @@ static void tilib_destroy(device_t dev_base)
 	struct tilib_device *dev = (struct tilib_device *)dev_base;
 
 	printc_dbg("MSP430_Run\n");
-	if (dev->MSP430_Run(RUN_TO_BREAKPOINT, 1) < 0)
+	if (dev->MSP430_Run(FREE_RUN, 1) < 0)
 		report_error(dev, "MSP430_Run");
 
 	printc_dbg("MSP430_Close\n");
@@ -506,6 +508,9 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 		dev->MSP430_Close(0);
 		return -1;
 	}
+
+	/* Without this delay, MSP430_OpenDevice will often hang. */
+	usleep(1000000);
 
 	printc_dbg("MSP430_OpenDevice\n");
 	if (dev->MSP430_OpenDevice("DEVICE_UNKNOWN", "", 0, 0, 0) < 0) {
