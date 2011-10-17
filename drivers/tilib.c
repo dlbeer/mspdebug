@@ -49,6 +49,8 @@ struct tilib_device {
 	STATUS_T WINAPI (*MSP430_OpenDevice)(char *Device, char *Password,
 					     long PwLength, long DeviceCode,
 					     long setId);
+	STATUS_T WINAPI (*MSP430_GetFoundDevice)(char *FoundDevice,
+						 long count);
 	STATUS_T WINAPI (*MSP430_Close)(long vccOff);
 	STATUS_T WINAPI (*MSP430_Memory)(long address, char *buffer,
 					 long count, long rw);
@@ -148,6 +150,11 @@ static int get_all_funcs(struct tilib_device *dev)
 
 	dev->MSP430_OpenDevice = get_func(dev->hnd, "MSP430_OpenDevice");
 	if (!dev->MSP430_OpenDevice)
+		return -1;
+
+	dev->MSP430_GetFoundDevice = get_func(dev->hnd,
+		"MSP430_GetFoundDevice");
+	if (!dev->MSP430_GetFoundDevice)
 		return -1;
 
 	dev->MSP430_Close = get_func(dev->hnd, "MSP430_Close");
@@ -471,6 +478,7 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 {
 	long version;
 	char buf[1024];
+	union DEVICE_T device;
 
 	/* Not sure if the path is actually modified by MSP430_Initialize,
 	 * but the argument isn't const, so probably safest to copy it.
@@ -519,6 +527,20 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 		return -1;
 	}
 
+	printc_dbg("MSP430_GetFoundDevice\n");
+	if (dev->MSP430_GetFoundDevice(device.buffer,
+				       sizeof(device.buffer)) < 0) {
+		report_error(dev, "MSP430_GetFoundDevice");
+		dev->MSP430_Close(0);
+		return -1;
+	}
+
+	printc_dbg("Device: %s (id = 0x%04x)\n", device.string, device.id);
+	printc_dbg("%d breakpoints available\n", device.nBreakpoints);
+	dev->base.max_breakpoints = device.nBreakpoints;
+	if (dev->base.max_breakpoints > DEVICE_MAX_BREAKPOINTS)
+		dev->base.max_breakpoints = DEVICE_MAX_BREAKPOINTS;
+
 	printc_dbg("MSP430_EEM_Init\n");
 	threads_lock_init(&dev->mb_lock);
 	if (dev->MSP430_EEM_Init(event_notify, (long)dev,
@@ -528,9 +550,6 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 		threads_lock_destroy(&dev->mb_lock);
 		return -1;
 	}
-
-	/* Should find this out from EEM API, if possible */
-	dev->base.max_breakpoints = DEVICE_MAX_BREAKPOINTS;
 
 	return 0;
 }

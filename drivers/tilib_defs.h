@@ -55,9 +55,16 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdint.h>
+
 /* this is the definition for the DLL functions return value */
 typedef long STATUS_T;
+
 typedef long LONG;
+typedef unsigned long ULONG;
+typedef char CHAR;
+typedef uint16_t WORD;
+typedef uint8_t BYTE;
 
 enum READ_WRITE {
 	WRITE = 0,
@@ -293,5 +300,87 @@ typedef enum UPDATE_STATUS_MESSAGES {
 	/* An error occured during firmware update */
 	BL_WAIT_FOR_TIMEOUT = 8
 } UPDATE_STATUS_MESSAGES_t;
+
+union DEVICE_T {
+	/* this buffer holds the complete device information */
+	/* and is overlayed by the following information structure */
+	CHAR buffer[110];
+	struct {  /* actually 106 Bytes */
+		/* The value 0xaa55. */
+		WORD  endian;
+		/* Identification number. */
+		WORD  id;
+		/* Identification string. */
+		BYTE  string[32];
+		/* MAIN MEMORY (FLASH) starting address. */
+		WORD  mainStart;
+		/* INFORMATION MEMORY (FLASH) starting address. */
+		WORD  infoStart;
+		/* RAM ending address. */
+		WORD  ramEnd;
+		/* Number of breakpoints. */
+		WORD  nBreakpoints;
+		/* Emulation level. */
+		WORD  emulation;
+		/* Clock control level. */
+		WORD  clockControl;
+		/* LCD starting address. */
+		WORD  lcdStart;
+		/* LCD ending address. */
+		WORD  lcdEnd;
+		/* Vcc minimum during operation [mVolts]. */
+		WORD  vccMinOp;
+		/* Vcc maximum during operation [mVolts]. */
+		WORD  vccMaxOp;
+		/* Device has TEST/VPP. */
+		WORD  hasTestVpp;
+		/* RAM starting address. */
+		WORD  ramStart;
+		/* RAM2 starting address. */
+		WORD  ram2Start;
+		/* RAM2 ending address. */
+		WORD  ram2End;
+		/* INFO ending address. */
+		WORD  infoEnd;
+		/* MAIN ending address. */
+		ULONG mainEnd;
+		/* BSL starting  address. */
+		WORD  bslStart;
+		/* BSL ending address. */
+		WORD  bslEnd;
+		/* Number of CPU Register Trigger. */
+		WORD  nRegTrigger;
+		/* Number of EEM Trigger Combinations. */
+		WORD  nCombinations;
+		/* The MSP430 architecture (non-X, X or Xv2). */
+		BYTE  cpuArch;
+		/* The JTAG ID - value returned on an instruction shift. */
+		BYTE  jtagId;
+		/* The CoreIP ID. */
+		WORD  coreIpId;
+		/* The Device-ID Pointer. */
+		ULONG deviceIdPtr;
+		/* The EEM Version Number. */
+		WORD  eemVersion;
+		/*  Breakpoint Modes */
+		WORD nBreakpointsOptions;
+		WORD nBreakpointsReadWrite;
+		WORD nBreakpointsDma;
+		/* Trigger Mask for Breakpoint */
+		WORD TrigerMask;
+		/* Register Trigger modes */
+		WORD nRegTriggerOperations;
+		/* MSP430 has Stage Storage */
+		WORD nStateStorage ;
+		/* Numbr of cycle counters of MSP430 */
+		WORD nCycleCounter;
+		/* Cycle couter modes */
+		WORD nCycleCounterOperations;
+		/* Msp430 has Sqeuncer */
+		WORD nSequencer;
+		/* Msp430 has FRAM Memroy */
+		WORD HasFramMemroy;
+	};
+};
 
 #endif
