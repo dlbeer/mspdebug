@@ -136,6 +136,12 @@ GDB client mode. Connect to a server which implements the GDB remote
 protocol and provide an interface to it. To use this driver, specify
 the remote address in \fIhostname:port\fR format using the \fB-d\fR
 option.
+.IP "\fBtilib\fR"
+Use the Texas Instruments MSP430.DLL to access the device. The library
+file (MSP430.DLL for Windows, libmsp430.so for Unix-like systems) must
+be present in the dynamic loader search path.
+
+USB connection is not supported for this driver.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
