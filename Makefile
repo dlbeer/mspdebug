@@ -41,7 +41,7 @@ ifeq ($(UNAME),Darwin) # Mac OS X/MacPorts stuff
 else
   ifeq ($(UNAME),OpenBSD) # OpenBSD Ports stuff
 	PORTS_CFLAGS = `pkg-config --cflags libusb`
-	PORTS_LDFLAGS = `pkg-config --libs libusb` -ltermcap
+	PORTS_LDFLAGS = `pkg-config --libs libusb` -ltermcap -pthread
   else
 	PORTS_CFLAGS =
 	PORTS_LDFLAGS =
