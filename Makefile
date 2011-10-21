@@ -50,11 +50,11 @@ endif
 
 ifeq ($(OS),Windows_NT)
 	MSPDEBUG_CC = gcc
-	WIN32_LIBS = -lws2_32 -lregex
+	OS_LIBS = -lws2_32 -lregex
 	BINARY = mspdebug.exe
 else
 	MSPDEBUG_CC = $(CC)
-	WIN32_LIBS =
+	OS_LIBS = -ldl
 	BINARY = mspdebug
 endif
 
@@ -63,7 +63,7 @@ GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
 CONFIG_CFLAGS = -DLIB_DIR=\"$(LIBDIR)\"
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
-MSPDEBUG_LIBS = -lusb $(READLINE_LIBS) $(WIN32_LIBS)
+MSPDEBUG_LIBS = -lusb $(READLINE_LIBS) $(OS_LIBS)
 MSPDEBUG_CFLAGS = $(CFLAGS) $(READLINE_CFLAGS) $(PORTS_CFLAGS)\
  $(GCC_CFLAGS) $(INCLUDES) $(CONFIG_CFLAGS)
 
