@@ -49,13 +49,19 @@ else
 endif
 
 ifeq ($(OS),Windows_NT)
-	MSPDEBUG_CC = gcc
-	OS_LIBS = -lws2_32 -lregex
-	BINARY = mspdebug.exe
+    MSPDEBUG_CC = gcc
+    BINARY = mspdebug.exe
+
+    OS_LIBS = -lws2_32 -lregex
 else
-	MSPDEBUG_CC = $(CC)
+    MSPDEBUG_CC = $(CC)
+    BINARY = mspdebug
+
+    ifeq ($(UNAME),OpenBSD)
+	OS_LIBS =
+    else
 	OS_LIBS = -ldl
-	BINARY = mspdebug
+    endif
 endif
 
 INCLUDES = -I. -Isimio -Iformats -Idrivers -Iutil -Iui
