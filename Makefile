@@ -60,7 +60,11 @@ else
     ifeq ($(UNAME),OpenBSD)
 	OS_LIBS =
     else
+    ifeq ($(UNAME),FreeBSD)
+	OS_LIBS =
+    else
 	OS_LIBS = -ldl
+    endif
     endif
 endif
 
