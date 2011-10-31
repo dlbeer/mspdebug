@@ -57,15 +57,12 @@ else
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug
 
-    ifeq ($(UNAME),OpenBSD)
-	OS_LIBS =
-    else
-    ifeq ($(UNAME),FreeBSD)
+    ifneq ($(filter $(UNAME),FreeBSD OpenBSD),)
 	OS_LIBS =
     else
 	OS_LIBS = -ldl
     endif
-    endif
+
 endif
 
 INCLUDES = -I. -Isimio -Iformats -Idrivers -Iutil -Iui
