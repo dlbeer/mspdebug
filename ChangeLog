@@ -1,3 +1,11 @@
+Version 0.18 - 8 Nov 2011
+	* Support for new chips: MSP430F2121, MSP430F2012, MSP430F449.
+	* Support for raw USB access to FET430UIF and eZ430-F2013.
+	* Support for TI MSP430 library.
+	* Various Win32 bug fixes.
+	* GDB protocol bug fixes.
+	* Section names are displayed when programming.
+
 Version 0.17 - 24 Aug 2011
 	* Support for new chips: MSP430FR5739, MSP430F5418,
 	  MSP430AFE253, MSP430F5527, MSP430F5510, MSP430F5528.
