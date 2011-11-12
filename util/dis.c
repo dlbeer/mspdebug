@@ -1007,7 +1007,7 @@ int dis_reg_from_name(const char *name)
 
 const char *dis_reg_name(msp430_reg_t reg)
 {
-	if (reg >= 0 && reg <= 15)
+	if (reg <= 15)
 		return msp430_reg_names[reg];
 
 	return NULL;

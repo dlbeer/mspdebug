@@ -27,7 +27,6 @@
 static int format_addr(msp430_amode_t amode, uint16_t addr)
 {
 	char name[64];
-	int numeric = 0;
 	const char *prefix = "";
 
 	switch (amode) {
@@ -39,7 +38,6 @@ static int format_addr(msp430_amode_t amode, uint16_t addr)
 	case MSP430_AMODE_IMMEDIATE:
 		prefix = "#";
 	case MSP430_AMODE_INDEXED:
-		numeric = 1;
 		break;
 
 	case MSP430_AMODE_ABSOLUTE:

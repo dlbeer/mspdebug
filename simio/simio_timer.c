@@ -192,7 +192,7 @@ static int config_channel(struct timer *tr, char **arg_text)
 		return -1;
 	}
 
-	if (which < 0 || which > tr->size) {
+	if (which > tr->size) {
 		printc_err("timer: invalid channel number: %d\n", which);
 		return -1;
 	}

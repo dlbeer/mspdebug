@@ -233,7 +233,6 @@ static int addr_exp_finish(struct addr_exp_state *s, address_t *ret)
 int expr_eval(const char *text, address_t *addr)
 {
 	const char *text_save = text;
-	int last_cc = 1;
 	char token_buf[64];
 	int token_len = 0;
 	struct addr_exp_state s = {0};
@@ -281,7 +280,6 @@ int expr_eval(const char *text, address_t *addr)
 		if (!*text)
 			break;
 
-		last_cc = cc;
 		text++;
 	}
 

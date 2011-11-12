@@ -214,7 +214,7 @@ static int tracer_config(struct simio_device *dev,
 			return -1;
 		}
 
-		if (value < 0 || value >= 16) {
+		if (value >= 16) {
 			printc_err("tracer: trigger: invalid IRQ: %d\n",
 				   value);
 			return -1;

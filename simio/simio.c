@@ -341,7 +341,7 @@ IO_REQUEST_FUNC(static simio_read_b_device, read_b, uint8_t *)
 
 int simio_write_b(address_t addr, uint8_t data)
 {
-	if (addr >= 0 && addr < 16) {
+	if (addr < 16) {
 		sfr_data[addr] = data;
 		return 0;
 	}
@@ -351,7 +351,7 @@ int simio_write_b(address_t addr, uint8_t data)
 
 int simio_read_b(address_t addr, uint8_t *data)
 {
-	if (addr >= 0 && addr < 16) {
+	if (addr < 16) {
 		*data = sfr_data[addr];
 		return 0;
 	}
@@ -425,7 +425,7 @@ void simio_step(uint16_t status_register, int cycles)
 
 uint8_t simio_sfr_get(address_t which)
 {
-	if (which < 0 || which > sizeof(sfr_data))
+	if (which > sizeof(sfr_data))
 		return 0;
 
 	return sfr_data[which];
@@ -433,7 +433,7 @@ uint8_t simio_sfr_get(address_t which)
 
 void simio_sfr_modify(address_t which, uint8_t mask, uint8_t bits)
 {
-	if (which < 0 || which > sizeof(sfr_data))
+	if (which > sizeof(sfr_data))
 		return;
 
 	sfr_data[which] = (sfr_data[which] & ~mask) | bits;
