@@ -79,6 +79,7 @@ static int open_interface(struct olimex_transport *tr,
 	int drv;
 	char drName[256];
 #endif
+	int ret;
 
 	printc(__FILE__": Trying to open interface %d on %s\n",
 	       ino, dev->filename);
@@ -117,28 +118,48 @@ static int open_interface(struct olimex_transport *tr,
 		return -1;
 	}
 
-	int ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
-				  CP210X_IFC_ENABLE, 0x1, 0, NULL, 0, 300);
+	ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
+			      CP210X_IFC_ENABLE, 0x1, 0, NULL, 0, 300);
 #ifdef DEBUG_OLIMEX
-	printc(__FILE__": %s : Sending control message ret %d\n",
-	       __FUNCTION__, ret);
+	printc("%s: %s: Sending control message "
+		"CP210x_REQTYPE_HOST_TO_DEVICE, ret = %d\n",
+	       __FILE__, __FUNCTION__, ret);
 #endif
+	if (ret < 0) {
+		pr_error(__FILE__": can't enable CP210x UART");
+		usb_close(tr->handle);
+		return -1;
+	}
+
 	/* Set the baud rate to 500000 bps */
 	ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
 			      CP210X_SET_BAUDDIV, 0x7, 0, NULL, 0, 300);
 #ifdef DEBUG_OLIMEX
-	printc(__FILE__": %s : Sending control message ret %d\n",
-	       __FUNCTION__, ret);
+	printc("%s: %s: Sending control message "
+		"CP210X_SET_BAUDDIV, ret = %d\n",
+	       __FILE__, __FUNCTION__, ret);
 #endif
+	if (ret < 0) {
+		pr_error(__FILE__": can't set baud rate");
+		usb_close(tr->handle);
+		return -1;
+	}
+
 	/* Set the modem control settings.
 	 * Set RTS, DTR and WRITE_DTR, WRITE_RTS
 	 */
 	ret = usb_control_msg(tr->handle, CP210x_REQTYPE_HOST_TO_DEVICE,
 			      CP210X_SET_MHS, 0x303, 0, NULL, 0, 300);
 #ifdef DEBUG_OLIMEX
-	printc(__FILE__": %s : Sending control message ret %d\n",
-	       __FUNCTION__, ret);
+	printc("%s: %s: Sending control message "
+		"CP210X_SET_MHS, ret %d\n",
+	       __FILE__, __FUNCTION__, ret);
 #endif
+	if (ret < 0) {
+		pr_error(__FILE__": can't set modem control");
+		usb_close(tr->handle);
+		return -1;
+	}
 
 	return 0;
 }
