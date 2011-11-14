@@ -299,6 +299,9 @@ static int gdbc_erase(device_t dev_base, device_erase_type_t type,
 	char buf[GDB_BUF_SIZE];
 	int len;
 
+	(void)type;
+	(void)addr;
+
 	gdb_packet_start(&dev->gdb);
 	gdb_printf(&dev->gdb, "qRcmd,");
 	while (*cmd)

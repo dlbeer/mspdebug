@@ -417,6 +417,8 @@ static void timer_step(struct simio_device *dev,
 	int pulse_count;
 	int i;
 
+	(void)status;
+
 	/* Count input clock pulses */
 	i = (tr->tactl >> 8) & 3;
 	if (i == 2)

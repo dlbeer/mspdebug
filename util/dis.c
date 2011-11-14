@@ -32,8 +32,8 @@
 /* Disassembler
  */
 
-static int decode_00xx(const uint8_t *code, address_t offset,
-		       address_t len, struct msp430_instruction *insn)
+static int decode_00xx(const uint8_t *code, address_t len,
+		       struct msp430_instruction *insn)
 {
 	uint16_t op = code[0] | (code[1] << 8);
 	int subtype = (op >> 4) & 0xf;
@@ -155,8 +155,8 @@ static int decode_00xx(const uint8_t *code, address_t offset,
 	return -1;
 }
 
-static int decode_13xx(const uint8_t *code, address_t offset,
-		       address_t len, struct msp430_instruction *insn)
+static int decode_13xx(const uint8_t *code, address_t len,
+		       struct msp430_instruction *insn)
 {
 	uint16_t op = code[0] | (code[1] << 8);
 	int subtype = (op >> 4) & 0xf;
@@ -218,8 +218,8 @@ static int decode_13xx(const uint8_t *code, address_t offset,
 	return 4;
 }
 
-static int decode_14xx(const uint8_t *code, address_t offset,
-		       address_t size, struct msp430_instruction *insn)
+static int decode_14xx(const uint8_t *code,
+		       struct msp430_instruction *insn)
 {
 	uint16_t op = (code[1] << 8) | code[0];
 
@@ -384,7 +384,7 @@ static int decode_double(const uint8_t *code, address_t offset,
  * All jump instructions are one word in length, so this function
  * always returns 2 (to indicate the consumption of 2 bytes).
  */
-static int decode_jump(const uint8_t *code, address_t offset, address_t len,
+static int decode_jump(const uint8_t *code, address_t offset,
 		       struct msp430_instruction *insn)
 {
 	uint16_t op = (code[1] << 8) | code[0];
@@ -790,15 +790,15 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 			insn->dsize |= 2;
 	} else {
 		if ((op & 0xf000) == 0x0000)
-			ret = decode_00xx(code, offset, len, insn);
+			ret = decode_00xx(code, len, insn);
 		else if ((op & 0xfc00) == 0x1400)
-			ret = decode_14xx(code, offset, len, insn);
+			ret = decode_14xx(code, insn);
 		else if ((op & 0xff00) == 0x1300)
-			ret = decode_13xx(code, offset, len, insn);
+			ret = decode_13xx(code, len, insn);
 		else if ((op & 0xf000) == 0x1000)
 			ret = decode_single(code, offset, len, insn);
 		else if ((op & 0xf000) >= 0x2000 && (op & 0xf000) < 0x4000)
-			ret = decode_jump(code, offset, len, insn);
+			ret = decode_jump(code, offset, insn);
 		else if ((op & 0xf000) >= 0x4000)
 			ret = decode_double(code, offset, len, insn);
 		else

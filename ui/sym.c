@@ -130,6 +130,8 @@ static int cmd_sym_savemap(char **arg)
 
 static int print_sym(void *user_data, const char *name, address_t value)
 {
+	(void)user_data;
+
 	printc("0x%04x: %s\n", value, name);
 	return 0;
 }
@@ -220,6 +222,8 @@ static int find_renames(void *user_data, const char *name, address_t value)
 {
 	struct rename_data *rename = (struct rename_data *)user_data;
 	regmatch_t pmatch;
+
+	(void)value;
 
 	if (!regexec(&rename->preg, name, 1, &pmatch, 0) &&
 	    pmatch.rm_so >= 0 && pmatch.rm_eo > pmatch.rm_so) {

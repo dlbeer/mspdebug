@@ -49,6 +49,8 @@ struct simio_device *hwmult_create(char **arg_text)
 {
 	struct hwmult *h = malloc(sizeof(*h));
 
+	(void)arg_text;
+
 	if (!h) {
 		pr_error("hwmult: can't allocate memory");
 		return NULL;

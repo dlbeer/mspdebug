@@ -210,7 +210,7 @@ static int write_memory(struct gdb_data *data, char *text)
 	return gdb_send(data, "OK");
 }
 
-static int run_set_pc(struct gdb_data *data, char *buf)
+static int run_set_pc(char *buf)
 {
 	address_t regs[DEVICE_NUM_REGS];
 
@@ -257,7 +257,7 @@ static int single_step(struct gdb_data *data, char *buf)
 {
 	printc("Single stepping\n");
 
-	if (run_set_pc(data, buf) < 0 ||
+	if (run_set_pc(buf) < 0 ||
 	    device_ctl(DEVICE_CTL_STEP) < 0)
 		gdb_send(data, "E00");
 
@@ -268,7 +268,7 @@ static int run(struct gdb_data *data, char *buf)
 {
 	printc("Running\n");
 
-	if (run_set_pc(data, buf) < 0 ||
+	if (run_set_pc(buf) < 0 ||
 	    device_ctl(DEVICE_CTL_RUN) < 0)
 		return gdb_send(data, "E00");
 
@@ -372,7 +372,7 @@ static int gdb_send_supported(struct gdb_data *data)
 	return gdb_flush_ack(data);
 }
 
-static int process_gdb_command(struct gdb_data *data, char *buf, int len)
+static int process_gdb_command(struct gdb_data *data, char *buf)
 {
 #ifdef DEBUG_GDB
 	printc("process_gdb_command: %s\n", buf);
@@ -434,7 +434,7 @@ static void gdb_reader_loop(struct gdb_data *data)
 		len = gdb_read_packet(data, buf);
 		if (len < 0)
 			return;
-		if (len && process_gdb_command(data, buf, len) < 0)
+		if (len && process_gdb_command(data, buf) < 0)
 			return;
 	}
 }

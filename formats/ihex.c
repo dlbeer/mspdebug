@@ -28,7 +28,7 @@ int ihex_check(FILE *in)
 	return fgetc(in) == ':';
 }
 
-static int feed_line(FILE *in, uint8_t *data, int nbytes, binfile_imgcb_t cb,
+static int feed_line(uint8_t *data, int nbytes, binfile_imgcb_t cb,
 		     void *user_data, address_t *segment_offset)
 {
 	uint8_t cksum = 0;
@@ -134,7 +134,7 @@ int ihex_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 		}
 
 		/* Handle the line */
-		if (feed_line(in, data, nbytes, cb, user_data,
+		if (feed_line(data, nbytes, cb, user_data,
 			      &segment_offset) < 0) {
 			printc_err("ihex: error on line %d\n", lno);
 			return -1;

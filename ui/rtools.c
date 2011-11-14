@@ -55,6 +55,8 @@ static int isearch_opcode(const char *term, char **arg,
 	const char *opname = get_arg(arg);
 	int opc;
 
+	(void)term;
+
 	if (q->flags & ISEARCH_OPCODE) {
 		printc_err("isearch: opcode already specified\n");
 		return -1;
@@ -79,6 +81,8 @@ static int isearch_opcode(const char *term, char **arg,
 static int isearch_bw(const char *term, char **arg,
 		      struct isearch_query *q)
 {
+	(void)arg;
+
 	if (q->flags & ISEARCH_DSIZE) {
 		printc_err("isearch: operand size already specified\n");
 		return -1;
@@ -105,6 +109,8 @@ static int isearch_bw(const char *term, char **arg,
 static int isearch_type(const char *term, char **arg,
 			struct isearch_query *q)
 {
+	(void)arg;
+
 	if (q->flags & ISEARCH_TYPE) {
 		printc_err("isearch: instruction type already "
 			"specified\n");

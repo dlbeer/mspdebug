@@ -726,6 +726,8 @@ static device_t sim_open(const struct device_args *args)
 {
 	struct sim_device *dev = malloc(sizeof(*dev));
 
+	(void)args;
+
 	if (!dev) {
 		pr_error("can't allocate memory for simulation");
 		return NULL;

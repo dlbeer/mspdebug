@@ -62,6 +62,8 @@ struct simio_device *wdt_create(char **arg_text)
 {
 	struct wdt *w = malloc(sizeof(*w));
 
+	(void)arg_text;
+
 	if (!w) {
 		pr_error("wdt: can't allocate memory");
 		return NULL;
@@ -219,6 +221,8 @@ static void wdt_step(struct simio_device *dev, uint16_t status_register,
 {
 	struct wdt *w = (struct wdt *)dev;
 	int max = 1;
+
+	(void)status_register;
 
 	/* If on hold, nothing happens */
 	if (w->wdtctl & WDTHOLD)

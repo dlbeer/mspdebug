@@ -437,6 +437,8 @@ static int flash_bsl_unlock(struct flash_bsl_device *dev)
 
 static int flash_bsl_ctl(device_t dev_base, device_ctl_t type)
 {
+	(void)dev_base;
+
 	switch (type) {
 	case DEVICE_CTL_HALT:
 		/* Ignore halt requests */
@@ -455,17 +457,25 @@ static int flash_bsl_ctl(device_t dev_base, device_ctl_t type)
 
 static device_status_t flash_bsl_poll(device_t dev_base)
 {
+	(void)dev_base;
+
 	return DEVICE_STATUS_HALTED;
 }
 
 static int flash_bsl_getregs(device_t dev_base, address_t *regs)
 {
+	(void)dev_base;
+	(void)regs;
+
 	printc_err("flash_bsl: register fetch is not implemented\n");
 	return -1;
 }
 
 static int flash_bsl_setregs(device_t dev_base, const address_t *regs)
 {
+	(void)dev_base;
+	(void)regs;
+
 	printc_err("flash_bsl: register store is not implemented\n");
 	return -1;
 }

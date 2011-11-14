@@ -104,6 +104,9 @@ static void event_notify(unsigned int msg_id, unsigned int w_param,
 {
 	struct tilib_device *dev = (struct tilib_device *)client_handle;
 
+	(void)w_param;
+	(void)l_param;
+
 	threads_lock_acquire(&dev->mb_lock);
 	dev->mailbox |= msg_id;
 	threads_lock_release(&dev->mb_lock);
@@ -434,6 +437,8 @@ static void fw_progress(unsigned int msg_id, unsigned long w_param,
 			unsigned long l_param, long client_handle)
 {
 	struct tilib_device *dev = (struct tilib_device *)client_handle;
+
+	(void)l_param;
 
 	switch (msg_id) {
 	case BL_DATA_BLOCK_PROGRAMMED:

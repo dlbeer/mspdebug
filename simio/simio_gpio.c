@@ -53,6 +53,8 @@ static struct simio_device *gpio_create(char **arg_text)
 {
 	struct gpio *g;
 
+	(void)arg_text;
+
 	g = malloc(sizeof(*g));
 	if (!g) {
 		pr_error("gpio: can't allocate memory");

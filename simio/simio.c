@@ -159,6 +159,8 @@ static int cmd_devices(char **arg_text)
 {
 	struct list_node *n;
 
+	(void)arg_text;
+
 	for (n = device_list.next; n != &device_list; n = n->next) {
 		struct simio_device *dev = (struct simio_device *)n;
 		int irq = -1;
@@ -180,6 +182,8 @@ static int cmd_classes(char **arg_text)
 {
 	struct vector v;
 	int i;
+
+	(void)arg_text;
 
 	vector_init(&v, sizeof(const char *));
 	for (i = 0; i < ARRAY_LEN(class_db); i++) {

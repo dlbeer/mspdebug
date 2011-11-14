@@ -208,6 +208,8 @@ static void bsl_destroy(device_t dev_base)
 
 static int bsl_ctl(device_t dev_base, device_ctl_t type)
 {
+	(void)dev_base;
+
 	switch (type) {
 	case DEVICE_CTL_HALT:
 		/* Ignore halt requests */
@@ -226,17 +228,25 @@ static int bsl_ctl(device_t dev_base, device_ctl_t type)
 
 static device_status_t bsl_poll(device_t dev_base)
 {
+	(void)dev_base;
+
 	return DEVICE_STATUS_HALTED;
 }
 
 static int bsl_getregs(device_t dev_base, address_t *regs)
 {
+	(void)dev_base;
+	(void)regs;
+
 	printc_err("bsl: register fetch is not implemented\n");
 	return -1;
 }
 
 static int bsl_setregs(device_t dev_base, const address_t *regs)
 {
+	(void)dev_base;
+	(void)regs;
+
 	printc_err("bsl: register store is not implemented\n");
 	return -1;
 }
@@ -307,6 +317,8 @@ static int bsl_erase(device_t dev_base, device_erase_type_t type,
 		     address_t addr)
 {
 	struct bsl_device *dev = (struct bsl_device *)dev_base;
+
+	(void)addr;
 
 	if (type != DEVICE_ERASE_MAIN) {
 		printc_err("bsl: only main erase is supported\n");

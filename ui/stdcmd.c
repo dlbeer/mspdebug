@@ -47,6 +47,8 @@ static const char *type_text(opdb_type_t type)
 static int push_option_name(void *user_data, const struct opdb_key *key,
 			    const union opdb_value *value)
 {
+	(void)value;
+
 	return vector_push((struct vector *)user_data, &key->name, 1);
 }
 
@@ -138,6 +140,8 @@ static int parse_option(opdb_type_t type, union opdb_value *value,
 static int display_option(void *user_data, const struct opdb_key *key,
 			  const union opdb_value *value)
 {
+	(void)user_data;
+
 	printc("%32s = ", key->name);
 
 	switch (key->type) {
@@ -203,6 +207,8 @@ int cmd_read(char **arg)
 
 int cmd_exit(char **arg)
 {
+	(void)arg;
+
 	reader_exit();
 	return 0;
 }

@@ -92,6 +92,8 @@ static volatile int ctrlc_flag;
 
 static void sigint_handler(int signum)
 {
+	(void)signum;
+
 	ctrlc_flag = 1;
 }
 
