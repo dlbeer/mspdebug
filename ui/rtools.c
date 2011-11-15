@@ -380,7 +380,7 @@ static int do_isearch(address_t addr, address_t len,
 
 int cmd_isearch(char **arg)
 {
-	const static struct {
+	static const struct {
 		const char      *name;
 		int             (*func)(const char *term, char **arg,
 					struct isearch_query *q);

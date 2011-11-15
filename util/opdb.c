@@ -20,7 +20,7 @@
 #include "opdb.h"
 #include "util.h"
 
-const static struct opdb_key keys[] = {
+static const struct opdb_key keys[] = {
 	{
 		.name = "color",
 		.type = OPDB_TYPE_BOOLEAN,

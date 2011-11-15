@@ -102,7 +102,7 @@ void ctrlc_init(void)
 #if defined(__CYGWIN__)
        signal(SIGINT, sigint_handler);
 #else
-       const static struct sigaction siga = {
+       static const struct sigaction siga = {
                .sa_handler = sigint_handler,
                .sa_flags = 0
        };

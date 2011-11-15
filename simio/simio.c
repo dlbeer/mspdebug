@@ -337,11 +337,13 @@ int name(address_t addr, datatype data) { \
 \
 	return ret; \
 }
+#define IO_REQUEST_FUNC_S(name, method, datatype) \
+	static IO_REQUEST_FUNC(name, method, datatype)
 
 IO_REQUEST_FUNC(simio_write, write, uint16_t)
 IO_REQUEST_FUNC(simio_read, read, uint16_t *)
-IO_REQUEST_FUNC(static simio_write_b_device, write_b, uint8_t)
-IO_REQUEST_FUNC(static simio_read_b_device, read_b, uint8_t *)
+IO_REQUEST_FUNC_S(simio_write_b_device, write_b, uint8_t)
+IO_REQUEST_FUNC_S(simio_read_b_device, read_b, uint8_t *)
 
 int simio_write_b(address_t addr, uint8_t data)
 {

@@ -1825,7 +1825,7 @@ const struct fet_db_record *fet_db_find_by_msg28(uint8_t *data, int len)
 
 		if (r->msg28_data[0] == data[0] &&
 		    r->msg28_data[1] == data[1]) {
-			const static int coefficients[FET_DB_MSG28_LEN] = {
+			static const int coefficients[FET_DB_MSG28_LEN] = {
 				1, 1, 1, 1, 1, 1, 1, 1,
 				1, 1, 0, 0, 1, 1, 1, 1,
 				10, 1

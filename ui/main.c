@@ -171,7 +171,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			      struct cmdline_args *args)
 {
 	int opt;
-	const static struct option longopts[] = {
+	static const struct option longopts[] = {
 		{"help",                0, 0, 'H'},
 		{"fet-list",            0, 0, 'L'},
 		{"fet-force-id",        1, 0, 'F'},
@@ -189,7 +189,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		switch (opt) {
 		case 'q':
 			{
-				const static union opdb_value v = {
+				static const union opdb_value v = {
 					.boolean = 1
 				};
 

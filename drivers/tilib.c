@@ -90,7 +90,7 @@ struct tilib_device {
 
 #define MID_HALT_ANY		(MID_BREAKPOINT | MID_CPU_STOPPED)
 
-const static MessageID_t my_message_ids = {
+static const MessageID_t my_message_ids = {
 	.uiMsgIdSingleStep	= MID_SINGLE_STEP,
 	.uiMsgIdBreakpoint	= MID_BREAKPOINT,
 	.uiMsgIdStorage		= MID_STORAGE,
