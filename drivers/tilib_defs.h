@@ -172,12 +172,12 @@ typedef void (*DLL430_EVENTNOTIFY_FUNC)
   (unsigned int MsgId, unsigned int wParam, long lParam, long clientHandle);
 
 typedef struct MESSAGE_ID {
-	uint32_t	uiMsgIdSingleStep;
-	uint32_t	uiMsgIdBreakpoint;
-	uint32_t	uiMsgIdStorage;
-	uint32_t	uiMsgIdState;
-	uint32_t	uiMsgIdWarning;
-	uint32_t	uiMsgIdCPUStopped;
+	ULONG	uiMsgIdSingleStep;
+	ULONG	uiMsgIdBreakpoint;
+	ULONG	uiMsgIdStorage;
+	ULONG	uiMsgIdState;
+	ULONG	uiMsgIdWarning;
+	ULONG	uiMsgIdCPUStopped;
 } MessageID_t;
 
 typedef enum BpMode {
@@ -240,7 +240,7 @@ typedef struct BREAKPOINT {
 	/* Breakpoint modes */
 	BpMode_t          bpMode;
 	/* Breakpoint address/value (ignored for clear breakpoint) */
-	int32_t           lAddrVal;
+	LONG              lAddrVal;
 	/* Breakpoint type (used for range and complex breakpoints) */
 	BpType_t          bpType;
 	/* Breakpoint register (used for complex breakpoints with
@@ -255,24 +255,24 @@ typedef struct BREAKPOINT {
 	/* Breakpoint operator (used for complex breakpoints) */
 	BpOperat_t        bpOperat;
 	/* Breakpoint mask (used for complex breakpoints) */
-	int32_t           lMask;
+	LONG              lMask;
 	/* Range breakpoint end address (used for range breakpoints) */
-	int32_t           lRangeEndAdVa;
+	LONG              lRangeEndAdVa;
 	/* Range breakpoint action (inside/outside) (used for range
 	 * breakpoints) */
 	BpRangeAction_t   bpRangeAction;
 	/* Complex breakpoint: Condition available */
 	BpCondition_t     bpCondition;
 	/* Complex breakpoint: MDB value (used for complex breakpoints) */
-	uint32_t          lCondMdbVal;
+	ULONG             lCondMdbVal;
 	/* Complex breakpoint: Access (used for complex breakpoints) */
 	BpAccess_t        bpCondAccess;
 	/* Complex breakpoint: Mask Value(used for complex breakpoints) */
-	int32_t           lCondMask;
+	LONG              lCondMask;
 	/* Complex breakpoint: Operator (used for complex breakpoints) */
 	BpOperat_t        bpCondOperat;
 	/* Combine breakpoint: Reference of a combination handle */
-	uint16_t          wExtCombine;
+	WORD              wExtCombine;
 } BpParameter_t;
 
 typedef void (*DLL430_FET_NOTIFY_FUNC) (unsigned int MsgId,
