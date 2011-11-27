@@ -364,6 +364,11 @@ static int restart_program(struct gdb_data *data)
 	return gdb_send(data, "OK");
 }
 
+static int gdb_send_empty_threadlist(struct gdb_data *data)
+{
+	return gdb_send(data, "<?xml version=\"1.0\"?><threads></threads>");
+}
+
 static int gdb_send_supported(struct gdb_data *data)
 {
 	gdb_packet_start(data);
@@ -400,6 +405,8 @@ static int process_gdb_command(struct gdb_data *data, char *buf)
 			return monitor_command(data, buf + 6);
 		if (!strncmp(buf, "qSupported", 10))
 			return gdb_send_supported(data);
+		if (!strncmp(buf, "qfThreadInfo", 12))
+			return gdb_send_empty_threadlist(data);
 		break;
 
 	case 'm': /* Read memory */
