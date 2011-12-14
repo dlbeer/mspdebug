@@ -482,10 +482,11 @@ static void fw_progress(unsigned int msg_id, unsigned long w_param,
 	}
 }
 
-static int do_fw_update(struct tilib_device *dev)
+static int do_fw_update(struct tilib_device *dev, const char *filename)
 {
 	printc("Starting firmware update (this may take some time)...\n");
-	if (dev->MSP430_FET_FwUpdate(NULL, fw_progress, (long)dev) < 0) {
+	if (dev->MSP430_FET_FwUpdate((char *)filename,
+				     fw_progress, (long)dev) < 0) {
 		report_error(dev, "MSP430_FET_FwUpdate");
 		return -1;
 	}
@@ -511,11 +512,19 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 		return -1;
 	}
 
-	if (version < 0) {
+	if (args->require_fwupdate) {
+		printc("Updating firmware using %s\n",
+		       args->require_fwupdate);
+
+		if (do_fw_update(dev, args->require_fwupdate) < 0) {
+			dev->MSP430_Close(0);
+			return -1;
+		}
+	} else if (version < 0) {
 		printc("FET firmware update is required.\n");
 
 		if (args->flags & DEVICE_FLAG_DO_FWUPDATE) {
-			if (do_fw_update(dev) < 0) {
+			if (do_fw_update(dev, NULL) < 0) {
 				dev->MSP430_Close(0);
 				return -1;
 			}

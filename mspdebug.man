@@ -72,6 +72,13 @@ List available USB devices and exit.
 .IP "\-\-force-reset"
 When using a FET device, always send a reset during initialization. By
 default, an initialization without reset will be tried first.
+.IP "\-\-allow-fw-update"
+When using a V3 FET device via the TI library, allow the library to
+perform a firmware update if the FET firmware is incompatible with the
+library.
+.IP "\-\-require-fw-update \fIimage.txt\fR"
+When using a V3 FET device, force a firmware update using the given
+firmware image. The firmware file must be in TI Text format.
 .IP "\-\-version"
 Show program version and copyright information.
 .SH DRIVERS

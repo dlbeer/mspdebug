@@ -68,6 +68,7 @@ struct device_args {
 	const char		*path;
 	const char		*forced_chip_id;
 	const char		*requested_serial;
+	const char		*require_fwupdate;
 };
 
 struct device_class {

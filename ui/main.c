@@ -111,6 +111,9 @@ static void usage(const char *progname)
 "        Force target reset in initialization sequence.\n"
 "    --allow-fw-update\n"
 "        Update FET firmware (tilib only) if necessary.\n"
+"    --require-fw-update <image.txt>\n"
+"        Require FET firmware update (tilib only). The image must be\n"
+"        a TI Text file.\n"
 "    --version\n"
 "        Show copyright and version information.\n"
 "\n"
@@ -180,6 +183,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"long-password",       0, 0, 'P'},
 		{"force-reset",		0, 0, 'R'},
 		{"allow-fw-update",	0, 0, 'A'},
+		{"require-fw-update",	1, 0, 'M'},
 		{NULL, 0, 0, 0}
 	};
 	int want_usb = 0;
@@ -211,6 +215,10 @@ static int parse_cmdline_args(int argc, char **argv,
 		case 'd':
 			args->devarg.path = optarg;
 			args->devarg.flags |= DEVICE_FLAG_TTY;
+			break;
+
+		case 'M':
+			args->devarg.require_fwupdate = optarg;
 			break;
 
 		case 'U':
