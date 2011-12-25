@@ -24,6 +24,7 @@
 typedef enum {
 	UIF_TYPE_FET,
 	UIF_TYPE_OLIMEX,
+	UIF_TYPE_OLIMEX_V1,
 	UIF_TYPE_OLIMEX_ISO
 } uif_type_t;
 

@@ -23,6 +23,7 @@
 
 extern const struct device_class device_rf2500;
 extern const struct device_class device_olimex;
+extern const struct device_class device_olimex_v1;
 extern const struct device_class device_olimex_iso;
 extern const struct device_class device_uif;
 

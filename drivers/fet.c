@@ -1109,6 +1109,38 @@ const struct device_class device_olimex = {
 	.poll		= fet_poll
 };
 
+static device_t fet_open_olimex_v1(const struct device_args *args)
+{
+	transport_t trans;
+
+	if (args->flags & DEVICE_FLAG_TTY)
+		trans = uif_open(args->path, UIF_TYPE_OLIMEX_V1);
+	else
+		trans = olimex_open(args->path, args->requested_serial);
+
+        if (!trans)
+                return NULL;
+
+	return fet_open(args, FET_PROTO_NOLEAD_SEND | FET_PROTO_EXTRA_RECV |
+			      FET_PROTO_IDENTIFY_NEW,
+			trans, &device_olimex_v1);
+}
+
+const struct device_class device_olimex_v1 = {
+	.name		= "olimex-v1",
+	.help		=
+"Olimex MSP-JTAG-TINY (V1).",
+	.open		= fet_open_olimex_v1,
+	.destroy	= fet_destroy,
+	.readmem	= fet_readmem,
+	.writemem	= fet_writemem,
+	.erase		= fet_erase,
+	.getregs	= fet_getregs,
+	.setregs	= fet_setregs,
+	.ctl		= fet_ctl,
+	.poll		= fet_poll
+};
+
 static device_t fet_open_olimex_iso(const struct device_args *args)
 {
 	transport_t trans;

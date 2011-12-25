@@ -61,6 +61,7 @@ struct cmdline_args {
 static const struct device_class *const driver_table[] = {
 	&device_rf2500,
 	&device_olimex,
+	&device_olimex_v1,
 	&device_olimex_iso,
 	&device_sim,
 	&device_uif,

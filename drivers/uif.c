@@ -131,7 +131,15 @@ transport_t uif_open(const char *device, uif_type_t type)
 		break;
 
 	case UIF_TYPE_OLIMEX:
-		printc("Trying to open Olimex on %s...\n", device);
+		printc("Trying to open Olimex (V2) on %s...\n", device);
+		tr->serial_fd = sport_open(device, B115200, 0);
+		if (sport_set_modem(tr->serial_fd, 0) < 0)
+			pr_error("warning: uif: failed to set "
+				 "modem control lines");
+		break;
+
+	case UIF_TYPE_OLIMEX_V1:
+		printc("Trying to open Olimex (V1) on %s...\n", device);
 		tr->serial_fd = sport_open(device, B500000, 0);
 		break;
 
