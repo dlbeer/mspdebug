@@ -543,10 +543,11 @@ static int do_cmd_prog(char **arg, int prog_flags)
 	if (prog_flush(&prog) < 0)
 		return -1;
 
-	if (device_ctl(DEVICE_CTL_RESET) < 0) {
-		printc_err("prog: failed to reset after programming\n");
-		return -1;
-	}
+	printc("Done, %d bytes written\n", prog.total_written);
+
+	if (device_ctl(DEVICE_CTL_RESET) < 0)
+		printc_err("warning: prog: "
+			   "failed to reset after programming\n");
 
 	unmark_modified(MODIFY_SYMS);
 	return 0;

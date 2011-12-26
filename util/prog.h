@@ -25,11 +25,15 @@
 
 struct prog_data {
 	char		section[64];
+
 	uint8_t         buf[PROG_BUFSIZE];
 	address_t       addr;
 	int             len;
+
 	int		flags;
 	int             have_erased;
+
+	address_t	total_written;
 };
 
 #define PROG_WANT_ERASE        0x01

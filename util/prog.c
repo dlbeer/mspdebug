@@ -49,6 +49,7 @@ int prog_flush(struct prog_data *prog)
 	if (device_writemem(prog->addr, prog->buf, prog->len) < 0)
 		return -1;
 
+	prog->total_written += prog->len;
 	prog->addr += prog->len;
 	prog->len = 0;
 	return 0;
