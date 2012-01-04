@@ -57,6 +57,7 @@ typedef HANDLE sport_t;
 #endif
 
 #define B9600			CBR_9600
+#define B115200			CBR_115200
 #define B460800			CBR_460800
 #define B500000			CBR_500000
 
