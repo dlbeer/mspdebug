@@ -51,6 +51,9 @@
 /* The new identify method should always be used */
 #define FET_PROTO_IDENTIFY_NEW		0x08
 
+/* A reset on startup should always be performed */
+#define FET_PROTO_FORCE_RESET           0x10
+
 #define MAX_PARAMS		16
 #define MAX_BLOCK_SIZE		4096
 
@@ -1025,7 +1028,7 @@ static device_t fet_open(const struct device_args *args,
 	dev->transport = transport;
 	dev->flags = flags;
 
-	if (try_open(dev, args, 0) < 0) {
+	if (try_open(dev, args, flags & FET_PROTO_FORCE_RESET) < 0) {
 		usleep(500000);
 		printc("Trying again...\n");
 		if (try_open(dev, args, 1) < 0)
@@ -1090,7 +1093,7 @@ static device_t fet_open_olimex(const struct device_args *args)
                 return NULL;
 
 	return fet_open(args, FET_PROTO_NOLEAD_SEND | FET_PROTO_EXTRA_RECV |
-			      FET_PROTO_IDENTIFY_NEW,
+			      FET_PROTO_IDENTIFY_NEW | FET_PROTO_FORCE_RESET,
 			trans, &device_olimex);
 }
 
