@@ -83,6 +83,7 @@ static int write_text(struct outbuf *out, const char *buf, FILE *fout)
 
 		if (*buf == '\n') {
 			fputc('\n', fout);
+			fflush(fout);
 			out->buf[out->len] = 0;
 			if (capture_func)
 				capture_func(capture_data, out->buf);
