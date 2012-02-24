@@ -188,9 +188,11 @@ void reader_loop(void)
 		want_exit = 0;
 
 		for (;;) {
-			char *buf = readline("(mspdebug) ");
+			char *buf;
 			char tmpbuf[MAX_READER_LINE];
 
+			fflush(stdout);
+			buf = readline("(mspdebug) ");
 			if (!buf) {
 				printc("\n");
 				break;
