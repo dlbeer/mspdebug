@@ -23,6 +23,11 @@
 
 #include "sport.h"
 #include "util.h"
+#include "output.h"
+
+#ifdef __linux__
+#include <linux/serial.h>
+#endif
 
 #ifndef WIN32
 
@@ -57,6 +62,35 @@ static int rate_to_code(int rate)
 	return -1;
 }
 
+#ifdef __linux__
+static int set_nonstandard_rate(int fd, int rate)
+{
+	struct serial_struct ss;
+
+	if (ioctl(fd, TIOCGSERIAL, &ss) < 0) {
+		pr_error("sport: TIOCGSERIAL failed");
+		return -1;
+	}
+
+	ss.custom_divisor = ss.baud_base / rate;
+	ss.flags = ASYNC_SPD_CUST;
+
+	if (ioctl(fd, TIOCSSERIAL, &ss) < 0) {
+		pr_error("sport: TIOCSSERIAL failed");
+		return -1;
+	}
+
+	return 0;
+}
+#else
+static int set_nonstandard_rate(int fd, int rate)
+{
+	printc_err("sport: Can't set non-standard baud rate %d on "
+		   "this platform\n", rate);
+	return -1;
+}
+#endif
+
 sport_t sport_open(const char *device, int rate, int flags)
 {
 	int fd = open(device, O_RDWR | O_NOCTTY);
@@ -72,6 +106,17 @@ sport_t sport_open(const char *device, int rate, int flags)
 	if (rate_code >= 0) {
 		cfsetispeed(&attr, rate_code);
 		cfsetospeed(&attr, rate_code);
+	} else {
+		if (set_nonstandard_rate(fd, rate) < 0) {
+			close(fd);
+			return -1;
+		}
+
+		/* We need to set the rate code to B38400 on Linux for
+		 * the non-standard rate to take effect.
+		 */
+		cfsetispeed(&attr, B38400);
+		cfsetospeed(&attr, B38400);
 	}
 
 	if (flags & SPORT_EVEN_PARITY)
