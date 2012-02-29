@@ -21,6 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <usb.h>
+#include <time.h>
 
 #include "ti3410.h"
 #include "util.h"
@@ -316,36 +317,45 @@ static void teardown_port(struct ti3410_transport *tr)
 static int ti3410_send(transport_t tr_base, const uint8_t *data, int len)
 {
 	struct ti3410_transport *tr = (struct ti3410_transport *)tr_base;
-        int sent;
+	int sent;
 
-        while (len) {
-                sent = usb_bulk_write(tr->hnd, USB_FET_OUT_EP,
-                                      (char *)data, len, TIMEOUT);
-                if (sent < 0) {
-                        pr_error("ti3410: can't send data");
-                        return -1;
-                }
+	while (len) {
+		sent = usb_bulk_write(tr->hnd, USB_FET_OUT_EP,
+				      (char *)data, len, TIMEOUT);
+		if (sent <= 0) {
+			pr_error("ti3410: can't send data");
+			return -1;
+		}
 
-                len -= sent;
-        }
+		data += sent;
+		len -= sent;
+	}
 
-        return 0;
+	return 0;
 }
 
 static int ti3410_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 {
 	struct ti3410_transport *tr = (struct ti3410_transport *)tr_base;
+	time_t deadline = time(NULL) + READ_TIMEOUT / 1000;
 	int rlen;
 
-        rlen = usb_bulk_read(tr->hnd, USB_FET_IN_EP, (char *)databuf,
-                             max_len, READ_TIMEOUT);
+	while (time(NULL) < deadline) {
+		rlen = usb_bulk_read(tr->hnd, USB_FET_IN_EP, (char *)databuf,
+				     max_len, READ_TIMEOUT);
 
-        if (rlen < 0) {
-                pr_error("ti3410: can't receive data");
-                return -1;
-        }
+		if (rlen > 0)
+			return rlen;
 
-	return rlen;
+		if (rlen < 0) {
+			printc_err("ti3410: usb_bulk_read: %s\n",
+				   usb_strerror());
+			return -1;
+		}
+	}
+
+	printc_err("ti3410: read timeout\n");
+	return -1;
 }
 
 static void ti3410_destroy(transport_t tr_base)
@@ -565,7 +575,8 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial)
 		if (devpath)
 			dev = usbutil_find_by_loc(devpath);
 		else
-			dev = usbutil_find_by_id(USB_FET_VENDOR, USB_FET_PRODUCT,
+			dev = usbutil_find_by_id(USB_FET_VENDOR,
+						 USB_FET_PRODUCT,
 						 requested_serial);
 
 		if (!dev) {
