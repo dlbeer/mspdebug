@@ -203,20 +203,20 @@ static int open_device(struct olimex_transport *tr, struct usb_device *dev)
 static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 {
 	struct olimex_transport *tr = (struct olimex_transport *)tr_base;
-
 	int sent;
 
-	while (len) {
 #ifdef DEBUG_OLIMEX
-		debug_hexdump(__FILE__": USB transfer out", data, len);
+	debug_hexdump(__FILE__ ": USB transfer out", data, len);
 #endif
+	while (len) {
 		sent = usb_bulk_write(tr->handle, tr->out_ep,
 				      (char *)data, len, TIMEOUT);
-		if (sent < 0) {
+		if (sent <= 0) {
 			pr_error(__FILE__": can't send data");
 			return -1;
 		}
 
+		data += sent;
 		len -= sent;
 	}
 
@@ -239,7 +239,7 @@ static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 	printc(__FILE__": %s : read %d\n", __FUNCTION__, rlen);
 #endif
 
-	if (rlen < 0) {
+	if (rlen <= 0) {
 		pr_error(__FILE__": can't receive data");
 		return -1;
 	}
