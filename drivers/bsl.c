@@ -377,7 +377,7 @@ static device_t bsl_open(const struct device_args *args)
 
 	dev->base.type = &device_bsl;
 
-	dev->serial_fd = sport_open(args->path, B460800, 0);
+	dev->serial_fd = sport_open(args->path, 460800, 0);
 	if (SPORT_ISERR(dev->serial_fd)) {
 		printc_err("bsl: can't open %s: %s\n",
 			   args->path, last_error());

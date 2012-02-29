@@ -127,12 +127,12 @@ transport_t uif_open(const char *device, uif_type_t type)
 	switch (type) {
 	case UIF_TYPE_FET:
 		printc("Trying to open UIF on %s...\n", device);
-		tr->serial_fd = sport_open(device, B460800, 0);
+		tr->serial_fd = sport_open(device, 460800, 0);
 		break;
 
 	case UIF_TYPE_OLIMEX:
 		printc("Trying to open Olimex (V2) on %s...\n", device);
-		tr->serial_fd = sport_open(device, B115200, 0);
+		tr->serial_fd = sport_open(device, 115200, 0);
 		if (sport_set_modem(tr->serial_fd, 0) < 0)
 			pr_error("warning: uif: failed to set "
 				 "modem control lines");
@@ -140,7 +140,7 @@ transport_t uif_open(const char *device, uif_type_t type)
 
 	case UIF_TYPE_OLIMEX_V1:
 		printc("Trying to open Olimex (V1) on %s...\n", device);
-		tr->serial_fd = sport_open(device, B500000, 0);
+		tr->serial_fd = sport_open(device, 500000, 0);
 		break;
 
 	case UIF_TYPE_OLIMEX_ISO:

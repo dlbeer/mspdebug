@@ -641,7 +641,7 @@ static device_t flash_bsl_open(const struct device_args *args)
 	memset(dev, 0, sizeof(*dev));
 	dev->base.type = &device_flash_bsl;
 
-	dev->serial_fd = sport_open(args->path, B9600, SPORT_EVEN_PARITY);
+	dev->serial_fd = sport_open(args->path, 9600, SPORT_EVEN_PARITY);
 	if (SPORT_ISERR(dev->serial_fd)) {
 		printc_err("flash_bsl: can't open %s: %s\n",
 			   args->path, last_error());
@@ -652,9 +652,8 @@ static device_t flash_bsl_open(const struct device_args *args)
 	dev->long_password = args->flags & DEVICE_FLAG_LONG_PW;
 
 	/* enter bootloader */
-	if (enter_via_dtr_rts(dev) < 0) {
-                goto fail;
-	}
+	if (enter_via_dtr_rts(dev) < 0)
+		goto fail;
 
 	usleep(500000);
 

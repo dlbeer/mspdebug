@@ -26,18 +26,53 @@
 
 #ifndef WIN32
 
+#ifndef B460800
+#define B460800 460800
+#endif
+
+#ifndef B500000
+#define B500000 500000
+#endif
+
+struct baud_rate {
+	int             rate;
+	int             code;
+};
+
+static const struct baud_rate baud_rates[] = {
+	{9600,          B9600},
+	{115200,        B115200},
+	{460800,        B460800},
+	{500000,        B500000}
+};
+
+static int rate_to_code(int rate)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(baud_rates); i++)
+		if (baud_rates[i].rate == rate)
+			return baud_rates[i].code;
+
+	return -1;
+}
+
 sport_t sport_open(const char *device, int rate, int flags)
 {
 	int fd = open(device, O_RDWR | O_NOCTTY);
 	struct termios attr;
+	int rate_code = rate_to_code(rate);
 
 	if (fd < 0)
 		return -1;
 
 	tcgetattr(fd, &attr);
 	cfmakeraw(&attr);
-	cfsetispeed(&attr, rate);
-	cfsetospeed(&attr, rate);
+
+	if (rate_code >= 0) {
+		cfsetispeed(&attr, rate_code);
+		cfsetospeed(&attr, rate_code);
+	}
 
 	if (flags & SPORT_EVEN_PARITY)
 		attr.c_cflag |= PARENB;

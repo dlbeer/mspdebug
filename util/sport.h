@@ -25,14 +25,6 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 
-#ifndef B460800
-#define B460800 460800
-#endif
-
-#ifndef B500000
-#define B500000 500000
-#endif
-
 typedef int sport_t;
 
 #define SPORT_ISERR(x) ((x) < 0)
@@ -47,19 +39,6 @@ typedef int sport_t;
 typedef HANDLE sport_t;
 
 #define SPORT_ISERR(x) ((x) == INVALID_HANDLE_VALUE)
-
-#ifndef CBR_460800
-#define CBR_460800 460800
-#endif
-
-#ifndef CBR_500000
-#define CBR_500000 500000
-#endif
-
-#define B9600			CBR_9600
-#define B115200			CBR_115200
-#define B460800			CBR_460800
-#define B500000			CBR_500000
 
 #define SPORT_MC_DTR		0x01
 #define SPORT_MC_RTS		0x02
