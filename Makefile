@@ -121,6 +121,7 @@ OBJ=\
     drivers/uif.o \
     drivers/ti3410.o \
     drivers/tilib.o \
+    drivers/olimex_iso.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \

@@ -36,6 +36,7 @@
 
 #include "uif.h"
 #include "olimex.h"
+#include "olimex_iso.h"
 #include "rf2500.h"
 #include "ti3410.h"
 
@@ -1148,14 +1149,13 @@ static device_t fet_open_olimex_iso(const struct device_args *args)
 {
 	transport_t trans;
 
-	if (!(args->flags & DEVICE_FLAG_TTY)) {
-		printc_err("This driver does not support raw USB access.\n");
-		return NULL;
-	}
+	if (args->flags & DEVICE_FLAG_TTY)
+		trans = uif_open(args->path, UIF_TYPE_FET);
+	else
+		trans = olimex_iso_open(args->path, args->requested_serial);
 
-	trans = uif_open(args->path, UIF_TYPE_OLIMEX_ISO);
-        if (!trans)
-                return NULL;
+	if (!trans)
+		return NULL;
 
 	return fet_open(args, FET_PROTO_NOLEAD_SEND | FET_PROTO_EXTRA_RECV |
 			      FET_PROTO_IDENTIFY_NEW,
