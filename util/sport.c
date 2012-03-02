@@ -88,7 +88,7 @@ static int set_nonstandard_rate(int fd, struct termios *attr, int rate)
 
 	return 0;
 }
-#elif defined(__OpenBSD__)
+#elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
 static int set_nonstandard_rate(int fd, struct termios *attr, int rate)
 {
 	cfsetispeed(attr, rate);
