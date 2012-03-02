@@ -342,6 +342,9 @@ int main(int argc, char **argv)
 	struct cmdline_args args = {0};
 	int ret = 0;
 
+	setvbuf(stderr, NULL, _IOFBF, 0);
+	setvbuf(stdout, NULL, _IOFBF, 0);
+
 	opdb_reset();
 	ctrlc_init();
 
