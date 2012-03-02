@@ -1150,7 +1150,7 @@ static device_t fet_open_olimex_iso(const struct device_args *args)
 	transport_t trans;
 
 	if (args->flags & DEVICE_FLAG_TTY)
-		trans = uif_open(args->path, UIF_TYPE_FET);
+		trans = uif_open(args->path, UIF_TYPE_OLIMEX_ISO);
 	else
 		trans = olimex_iso_open(args->path, args->requested_serial);
 
