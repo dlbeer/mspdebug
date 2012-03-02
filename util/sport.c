@@ -62,10 +62,16 @@ static int rate_to_code(int rate)
 	return -1;
 }
 
-#ifdef __linux__
-static int set_nonstandard_rate(int fd, int rate)
+#if defined(__linux__)
+static int set_nonstandard_rate(int fd, struct termios *attr, int rate)
 {
 	struct serial_struct ss;
+
+	/* We need to set the rate code to B38400 on Linux for
+	 * the non-standard rate to take effect.
+	 */
+	cfsetispeed(attr, B38400);
+	cfsetospeed(attr, B38400);
 
 	if (ioctl(fd, TIOCGSERIAL, &ss) < 0) {
 		pr_error("sport: TIOCGSERIAL failed");
@@ -82,8 +88,16 @@ static int set_nonstandard_rate(int fd, int rate)
 
 	return 0;
 }
+#elif defined(__OpenBSD__)
+static int set_nonstandard_rate(int fd, struct termios *attr, int rate)
+{
+	cfsetispeed(attr, rate);
+	cfsetospeed(attr, rate);
+
+	return 0;
+}
 #else
-static int set_nonstandard_rate(int fd, int rate)
+static int set_nonstandard_rate(int fd, struct termios *attr, int rate)
 {
 	printc_err("sport: Can't set non-standard baud rate %d on "
 		   "this platform\n", rate);
@@ -106,17 +120,9 @@ sport_t sport_open(const char *device, int rate, int flags)
 	if (rate_code >= 0) {
 		cfsetispeed(&attr, rate_code);
 		cfsetospeed(&attr, rate_code);
-	} else {
-		if (set_nonstandard_rate(fd, rate) < 0) {
-			close(fd);
-			return -1;
-		}
-
-		/* We need to set the rate code to B38400 on Linux for
-		 * the non-standard rate to take effect.
-		 */
-		cfsetispeed(&attr, B38400);
-		cfsetospeed(&attr, B38400);
+	} else if (set_nonstandard_rate(fd, &attr, rate) < 0) {
+		close(fd);
+		return -1;
 	}
 
 	if (flags & SPORT_EVEN_PARITY)
