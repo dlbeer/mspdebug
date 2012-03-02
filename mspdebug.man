@@ -1,4 +1,4 @@
-.TH mspdebug 1 "8 Nov 2011" "Version 0.18"
+.TH mspdebug 1 "3 Mar 2012" "Version 0.19"
 .SH NAME
 MSPDebug - debugging tool for MSP430 MCUs
 .SH SYNOPSIS
@@ -6,8 +6,8 @@ MSPDebug - debugging tool for MSP430 MCUs
 .SH DESCRIPTION
 MSPDebug is a command-line tool designed for debugging and programming
 the MSP430 family of MCUs. It supports the eZ430-F2013, eZ430-RF2500,
-Launchpad, Chronos, FET430UIF and Olimex MSP-JTAG-TINY programming tools,
-as well as a simulation mode.
+Launchpad, Chronos, FET430UIF, Olimex MSP430-JTAG-TINY and
+MSP430-JTAG-ISO programming tools, as well as a simulation mode.
 
 When started with appropriate options, MSPDebug will attempt to
 connect to the debugging tool specified and identify the device under
@@ -701,7 +701,7 @@ dlbeer@gmail.com. It would help if you could include a transcript
 of an MSPDebug session illustrating the program, as well as any
 relevant binaries or other files.
 .SH COPYRIGHT
-Copyright (C) 2009-2011 Daniel Beer <dlbeer@gmail.com>
+Copyright (C) 2009-2012 Daniel Beer <dlbeer@gmail.com>
 
 MSPDebug is free software, distributed under the terms of the GNU
 General Public license (version 2 or later). See the file COPYING

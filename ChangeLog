@@ -1,3 +1,12 @@
+Version 0.19 - 3 Mar 2012
+	* Support for MSP430-JTAG-ISO on platforms other than Linux, via
+	  both serial drivers and raw USB access.
+	* Support for new chips: MSP430F5342, MSP430F5329, MSP430F2418.
+	* Fixed support for later-model MSP430-JTAG-TINY rev 2.
+	* Fixed build warnings on many systems.
+	* Fixed output buffering to allow correct interaction with
+	  Eclipse plugins.
+
 Version 0.18 - 8 Nov 2011
 	* Support for new chips: MSP430F2121, MSP430F2012, MSP430F449.
 	* Support for raw USB access to FET430UIF and eZ430-F2013.
