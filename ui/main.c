@@ -342,11 +342,6 @@ int main(int argc, char **argv)
 	struct cmdline_args args = {0};
 	int ret = 0;
 
-	/* Line buffering is required for tools which read mspdebug's
-	 * output (like msp430eclipse).
-	 */
-	setvbuf(stdout, NULL, _IOLBF, 0);
-
 	opdb_reset();
 	ctrlc_init();
 
