@@ -107,8 +107,10 @@ int configure_ftdi(struct usb_dev_handle *handle)
 
 static int open_device(struct iso_transport *tr, struct usb_device *dev)
 {
+#ifdef __linux__
 	int driver;
 	char drv_name[128];
+#endif
 
 	printc_dbg("olimex_iso: trying to open %s\n", dev->filename);
 	tr->handle = usb_open(dev);
