@@ -561,6 +561,36 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 	dev->code_start = LE_WORD(r->msg29_data, 0);
 	dev->base.max_breakpoints = LE_WORD(r->msg29_data, 0x14);
 
+	printc_dbg("  Code start address: 0x%x\n",
+		   LE_WORD(r->msg29_data, 0));
+	/*
+	 * The value at 0x02 seems to contain a "virtual code end
+	 * address". So this value seems to be useful only for
+	 * calculating the total ROM size.
+	 *
+	 * For example, as for the msp430f6736 with 128kb ROM, the ROM
+	 * is split into two areas: A "near" ROM, and a "far ROM".
+	 */
+	const uint32_t codeSize =
+	  LE_LONG(r->msg29_data, 0x02)
+	  - LE_WORD(r->msg29_data, 0)
+	  + 1;
+	printc_dbg("  Code size         : %lu byte = %lu kb\n",
+		   codeSize,
+		   codeSize / 1024);
+
+	printc_dbg("  RAM  start address: 0x%x\n",
+		   LE_WORD(r->msg29_data, 0x0c));
+	printc_dbg("  RAM  end   address: 0x%x\n",
+		   LE_WORD(r->msg29_data, 0x0e));
+	const uint16_t ramSize =
+	  LE_WORD(r->msg29_data, 0x0e)
+	  - LE_WORD(r->msg29_data, 0x0c)
+	  + 1;
+	printc_dbg("  RAM  size         : %u byte = %u kb\n",
+		   ramSize,
+		   ramSize / 1024);
+
 	show_dev_info(r->name, dev);
 
 	if (xfer(dev, C_IDENT3, r->msg2b_data, r->msg2b_len, 0) < 0)
