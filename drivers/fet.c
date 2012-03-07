@@ -603,12 +603,6 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 		return -1;
 	}
 
-	/* This packet seems to be necessary in order to program on the
-	 * MSP430FR5739 development board.
-	 */
-	if (xfer(dev, 0x30, NULL, 0, 0) < 0)
-		printc_dbg("fet: warning: message 0x30 failed\n");
-
 	return 0;
 }
 
