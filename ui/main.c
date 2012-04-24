@@ -315,7 +315,7 @@ int setup_driver(struct cmdline_args *args)
 	return 0;
 }
 
-#ifdef WIN32
+#ifdef __Windows__
 static int sockets_init(void)
 {
 	WSADATA data;

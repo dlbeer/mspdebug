@@ -34,12 +34,14 @@ else
 	READLINE_LIBS = -lreadline
 endif
 
-UNAME := $(shell sh -c 'uname -s')
-ifeq ($(UNAME),Darwin) # Mac OS X/MacPorts stuff
+UNAME_S := $(shell sh -c 'uname -s')
+UNAME_O := $(shell sh -c 'uname -o 2> /dev/null')
+
+ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
 	PORTS_CFLAGS = -I/opt/local/include
 	PORTS_LDFLAGS = -L/opt/local/lib
 else
-  ifeq ($(UNAME),OpenBSD) # OpenBSD Ports stuff
+  ifeq ($(UNAME_S),OpenBSD) # OpenBSD Ports stuff
 	PORTS_CFLAGS = `pkg-config --cflags libusb`
 	PORTS_LDFLAGS = `pkg-config --libs libusb` -ltermcap -pthread
   else
@@ -52,12 +54,15 @@ ifeq ($(OS),Windows_NT)
     MSPDEBUG_CC = gcc
     BINARY = mspdebug.exe
 
-    OS_LIBS = -lws2_32 -lregex
+    ifneq ($(UNAME_O),Cygwin)
+	OS_LIBS = -lws2_32 -lregex
+	OS_CFLAGS = -D__Windows__
+    endif
 else
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug
 
-    ifneq ($(filter $(UNAME),FreeBSD OpenBSD),)
+    ifneq ($(filter $(UNAME_S),FreeBSD OpenBSD),)
 	OS_LIBS =
     else
 	OS_LIBS = -ldl
@@ -72,7 +77,7 @@ CONFIG_CFLAGS = -DLIB_DIR=\"$(LIBDIR)\"
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
 MSPDEBUG_LIBS = -lusb $(READLINE_LIBS) $(OS_LIBS)
 MSPDEBUG_CFLAGS = $(CFLAGS) $(READLINE_CFLAGS) $(PORTS_CFLAGS)\
- $(GCC_CFLAGS) $(INCLUDES) $(CONFIG_CFLAGS)
+ $(GCC_CFLAGS) $(INCLUDES) $(CONFIG_CFLAGS) $(OS_CFLAGS)
 
 all: $(BINARY)
 

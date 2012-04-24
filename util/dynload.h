@@ -21,11 +21,11 @@
 
 /* Portable dynamic loader interface. */
 
-#ifdef WIN32
+#ifdef __Windows__
 #include <windows.h>
 
 typedef HMODULE dynload_handle_t;
-#else /* WIN32 */
+#else /* __Windows__ */
 typedef void *dynload_handle_t;
 #endif
 

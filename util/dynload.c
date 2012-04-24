@@ -19,7 +19,7 @@
 #include "dynload.h"
 #include "util.h"
 
-#ifdef WIN32
+#ifdef __Windows__
 
 dynload_handle_t dynload_open(const char *filename)
 {
@@ -41,7 +41,7 @@ const char *dynload_error(void)
 	return last_error();
 }
 
-#else /* WIN32 */
+#else /* __Windows__ */
 
 #include <dlfcn.h>
 

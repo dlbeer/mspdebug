@@ -132,7 +132,7 @@ static int open_device(struct iso_transport *tr, struct usb_device *dev)
 	}
 #endif
 
-#ifdef WIN32
+#ifdef __Windows__
 	if (usb_set_configuration(tr->handle, USB_CONFIG) < 0) {
 		printc_err("olimex_iso: can't set configuration: %s\n",
 			   usb_strerror());

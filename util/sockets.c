@@ -23,11 +23,11 @@
 #include "sockets.h"
 #include "util.h"
 
-#ifdef WIN32
+#ifdef __Windows__
 #include <windows.h>
 #endif
 
-#ifdef WIN32
+#ifdef __Windows__
 static DWORD error_save = 0;
 
 static void sockets_begin(SOCKET s, DWORD event)
@@ -137,7 +137,7 @@ ssize_t sockets_recv(SOCKET s, void *buf, size_t len, int flags,
 	sockets_end(s);
 	return ret;
 }
-#else /* WIN32 */
+#else /* __Windows__ */
 SOCKET sockets_accept(SOCKET s, struct sockaddr *addr, socklen_t *addrlen)
 {
 	return accept(s, addr, addrlen);

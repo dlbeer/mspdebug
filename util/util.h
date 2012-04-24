@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#ifdef WIN32
+#ifdef __Windows__
 #include <windows.h>
 #endif
 
@@ -60,7 +60,7 @@ static inline int ishex(int c)
 
 int hexval(int c);
 
-#ifdef WIN32
+#ifdef __Windows__
 char *strsep(char **strp, const char *delim);
 
 HANDLE ctrlc_win32_event(void);

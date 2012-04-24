@@ -105,7 +105,7 @@ int cmd_help(char **arg)
 		vector_destroy(&v);
 
 		printc("Type \"help <topic>\" for more information.\n");
-#if defined(WIN32) && !defined(USE_READLINE)
+#if defined(__Windows__) && !defined(USE_READLINE)
 		printc("Press Ctrl+Z, Enter to quit.\n");
 #else
 		printc("Press Ctrl+D to quit.\n");

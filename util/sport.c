@@ -29,7 +29,7 @@
 #include <linux/serial.h>
 #endif
 
-#ifndef WIN32
+#ifndef __Windows__
 
 #ifndef B460800
 #define B460800 460800
@@ -184,7 +184,7 @@ int sport_write(sport_t s, const uint8_t *data, int len)
 	return write(s, data, len);
 }
 
-#else /* WIN32 */
+#else /* __Windows__ */
 
 sport_t sport_open(const char *device, int rate, int flags)
 {

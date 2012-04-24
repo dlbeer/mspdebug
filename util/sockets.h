@@ -19,7 +19,7 @@
 #ifndef SOCKETS_H_
 #define SOCKETS_H_
 
-#ifdef WIN32
+#ifdef __Windows__
 #include <winsock2.h>
 #include <stdio.h>
 

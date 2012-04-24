@@ -381,7 +381,7 @@ static int connect_to(const char *spec)
 	printc_dbg("Looking up %s...\n", hostname);
 	ent = gethostbyname(hostname);
 	if (!ent) {
-#ifdef WIN32
+#ifdef __Windows__
 		printc_err("No such host: %s: %s\n", hostname,
 			   last_error());
 #else

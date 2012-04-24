@@ -99,7 +99,7 @@ static int write_text(struct outbuf *out, const char *buf, FILE *fout)
 				out->in_code = 0;
 				if (*buf == 'm')
 					out->ansi_cur = out->ansi_next;
-#ifdef WIN32
+#ifdef __Windows__
 				if (want_color && *buf == 'm') {
 					fflush(fout);
 					SetConsoleTextAttribute(GetStdHandle
@@ -108,7 +108,7 @@ static int write_text(struct outbuf *out, const char *buf, FILE *fout)
 #endif
 			}
 
-#ifndef WIN32
+#ifndef __Windows__
 			if (want_color)
 				fputc(*buf, fout);
 #endif

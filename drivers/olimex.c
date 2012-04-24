@@ -150,7 +150,7 @@ static int open_interface(struct olimex_transport *tr,
 	}
 #endif
 
-#ifdef WIN32
+#ifdef __Windows__
 	if (usb_set_configuration(tr->handle, 1) < 0) {
 		pr_error(__FILE__": can't set configuration 1");
 		usb_close(tr->handle);

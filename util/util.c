@@ -25,14 +25,14 @@
 #include <signal.h>
 #include <assert.h>
 
-#ifdef WIN32
+#ifdef __Windows__
 #include <windows.h>
 #endif
 
 #include "util.h"
 #include "output.h"
 
-#ifdef WIN32
+#ifdef __Windows__
 static int ctrlc_flag;
 static HANDLE ctrlc_event;
 static CRITICAL_SECTION ctrlc_cs;
@@ -87,7 +87,7 @@ HANDLE ctrlc_win32_event(void)
 {
 	return ctrlc_event;
 }
-#else /* WIN32 */
+#else /* __Windows__ */
 static volatile int ctrlc_flag;
 
 static void sigint_handler(int signum)
@@ -99,7 +99,7 @@ static void sigint_handler(int signum)
 
 void ctrlc_init(void)
 {
-#if defined(__CYGWIN__)
+#ifdef __CYGWIN__
        signal(SIGINT, sigint_handler);
 #else
        static const struct sigaction siga = {
@@ -262,7 +262,7 @@ int hexval(int c)
 	return 0;
 }
 
-#ifdef WIN32
+#ifdef __Windows__
 char *strsep(char **strp, const char *delim)
 {
 	char *start = *strp;
@@ -292,7 +292,7 @@ char *strsep(char **strp, const char *delim)
 }
 #endif
 
-#ifdef WIN32
+#ifdef __Windows__
 const char *last_error(void)
 {
 	DWORD err = GetLastError();

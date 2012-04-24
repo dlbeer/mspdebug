@@ -19,7 +19,7 @@
 #ifndef SPORT_H_
 #define SPORT_H_
 
-#ifndef WIN32
+#ifndef __Windows__
 
 #include <stdint.h>
 #include <termios.h>
@@ -32,7 +32,7 @@ typedef int sport_t;
 #define SPORT_MC_DTR		TIOCM_DTR
 #define SPORT_MC_RTS		TIOCM_RTS
 
-#else /* WIN32 */
+#else /* __Windows__ */
 
 #include <windows.h>
 

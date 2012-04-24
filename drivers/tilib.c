@@ -26,7 +26,7 @@
 #include "tilib_defs.h"
 #include "threads.h"
 
-#ifdef WIN32
+#if defined(__Windows__) || defined(__CYGWIN__)
 static const char tilib_filename[] = "MSP430.DLL";
 #else
 static const char tilib_filename[] = "libmsp430.so";

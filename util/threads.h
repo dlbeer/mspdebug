@@ -21,7 +21,7 @@
 
 /* Portable thread utilities interface. */
 
-#ifdef WIN32
+#ifdef __Windows__
 #include <windows.h>
 
 typedef CRITICAL_SECTION threads_lock_t;
@@ -46,7 +46,7 @@ static inline void threads_lock_release(threads_lock_t *lock)
 	LeaveCriticalSection(lock);
 }
 
-#else /* WIN32 */
+#else /* __Windows__ */
 
 #include <pthread.h>
 

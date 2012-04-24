@@ -32,7 +32,7 @@ struct rf2500_transport {
 	int                     int_number;
 	struct usb_dev_handle   *handle;
 
-	uint8_t                buf[64];
+	uint8_t                 buf[64];
 	int                     len;
 	int                     offset;
 };
@@ -74,7 +74,7 @@ static int open_interface(struct rf2500_transport *tr,
 			"detach kernel driver");
 #endif
 
-#ifdef WIN32
+#ifdef __Windows__
 	if (usb_set_configuration(tr->handle, 1) < 0) {
 		pr_error("rf2500: can't set configuration 1");
 		usb_close(tr->handle);
