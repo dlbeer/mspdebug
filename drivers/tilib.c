@@ -304,6 +304,46 @@ static int tilib_setregs(device_t dev_base, const address_t *regs)
 	return 0;
 }
 
+static void load_break(BpParameter_t *param, address_t addr)
+{
+	param->bpMode = BP_CODE;
+	param->lAddrVal = addr;
+	param->bpType = BP_MAB;
+	param->lReg = 0; /* not used */
+	param->bpAccess = BP_FETCH;
+	param->bpAction = BP_BRK;
+	param->bpOperat = BP_EQUAL;
+	param->lMask = 0; /* what's this? */
+	param->lRangeEndAdVa = 0; /* not used */
+	param->bpRangeAction = 0; /* not used */
+	param->bpCondition = BP_NO_COND;
+	param->lCondMdbVal = 0;
+	param->bpCondAccess = BP_FETCH;
+	param->lCondMask = 0; /* what's this? */
+	param->bpCondOperat = BP_EQUAL;
+	param->wExtCombine = 0; /* not used? */
+}
+
+static void load_watch(BpParameter_t *param, address_t addr)
+{
+	param->bpMode = BP_COMPLEX;
+	param->lAddrVal = addr;
+	param->bpType = BP_MAB;
+	param->lReg = 0; /* not used (only for register-write) */
+	param->bpAccess = BP_NO_FETCH;
+	param->bpAction = BP_BRK;
+	param->bpOperat = BP_EQUAL;
+	param->lMask = 0xffffff;
+	param->lRangeEndAdVa = 0; /* not used */
+	param->bpRangeAction = 0; /* not used */
+	param->bpCondition = BP_NO_COND;
+	param->lCondMdbVal = 0;
+	param->bpCondAccess = BP_NO_FETCH;
+	param->lCondMask = 0; /* what's this? */
+	param->bpCondOperat = BP_EQUAL;
+	param->wExtCombine = 0; /* not used? */
+}
+
 static int refresh_bps(struct tilib_device *dev)
 {
 	int i;
@@ -316,22 +356,15 @@ static int refresh_bps(struct tilib_device *dev)
 			continue;
 
 		if (bp->flags & DEVICE_BP_ENABLED) {
-			param.bpMode = BP_CODE;
-			param.lAddrVal = bp->addr;
-			param.bpType = BP_MAB;
-			param.lReg = 0; /* not used */
-			param.bpAccess = BP_FETCH;
-			param.bpAction = BP_BRK;
-			param.bpOperat = BP_EQUAL;
-			param.lMask = 0; /* what's this? */
-			param.lRangeEndAdVa = 0; /* not used */
-			param.bpRangeAction = 0; /* not used */
-			param.bpCondition = BP_NO_COND;
-			param.lCondMdbVal = 0;
-			param.bpCondAccess = BP_FETCH;
-			param.lCondMask = 0; /* what's this? */
-			param.bpCondOperat = BP_EQUAL;
-			param.wExtCombine = 0; /* not used? */
+			switch (bp->type) {
+			case DEVICE_BPTYPE_BREAK:
+				load_break(&param, bp->addr);
+				break;
+
+			case DEVICE_BPTYPE_WATCH:
+				load_watch(&param, bp->addr);
+				break;
+			}
 		} else {
 			param.bpMode = BP_CLEAR;
 		}

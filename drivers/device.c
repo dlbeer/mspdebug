@@ -20,7 +20,7 @@
 
 device_t device_default;
 
-static int addbrk(device_t dev, uint16_t addr)
+static int addbrk(device_t dev, uint16_t addr, device_bptype_t type)
 {
 	int i;
 	int which = -1;
@@ -30,7 +30,7 @@ static int addbrk(device_t dev, uint16_t addr)
 		bp = &dev->breakpoints[i];
 
 		if (bp->flags & DEVICE_BP_ENABLED) {
-			if (bp->addr == addr)
+			if (bp->addr == addr && bp->type == type)
 				return i;
 		} else if (which < 0) {
 			which = i;
@@ -43,11 +43,12 @@ static int addbrk(device_t dev, uint16_t addr)
 	bp = &dev->breakpoints[which];
 	bp->flags = DEVICE_BP_ENABLED | DEVICE_BP_DIRTY;
 	bp->addr = addr;
+	bp->type = type;
 
 	return which;
 }
 
-static void delbrk(device_t dev, uint16_t addr)
+static void delbrk(device_t dev, uint16_t addr, device_bptype_t type)
 {
 	int i;
 
@@ -55,20 +56,21 @@ static void delbrk(device_t dev, uint16_t addr)
 		struct device_breakpoint *bp = &dev->breakpoints[i];
 
 		if ((bp->flags & DEVICE_BP_ENABLED) &&
-		    bp->addr == addr) {
+		    bp->addr == addr && bp->type == type) {
 			bp->flags = DEVICE_BP_DIRTY;
 			bp->addr = 0;
 		}
 	}
 }
 
-int device_setbrk(device_t dev, int which, int enabled, address_t addr)
+int device_setbrk(device_t dev, int which, int enabled, address_t addr,
+		  device_bptype_t type)
 {
 	if (which < 0) {
 		if (enabled)
-			return addbrk(dev, addr);
+			return addbrk(dev, addr, type);
 
-		delbrk(dev, addr);
+		delbrk(dev, addr, type);
 	} else {
 		struct device_breakpoint *bp = &dev->breakpoints[which];
 		int new_flags = enabled ? DEVICE_BP_ENABLED : 0;
@@ -80,6 +82,7 @@ int device_setbrk(device_t dev, int which, int enabled, address_t addr)
 		    (bp->flags & DEVICE_BP_ENABLED) != new_flags) {
 			bp->flags = new_flags | DEVICE_BP_DIRTY;
 			bp->addr = addr;
+			bp->type = type;
 		}
 	}
 

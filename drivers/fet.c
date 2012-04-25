@@ -698,13 +698,15 @@ static int refresh_bps(struct fet_device *dev)
 	for (i = 0; i < dev->base.max_breakpoints; i++) {
 		struct device_breakpoint *bp = &dev->base.breakpoints[i];
 
-		if (bp->flags & DEVICE_BP_DIRTY) {
+		if ((bp->flags & DEVICE_BP_DIRTY) &&
+		    bp->type == DEVICE_BPTYPE_BREAK) {
 			uint16_t addr = bp->addr;
 
 			if (!(bp->flags & DEVICE_BP_ENABLED))
 				addr = 0;
 
-			if (xfer(dev, C_BREAKPOINT, NULL, 0, 2, i, addr) < 0) {
+			if (xfer(dev, C_BREAKPOINT, NULL, 0,
+				 2, i, addr) < 0) {
 				printc_err("fet: failed to refresh "
 					"breakpoint #%d\n", i);
 				ret = -1;

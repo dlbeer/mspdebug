@@ -215,6 +215,7 @@ int cmd_run(char **arg)
 				&device_default->breakpoints[i];
 
 			if ((bp->flags & DEVICE_BP_ENABLED) &&
+			    bp->type == DEVICE_BPTYPE_BREAK &&
 			    bp->addr == regs[0])
 				break;
 		}
@@ -563,7 +564,7 @@ int cmd_load(char **arg)
 	return do_cmd_prog(arg, 0);
 }
 
-int cmd_setbreak(char **arg)
+static int do_setbreak(device_bptype_t type, char **arg)
 {
 	char *addr_text = get_arg(arg);
 	char *index_text = get_arg(arg);
@@ -585,14 +586,15 @@ int cmd_setbreak(char **arg)
 
 		if (expr_eval(index_text, &val) < 0 ||
 		    val >= device_default->max_breakpoints) {
-			printc("setbreak: invalid breakpoint slot: %d\n", val);
+			printc("setbreak: invalid breakpoint slot: %d\n",
+			       val);
 			return -1;
 		}
 
 		index = val;
 	}
 
-	index = device_setbrk(device_default, index, 1, addr);
+	index = device_setbrk(device_default, index, 1, addr, type);
 	if (index < 0) {
 		printc_err("setbreak: all breakpoint slots are "
 			"occupied\n");
@@ -601,6 +603,16 @@ int cmd_setbreak(char **arg)
 
 	printc("Set breakpoint %d\n", index);
 	return 0;
+}
+
+int cmd_setbreak(char **arg)
+{
+	return do_setbreak(DEVICE_BPTYPE_BREAK, arg);
+}
+
+int cmd_setwatch(char **arg)
+{
+	return do_setbreak(DEVICE_BPTYPE_WATCH, arg);
 }
 
 int cmd_delbreak(char **arg)
@@ -619,13 +631,13 @@ int cmd_delbreak(char **arg)
 		}
 
 		printc("Clearing breakpoint %d\n", index);
-		device_setbrk(device_default, index, 0, 0);
+		device_setbrk(device_default, index, 0, 0, 0);
 	} else {
 		int i;
 
 		printc("Clearing all breakpoints...\n");
 		for (i = 0; i < device_default->max_breakpoints; i++)
-			device_setbrk(device_default, i, 0, 0);
+			device_setbrk(device_default, i, 0, 0, 0);
 	}
 
 	return ret;
@@ -637,7 +649,8 @@ int cmd_break(char **arg)
 
 	(void)arg;
 
-	printc("%d breakpoints available:\n", device_default->max_breakpoints);
+	printc("%d breakpoints available:\n",
+	       device_default->max_breakpoints);
 	for (i = 0; i < device_default->max_breakpoints; i++) {
 		const struct device_breakpoint *bp =
 			&device_default->breakpoints[i];
@@ -646,7 +659,13 @@ int cmd_break(char **arg)
 			char name[128];
 
 			print_address(bp->addr, name, sizeof(name));
-			printc("    %d. %s\n", i, name);
+			printc("    %d. %s", i, name);
+
+			if (bp->type == DEVICE_BPTYPE_WATCH) {
+				printc(" [watchpoint]\n");
+			} else {
+				printc("\n");
+			}
 		}
 	}
 

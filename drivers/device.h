@@ -51,9 +51,15 @@ typedef enum {
 #define DEVICE_BP_ENABLED       0x01
 #define DEVICE_BP_DIRTY         0x02
 
+typedef enum {
+	DEVICE_BPTYPE_BREAK,
+	DEVICE_BPTYPE_WATCH
+} device_bptype_t;
+
 struct device_breakpoint {
-	address_t      addr;
-	int            flags;
+	device_bptype_t		type;
+	address_t		addr;
+	int			flags;
 };
 
 #define DEVICE_FLAG_JTAG	0x01 /* default is SBW */
@@ -122,7 +128,8 @@ struct device {
  * modified. Otherwise, if which < 0, breakpoint slots are selected
  * automatically.
  */
-int device_setbrk(device_t dev, int which, int enabled, address_t address);
+int device_setbrk(device_t dev, int which, int enabled, address_t address,
+		  device_bptype_t type);
 
 extern device_t device_default;
 

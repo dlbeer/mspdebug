@@ -702,6 +702,7 @@ static device_status_t sim_poll(device_t dev_base)
 				&dev->base.breakpoints[i];
 
 			if ((bp->flags & DEVICE_BP_ENABLED) &&
+			    (bp->type == DEVICE_BPTYPE_BREAK) &&
 			    dev->regs[MSP430_REG_PC] == bp->addr) {
 				dev->running = 0;
 				return DEVICE_STATUS_HALTED;

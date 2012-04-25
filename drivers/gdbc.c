@@ -238,6 +238,9 @@ static int refresh_bps(struct gdb_client *dev)
 		if (!(bp->flags & DEVICE_BP_DIRTY))
 			continue;
 
+		if (bp->type != DEVICE_BPTYPE_BREAK)
+			continue;
+
 		if ((old->flags & DEVICE_BP_ENABLED) &&
 		    (bp_send(&dev->gdb, 'z', old->addr) < 0))
 			return -1;

@@ -341,7 +341,8 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 	addr = strtoul(parts[1], NULL, 16);
 
 	if (enable) {
-		if (device_setbrk(device_default, -1, 1, addr) < 0) {
+		if (device_setbrk(device_default, -1, 1, addr,
+				  DEVICE_BPTYPE_BREAK) < 0) {
 			printc_err("gdb: can't add breakpoint at "
 				"0x%04x\n", addr);
 			return gdb_send(data, "E00");
@@ -349,7 +350,8 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 
 		printc("Breakpoint set at 0x%04x\n", addr);
 	} else {
-		device_setbrk(device_default, -1, 0, addr);
+		device_setbrk(device_default, -1, 0, addr,
+			      DEVICE_BPTYPE_BREAK);
 		printc("Breakpoint cleared at 0x%04x\n", addr);
 	}
 
@@ -502,7 +504,7 @@ static int gdb_server(int port)
 	/* Put the hardware breakpoint setting into a known state. */
 	printc("Clearing all breakpoints...\n");
 	for (i = 0; i < device_default->max_breakpoints; i++)
-		device_setbrk(device_default, i, 0, 0);
+		device_setbrk(device_default, i, 0, 0, 0);
 
 #ifdef DEBUG_GDB
 	printc("starting GDB reader loop...\n");

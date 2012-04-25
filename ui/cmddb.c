@@ -62,6 +62,14 @@ const struct cmddb_record commands[] = {
 "    slot will be used.\n"
 	},
 	{
+		.name = "setwatch",
+		.func = cmd_setwatch,
+		.help =
+"setwatch <addr> [index]\n"
+"    Set a watchpoint. If no index is specified. the first available\n"
+"    slot will be used.\n"
+	},
+	{
 		.name = "delbreak",
 		.func = cmd_delbreak,
 		.help =
