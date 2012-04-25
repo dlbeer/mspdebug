@@ -408,6 +408,10 @@ Add a new watchpoint. The watchpoint location is an address expression, and
 an optional index may be specified. Watchpoints are considered to be a type
 of breakpoint and can be inspected or removed using the \fBbreak\fR and
 \fBdelbreak\fR commands. Note that not all drivers support watchpoints.
+.IP "\fBsetwatch_r\fR \fIaddress\fR [\fIindex\fR]"
+Add a watchpoint which is triggered only on read access.
+.IP "\fBsetwatch_w\fR \fIaddress\fR [\fIindex\fR]"
+Add a watchpoint which is triggered only on write access.
 .IP "\fBsimio add\fR \fIclass\fR \fIname\fR [\fIargs ...\fR]"
 Add a new peripheral to the IO simulator. The \fIclass\fR parameter may be
 any of the peripheral types named in the output of the \fBsimio classes\fR

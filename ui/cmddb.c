@@ -70,6 +70,20 @@ const struct cmddb_record commands[] = {
 "    slot will be used.\n"
 	},
 	{
+		.name = "setwatch_r",
+		.func = cmd_setwatch_r,
+		.help =
+"setwatch_r <addr> [index]\n"
+"    Set a read-only watchpoint.\n"
+	},
+	{
+		.name = "setwatch_w",
+		.func = cmd_setwatch_w,
+		.help =
+"setwatch_w <addr> [index]\n"
+"    Set a write-only watchpoint.\n"
+	},
+	{
 		.name = "delbreak",
 		.func = cmd_delbreak,
 		.help =

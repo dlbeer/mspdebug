@@ -53,7 +53,8 @@ struct sim_device {
 		(dev)->memory[offset | 1] = (value) >> 8;	\
 	} while (0);
 
-static void watchpoint_check(struct sim_device *dev, uint16_t addr)
+static void watchpoint_check(struct sim_device *dev, uint16_t addr,
+			     int is_write)
 {
 	int i;
 
@@ -62,8 +63,10 @@ static void watchpoint_check(struct sim_device *dev, uint16_t addr)
 			&dev->base.breakpoints[i];
 
 		if ((bp->flags & DEVICE_BP_ENABLED) &&
-		    bp->type == DEVICE_BPTYPE_WATCH &&
-		    bp->addr == addr) {
+		    (bp->addr == addr) &&
+		    ((bp->type == DEVICE_BPTYPE_WATCH ||
+		      (bp->type == DEVICE_BPTYPE_READ && !is_write) ||
+		      (bp->type == DEVICE_BPTYPE_WRITE && is_write)))) {
 			dev->watchpoint_hit = 1;
 			return;
 		}
@@ -133,12 +136,12 @@ static int fetch_operand(struct sim_device *dev,
 		break;
 	}
 
-	watchpoint_check(dev, addr);
-
 	if (addr_ret)
 		*addr_ret = addr;
 
 	if (data_ret) {
+		watchpoint_check(dev, addr, 0);
+
 		*data_ret = MEM_GETW(dev, addr) & mask;
 
 		if (addr < MEM_IO_END) {
@@ -172,7 +175,7 @@ static int store_operand(struct sim_device *dev,
 		return 0;
 	}
 
-	watchpoint_check(dev, addr);
+	watchpoint_check(dev, addr, 1);
 
 	if (is_byte)
 		MEM_SETB(dev, addr, data);

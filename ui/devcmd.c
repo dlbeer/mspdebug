@@ -615,6 +615,16 @@ int cmd_setwatch(char **arg)
 	return do_setbreak(DEVICE_BPTYPE_WATCH, arg);
 }
 
+int cmd_setwatch_w(char **arg)
+{
+	return do_setbreak(DEVICE_BPTYPE_WRITE, arg);
+}
+
+int cmd_setwatch_r(char **arg)
+{
+	return do_setbreak(DEVICE_BPTYPE_READ, arg);
+}
+
 int cmd_delbreak(char **arg)
 {
 	char *index_text = get_arg(arg);
@@ -661,10 +671,22 @@ int cmd_break(char **arg)
 			print_address(bp->addr, name, sizeof(name));
 			printc("    %d. %s", i, name);
 
-			if (bp->type == DEVICE_BPTYPE_WATCH) {
+			switch (bp->type) {
+			case DEVICE_BPTYPE_WATCH:
 				printc(" [watchpoint]\n");
-			} else {
+				break;
+
+			case DEVICE_BPTYPE_READ:
+				printc(" [read watchpoint]\n");
+				break;
+
+			case DEVICE_BPTYPE_WRITE:
+				printc(" [write watchpoint]\n");
+				break;
+
+			case DEVICE_BPTYPE_BREAK:
 				printc("\n");
+				break;
 			}
 		}
 	}

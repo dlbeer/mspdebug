@@ -324,13 +324,14 @@ static void load_break(BpParameter_t *param, address_t addr)
 	param->wExtCombine = 0; /* not used? */
 }
 
-static void load_watch(BpParameter_t *param, address_t addr)
+static void load_complex(BpParameter_t *param, address_t addr,
+			 BpAccess_t acc)
 {
 	param->bpMode = BP_COMPLEX;
 	param->lAddrVal = addr;
 	param->bpType = BP_MAB;
 	param->lReg = 0; /* not used (only for register-write) */
-	param->bpAccess = BP_NO_FETCH;
+	param->bpAccess = acc;
 	param->bpAction = BP_BRK;
 	param->bpOperat = BP_EQUAL;
 	param->lMask = 0xffffff;
@@ -338,7 +339,7 @@ static void load_watch(BpParameter_t *param, address_t addr)
 	param->bpRangeAction = 0; /* not used */
 	param->bpCondition = BP_NO_COND;
 	param->lCondMdbVal = 0;
-	param->bpCondAccess = BP_NO_FETCH;
+	param->bpCondAccess = acc;
 	param->lCondMask = 0; /* what's this? */
 	param->bpCondOperat = BP_EQUAL;
 	param->wExtCombine = 0; /* not used? */
@@ -362,7 +363,17 @@ static int refresh_bps(struct tilib_device *dev)
 				break;
 
 			case DEVICE_BPTYPE_WATCH:
-				load_watch(&param, bp->addr);
+				load_complex(&param, bp->addr, BP_NO_FETCH);
+				break;
+
+			case DEVICE_BPTYPE_READ:
+				load_complex(&param, bp->addr,
+					     BP_READ_DMA);
+				break;
+
+			case DEVICE_BPTYPE_WRITE:
+				load_complex(&param, bp->addr,
+					     BP_WRITE_DMA);
 				break;
 			}
 		} else {

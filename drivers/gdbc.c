@@ -226,6 +226,14 @@ static int bp_send(struct gdb_data *gdb, int c, address_t addr,
 		type_code = 1;
 		break;
 
+	case DEVICE_BPTYPE_WRITE:
+		type_code = 2;
+		break;
+
+	case DEVICE_BPTYPE_READ:
+		type_code = 3;
+		break;
+
 	case DEVICE_BPTYPE_WATCH:
 		type_code = 4;
 		break;

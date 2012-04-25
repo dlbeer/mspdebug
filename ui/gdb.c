@@ -329,6 +329,14 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 		type = DEVICE_BPTYPE_BREAK;
 		break;
 
+	case 2:
+		type = DEVICE_BPTYPE_WRITE;
+		break;
+
+	case 3:
+		type = DEVICE_BPTYPE_READ;
+		break;
+
 	case 4:
 		type = DEVICE_BPTYPE_WATCH;
 		break;

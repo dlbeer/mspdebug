@@ -53,7 +53,9 @@ typedef enum {
 
 typedef enum {
 	DEVICE_BPTYPE_BREAK,
-	DEVICE_BPTYPE_WATCH
+	DEVICE_BPTYPE_WATCH,
+	DEVICE_BPTYPE_READ,
+	DEVICE_BPTYPE_WRITE
 } device_bptype_t;
 
 struct device_breakpoint {
