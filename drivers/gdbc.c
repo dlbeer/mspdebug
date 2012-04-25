@@ -216,10 +216,23 @@ static int do_reset(struct gdb_client *dev)
 	return 0;
 }
 
-static int bp_send(struct gdb_data *gdb, int c, address_t addr)
+static int bp_send(struct gdb_data *gdb, int c, address_t addr,
+		   device_bptype_t type)
 {
+	int type_code = 0;
+
+	switch (type) {
+	case DEVICE_BPTYPE_BREAK:
+		type_code = 1;
+		break;
+
+	case DEVICE_BPTYPE_WATCH:
+		type_code = 4;
+		break;
+	}
+
 	gdb_packet_start(gdb);
-	gdb_printf(gdb, "%c1,%04x,2", c, addr);
+	gdb_printf(gdb, "%c%d,%04x,2", c, type_code, addr);
 	gdb_packet_end(gdb);
 	if (gdb_flush_ack(gdb) < 0)
 		return -1;
@@ -238,15 +251,12 @@ static int refresh_bps(struct gdb_client *dev)
 		if (!(bp->flags & DEVICE_BP_DIRTY))
 			continue;
 
-		if (bp->type != DEVICE_BPTYPE_BREAK)
-			continue;
-
 		if ((old->flags & DEVICE_BP_ENABLED) &&
-		    (bp_send(&dev->gdb, 'z', old->addr) < 0))
+		    (bp_send(&dev->gdb, 'z', old->addr, old->type) < 0))
 			return -1;
 
 		if ((bp->flags & DEVICE_BP_ENABLED) &&
-		    (bp_send(&dev->gdb, 'Z', bp->addr) < 0))
+		    (bp_send(&dev->gdb, 'Z', bp->addr, bp->type) < 0))
 			return -1;
 
 		bp->flags &= ~DEVICE_BP_DIRTY;
