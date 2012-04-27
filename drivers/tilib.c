@@ -42,6 +42,8 @@ struct tilib_device {
 
 	uint16_t		bp_handles[DEVICE_MAX_BREAKPOINTS];
 
+	char			uifPath[1024];
+
 	/* MSP430.h */
 	STATUS_T WINAPI (*MSP430_Initialize)(char *port, long *version);
 	STATUS_T WINAPI (*MSP430_VCC)(long voltage);
@@ -58,14 +60,18 @@ struct tilib_device {
 					long releaseJTAG);
 	STATUS_T WINAPI (*MSP430_Erase)(long type, long address, long length);
 	STATUS_T WINAPI (*MSP430_Error_Number)(void);
-	const char * WINAPI (*MSP430_Error_String)(long errNumber);
+	const char *WINAPI (*MSP430_Error_String)(long errNumber);
+
+	STATUS_T WINAPI (*MSP430_GetNumberOfUsbIfs)(long* number);
+	STATUS_T WINAPI (*MSP430_GetNameOfUsbIf)(long idx, char **name,
+						 long *status);
 
 	/* MSP430_Debug.h */
 	STATUS_T WINAPI (*MSP430_Registers)(long *registers, long mask,
 					    long rw);
 	STATUS_T WINAPI (*MSP430_Run)(long mode, long releaseJTAG);
-        STATUS_T WINAPI (*MSP430_State)(long* state, long stop,
-					long* pCPUCycles);
+	STATUS_T WINAPI (*MSP430_State)(long *state, long stop,
+					long *pCPUCycles);
 
 	/* MSP430_EEM.h */
 	STATUS_T WINAPI (*MSP430_EEM_Init)(DLL430_EVENTNOTIFY_FUNC callback,
@@ -182,6 +188,16 @@ static int get_all_funcs(struct tilib_device *dev)
 
 	dev->MSP430_Error_String = get_func(dev->hnd, "MSP430_Error_String");
 	if (!dev->MSP430_Error_String)
+		return -1;
+
+	dev->MSP430_GetNumberOfUsbIfs =
+		get_func(dev->hnd, "MSP430_GetNumberOfUsbIfs");
+	if (!dev->MSP430_GetNumberOfUsbIfs)
+		return -1;
+
+	dev->MSP430_GetNameOfUsbIf =
+		get_func(dev->hnd, "MSP430_GetNameOfUsbIf");
+	if (!dev->MSP430_GetNameOfUsbIf)
 		return -1;
 
 	dev->MSP430_Registers = get_func(dev->hnd, "MSP430_Registers");
@@ -541,17 +557,10 @@ static int do_fw_update(struct tilib_device *dev, const char *filename)
 static int do_init(struct tilib_device *dev, const struct device_args *args)
 {
 	long version;
-	char buf[1024];
 	union DEVICE_T device;
 
-	/* Not sure if the path is actually modified by MSP430_Initialize,
-	 * but the argument isn't const, so probably safest to copy it.
-	 */
-	strncpy(buf, args->path, sizeof(buf));
-	buf[sizeof(buf) - 1] = 0;
-
-	printc_dbg("MSP430_Initialize: %s\n", buf);
-	if (dev->MSP430_Initialize(buf, &version) < 0) {
+	printc_dbg("MSP430_Initialize: %s\n", dev->uifPath);
+	if (dev->MSP430_Initialize(dev->uifPath, &version) < 0) {
 		report_error(dev, "MSP430_Initialize");
 		return -1;
 	}
@@ -626,14 +635,46 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 	return 0;
 }
 
+static int do_findUif(struct tilib_device *dev)
+{
+	// Find the first uif and store the path name into dev->uifPath
+	long attachedUifCount = 0;
+	long uifIndex = 0;
+
+	printc_dbg("MSP430_GetNumberOfUsbIfs\n");
+	if (dev->MSP430_GetNumberOfUsbIfs(&attachedUifCount) < 0) {
+		report_error(dev, "MSP430_GetNumberOfUsbIfs");
+		return -1;
+	}
+
+	for (uifIndex = 0; uifIndex < attachedUifCount; uifIndex++)
+	{
+		char *name = NULL;
+		long status = 0;
+
+		printc_dbg("MSP430_GetNameOfUsbIf\n");
+		if (dev->MSP430_GetNameOfUsbIf(uifIndex, &name, &status) < 0) {
+			report_error(dev, "MSP430_GetNameOfUsbIf");
+			return -1;
+		}
+
+		if (status == 0) /* status == 1 when fet is in use */
+		{
+			// This fet is unused
+			strncpy(dev->uifPath, name, sizeof(dev->uifPath));
+			printc_dbg("Found FET: %s\n", dev->uifPath);
+			return 0;
+		}
+	}
+
+	printc_err("No unused FET found.\n");
+
+	return -1;
+}
+
 static device_t tilib_open(const struct device_args *args)
 {
 	struct tilib_device *dev;
-
-	if (!(args->flags & DEVICE_FLAG_TTY)) {
-		printc_err("This driver does not support raw USB access.\n");
-		return NULL;
-	}
 
 	dev = malloc(sizeof(*dev));
 	if (!dev) {
@@ -657,6 +698,24 @@ static device_t tilib_open(const struct device_args *args)
 		dynload_close(dev->hnd);
 		free(dev);
 		return NULL;
+	}
+
+	/* Copy the args->path to the dev->uifPath buffer
+	 * we may need to change it for automatic detection, and
+	 * not sure if the path is actually modified by MSP430_Initialize,
+	 * but the argument isn't const, so probably safest to copy it.
+	 */
+
+	if ((args->flags & DEVICE_FLAG_TTY)) {
+		strncpy(dev->uifPath, args->path, sizeof(dev->uifPath));
+		dev->uifPath[sizeof(dev->uifPath) - 1] = 0;
+	} else {
+		// No path was supplied, use the first UIF we can find
+		if (do_findUif(dev) < 0) {
+			dynload_close(dev->hnd);
+			free(dev);
+			return NULL;
+		}
 	}
 
 	if (do_init(dev, args) < 0) {
