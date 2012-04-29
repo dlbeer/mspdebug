@@ -323,8 +323,8 @@ static int set_breakpoint(struct gdb_data *data, int enable, char *buf)
 		return gdb_send(data, "E00");
 	}
 
-	/* We only support breakpoints */
 	switch (atoi(parts[0])) {
+	case 0:
 	case 1:
 		type = DEVICE_BPTYPE_BREAK;
 		break;
