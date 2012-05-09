@@ -75,7 +75,7 @@ char *expand_tilde(const char *path);
 #ifdef __Windows__
 static inline void delay_s(unsigned int s)
 {
-	Sleep(s);
+	Sleep(s * 1000);
 }
 #else
 static inline void delay_s(unsigned int s)
