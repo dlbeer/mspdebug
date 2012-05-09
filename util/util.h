@@ -24,6 +24,8 @@
 
 #ifdef __Windows__
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
@@ -68,5 +70,18 @@ HANDLE ctrlc_win32_event(void);
 
 /* Expand `~' in path names. Caller must free the returned ptr */
 char *expand_tilde(const char *path);
+
+/* Sleep for a number of seconds */
+#ifdef __Windows__
+static inline void delay_s(unsigned int s)
+{
+	Sleep(s);
+}
+#else
+static inline void delay_s(unsigned int s)
+{
+	sleep(s);
+}
+#endif
 
 #endif

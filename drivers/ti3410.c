@@ -530,7 +530,8 @@ static int download_firmware(struct usb_device *dev)
 		return -1;
 
 	printc_dbg("Waiting for TI3410 reset...\n");
-	usleep(2000000);
+	delay_s(2);
+
 	return 0;
 }
 

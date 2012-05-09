@@ -599,7 +599,7 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 	}
 
 	/* Without this delay, MSP430_OpenDevice will often hang. */
-	usleep(1000000);
+	delay_s(1);
 
 	printc_dbg("MSP430_OpenDevice\n");
 	if (dev->MSP430_OpenDevice("DEVICE_UNKNOWN", "", 0, 0, 0) < 0) {
