@@ -44,11 +44,93 @@ struct elf32_info {
 	int                     string_len;
 };
 
+static int parse_ehdr(Elf32_Ehdr *e, FILE *in)
+{
+	uint8_t data[52];
+
+	if (fread(data, sizeof(data), 1, in) != 1)
+		return -1;
+
+	memcpy(e->e_ident, data, EI_NIDENT);
+	e->e_type = LE_WORD(data, 16);
+	e->e_machine = LE_WORD(data, 18);
+	e->e_version = LE_LONG(data, 20);
+	e->e_entry = LE_LONG(data, 24);
+	e->e_phoff = LE_LONG(data, 28);
+	e->e_shoff = LE_LONG(data, 32);
+	e->e_flags = LE_LONG(data, 36);
+	e->e_ehsize = LE_WORD(data, 40);
+	e->e_phentsize = LE_WORD(data, 42);
+	e->e_phnum = LE_WORD(data, 44);
+	e->e_shentsize = LE_WORD(data, 46);
+	e->e_shnum = LE_WORD(data, 48);
+	e->e_shstrndx = LE_WORD(data, 50);
+
+	return 0;
+}
+
+static int parse_phdr(Elf32_Phdr *p, FILE *in)
+{
+	uint8_t data[32];
+
+	if (fread(data, sizeof(data), 1, in) != 1)
+		return -1;
+
+	p->p_type = LE_LONG(data, 0);
+	p->p_offset = LE_LONG(data, 4);
+	p->p_vaddr = LE_LONG(data, 8);
+	p->p_paddr = LE_LONG(data, 12);
+	p->p_filesz = LE_LONG(data, 16);
+	p->p_memsz = LE_LONG(data, 20);
+	p->p_flags = LE_LONG(data, 24);
+	p->p_align = LE_LONG(data, 28);
+
+	return 0;
+}
+
+static int parse_shdr(Elf32_Shdr *s, FILE *in)
+{
+	uint8_t data[40];
+
+	if (fread(data, sizeof(data), 1, in) != 1)
+		return -1;
+
+	s->sh_name = LE_LONG(data, 0);
+	s->sh_type = LE_LONG(data, 4);
+	s->sh_flags = LE_LONG(data, 8);
+	s->sh_addr = LE_LONG(data, 12);
+	s->sh_offset = LE_LONG(data, 16);
+	s->sh_size = LE_LONG(data, 20);
+	s->sh_link = LE_LONG(data, 24);
+	s->sh_info = LE_LONG(data, 28);
+	s->sh_addralign = LE_LONG(data, 32);
+	s->sh_entsize = LE_LONG(data, 36);
+
+	return 0;
+}
+
+static int parse_sym(Elf32_Sym *s, FILE *in)
+{
+	uint8_t data[16];
+
+	if (fread(data, sizeof(data), 1, in) != 1)
+		return -1;
+
+	s->st_name = LE_LONG(data, 0);
+	s->st_value = LE_LONG(data, 4);
+	s->st_size = LE_LONG(data, 8);
+	s->st_info = data[12];
+	s->st_other = data[13];
+	s->st_shndx = LE_WORD(data, 14);
+
+	return 0;
+}
+
 static int read_ehdr(struct elf32_info *info, FILE *in)
 {
 	/* Read and check the ELF header */
 	rewind(in);
-	if (fread(&info->file_ehdr, sizeof(info->file_ehdr), 1, in) == 0) {
+	if (parse_ehdr(&info->file_ehdr, in) < 0) {
 		pr_error("elf32: couldn't read ELF header");
 		return -1;
 	}
@@ -79,8 +161,7 @@ static int read_phdr(struct elf32_info *info, FILE *in)
 			return -1;
 		}
 
-		if (fread(&info->file_phdrs[i],
-			  sizeof(info->file_phdrs[0]), 1, in) == 0) {
+		if (parse_phdr(&info->file_phdrs[i], in) < 0) {
 			printc_err("elf32: can't read phdr %d: %s\n",
 				i, last_error());
 			return -1;
@@ -108,8 +189,7 @@ static int read_shdr(struct elf32_info *info, FILE *in)
 			return -1;
 		}
 
-		if (fread(&info->file_shdrs[i],
-			  sizeof(info->file_shdrs[0]), 1, in) == 0) {
+		if (parse_shdr(&info->file_shdrs[i], in) < 0) {
 			printc_err("elf32: can't read shdr %d: %s\n",
 				i, last_error());
 			return -1;
@@ -217,7 +297,7 @@ static int load_strings(struct elf32_info *info, FILE *in, Elf32_Shdr *s)
 		return -1;
 	}
 
-	if (!fread(info->string_tab, 1, info->string_len, in)) {
+	if (!fread(info->string_tab, info->string_len, 1, in)) {
 		if (ferror(in)) {
 			pr_error("elf32: error reading strings");
 			return -1;
@@ -296,50 +376,39 @@ static Elf32_Shdr *find_shdr(struct elf32_info *info, Elf32_Word type)
 static int syms_load_syms(struct elf32_info *info, FILE *in,
 			  Elf32_Shdr *s)
 {
-	Elf32_Sym syms[N_SYMS];
-	int len = s->sh_size / sizeof(syms[0]);
+	int len = s->sh_size / 16;
+	int i;
 
 	if (fseek(in, s->sh_offset, SEEK_SET) < 0) {
 		pr_error("elf32: can't seek to symbols");
 		return -1;
 	}
 
-	while (len) {
-		int req = N_SYMS > len ? len : N_SYMS;
-		int count = fread(syms, sizeof(syms[0]), req, in);
-		int i;
+	for (i = 0; i < len; i++) {
+		Elf32_Sym y;
+		int st;
+		const char *name;
 
-		if (!count) {
-			printc_err("elf32: eof reading symbols\n");
-			return -1;
-		}
-
-		if (count < 0) {
+		if (parse_sym(&y, in) < 0) {
 			pr_error("elf32: error reading symbols");
 			return -1;
 		}
 
-		for (i = 0; i < count; i++) {
-			Elf32_Sym *y = &syms[i];
-			int st = ELF32_ST_TYPE(y->st_info);
-			const char *name = info->string_tab + y->st_name;
+		st = ELF32_ST_TYPE(y.st_info);
+		name = info->string_tab + y.st_name;
 
-			if (y->st_name > info->string_len) {
-				printc_err("elf32: symbol out of "
-					"bounds\n");
-				return -1;
-			}
-
-			if (name[0] &&
-			    (st == STT_OBJECT || st == STT_FUNC ||
-			     st == STT_SECTION || st == STT_COMMON ||
-			     st == STT_TLS) &&
-			    stab_set(info->string_tab + y->st_name,
-				     y->st_value) < 0)
-				return -1;
+		if (y.st_name > info->string_len) {
+			printc_err("elf32: symbol out of bounds\n");
+			return -1;
 		}
 
-		len -= count;
+		if (name[0] &&
+		    (st == STT_OBJECT || st == STT_FUNC ||
+		     st == STT_SECTION || st == STT_COMMON ||
+		     st == STT_TLS) &&
+		    stab_set(info->string_tab + y.st_name,
+			     y.st_value) < 0)
+			return -1;
 	}
 
 	return 0;
