@@ -212,6 +212,7 @@ static int decode_13xx(const uint8_t *code, address_t len,
 	if (len < 4)
 		return -1;
 
+	insn->dsize = MSP430_DSIZE_AWORD;
 	insn->dst_addr |= code[2];
 	insn->dst_addr |= code[3] << 8;
 

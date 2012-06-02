@@ -24,7 +24,7 @@
 #include "stab.h"
 #include "util.h"
 
-static int format_addr(msp430_amode_t amode, uint16_t addr)
+static int format_addr(msp430_amode_t amode, address_t addr)
 {
 	char name[64];
 	const char *prefix = "";
@@ -91,7 +91,7 @@ static int format_reg(msp430_amode_t amode, msp430_reg_t reg)
  *
  * Returns the number of characters printed.
  */
-static int format_operand(msp430_amode_t amode, uint16_t addr,
+static int format_operand(msp430_amode_t amode, address_t addr,
 			  msp430_reg_t reg)
 {
 	int len = 0;
