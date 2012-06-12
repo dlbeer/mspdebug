@@ -20,7 +20,7 @@
 
 device_t device_default;
 
-static int addbrk(device_t dev, uint16_t addr, device_bptype_t type)
+static int addbrk(device_t dev, address_t addr, device_bptype_t type)
 {
 	int i;
 	int which = -1;
@@ -48,7 +48,7 @@ static int addbrk(device_t dev, uint16_t addr, device_bptype_t type)
 	return which;
 }
 
-static void delbrk(device_t dev, uint16_t addr, device_bptype_t type)
+static void delbrk(device_t dev, address_t addr, device_bptype_t type)
 {
 	int i;
 
