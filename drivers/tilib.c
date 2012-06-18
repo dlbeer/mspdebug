@@ -278,6 +278,9 @@ static int tilib_erase(device_t dev_base, device_erase_type_t type,
 {
 	struct tilib_device *dev = (struct tilib_device *)dev_base;
 
+	if (type == DEVICE_ERASE_MAIN)
+		address = 0xfffe;
+
 	if (dev->MSP430_Erase(ti_erase_type(type), address, 0) < 0) {
 		report_error(dev, "MSP430_Erase");
 		return -1;
