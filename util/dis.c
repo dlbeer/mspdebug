@@ -784,7 +784,7 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 			insn->rep_index = ex_word & 0xf;
 		} else {
 			insn->dst_addr |= (ex_word & 0xf) << 16;
-			insn->src_addr |= ((ex_word >> 6) & 0xf) << 16;
+			insn->src_addr |= ((ex_word >> 7) & 0xf) << 16;
 		}
 
 		if (!(ex_word & 0x40))
