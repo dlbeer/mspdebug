@@ -559,7 +559,7 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 	}
 
 	dev->code_start = LE_WORD(r->msg29_data, 0);
-	dev->base.max_breakpoints = LE_WORD(r->msg29_data, 0x14);
+	dev->base.max_breakpoints = r->msg29_data[0x14];
 
 	printc_dbg("  Code start address: 0x%x\n",
 		   LE_WORD(r->msg29_data, 0));
