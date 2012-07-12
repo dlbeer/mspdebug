@@ -65,3 +65,6 @@ James Nuss <jamesnuss@nanometrics.ca>:
 Tamas Tevesz <ice@extreme.hu>:
 	* Improvements to interactive interface.
 	* Support for MSP430AFE253.
+
+Ingo van Lil <inguin@gmx.de>:
+	* Support for demangling of C++ function names.

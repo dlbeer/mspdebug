@@ -33,7 +33,7 @@
  */
 
 struct sym_key {
-	char name[64];
+	char name[MAX_SYMBOL_LENGTH];
 };
 
 static const struct sym_key sym_key_zero = {
@@ -59,7 +59,7 @@ static void sym_key_init(struct sym_key *key, const char *text)
 
 struct addr_key {
 	address_t      addr;
-	char           name[64];
+	char           name[MAX_SYMBOL_LENGTH];
 };
 
 static const struct addr_key addr_key_zero = {

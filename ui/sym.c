@@ -32,11 +32,12 @@
 #include "vector.h"
 #include "sym.h"
 #include "reader.h"
+#include "demangle.h"
 
 int cmd_eval(char **arg)
 {
 	address_t addr;
-	char name[64];
+	char name[MAX_SYMBOL_LENGTH];
 
 	if (expr_eval(*arg, &addr) < 0) {
 		printc_err("=: can't parse: %s\n", *arg);
@@ -132,7 +133,12 @@ static int print_sym(void *user_data, const char *name, address_t value)
 {
 	(void)user_data;
 
-	printc("0x%04x: %s\n", value, name);
+	char demangled[MAX_SYMBOL_LENGTH];
+	if (demangle(name, demangled, sizeof(demangled)) > 0)
+		printc("0x%04x: %s (%s)\n", value, name, demangled);
+	else
+		printc("0x%04x: %s\n", value, name);
+
 	return 0;
 }
 
@@ -140,8 +146,16 @@ static int find_sym(void *user_data, const char *name, address_t value)
 {
 	regex_t *find_preg = (regex_t *)user_data;
 
-	if (!regexec(find_preg, name, 0, NULL, 0))
-		printc("0x%04x: %s\n", value, name);
+	char demangled[MAX_SYMBOL_LENGTH];
+	int len = demangle(name, demangled, sizeof(demangled));
+
+	if (!regexec(find_preg, name, 0, NULL, 0) ||
+	    (len > 0 && !regexec(find_preg, demangled, 0, NULL, 0))) {
+		if (len > 0)
+			printc("0x%04x: %s (%s)\n", value, name, demangled);
+		else
+			printc("0x%04x: %s\n", value, name);
+	}
 
 	return 0;
 }
@@ -167,7 +181,7 @@ static int cmd_sym_find(char **arg)
 }
 
 struct rename_record {
-	char    old_name[64];
+	char    old_name[MAX_SYMBOL_LENGTH];
 	int     start, end;
 };
 
@@ -184,7 +198,7 @@ static int renames_do(struct rename_data *rename, const char *replace)
 	for (i = 0; i < rename->list.size; i++) {
 		struct rename_record *r =
 			VECTOR_PTR(rename->list, i, struct rename_record);
-		char new_name[128];
+		char new_name[MAX_SYMBOL_LENGTH];
 		int len = r->start;
 		address_t value;
 

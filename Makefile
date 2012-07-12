@@ -113,6 +113,7 @@ OBJ=\
     util/dis.o \
     util/gdb_proto.o \
     util/dynload.o \
+    util/demangle.o \
     drivers/device.o \
     drivers/bsl.o \
     drivers/fet.o \

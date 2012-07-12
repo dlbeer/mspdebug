@@ -28,6 +28,7 @@
 #include "util.h"
 #include "output.h"
 #include "opdb.h"
+#include "demangle.h"
 
 /************************************************************************
  * Address expression parsing.
@@ -233,7 +234,7 @@ static int addr_exp_finish(struct addr_exp_state *s, address_t *ret)
 int expr_eval(const char *text, address_t *addr)
 {
 	const char *text_save = text;
-	char token_buf[64];
+	char token_buf[MAX_SYMBOL_LENGTH];
 	int token_len = 0;
 	struct addr_exp_state s = {0};
 

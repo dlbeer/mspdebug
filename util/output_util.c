@@ -23,10 +23,11 @@
 #include "output_util.h"
 #include "stab.h"
 #include "util.h"
+#include "demangle.h"
 
 static int format_addr(msp430_amode_t amode, address_t addr)
 {
-	char name[64];
+	char name[MAX_SYMBOL_LENGTH];
 	const char *prefix = "";
 
 	switch (amode) {
@@ -166,14 +167,14 @@ void disassemble(address_t offset, const uint8_t *data, int length)
 		int count;
 		int i;
 		address_t oboff;
-		char obname[64];
+		char obname[MAX_SYMBOL_LENGTH];
 
-		if (!stab_nearest(offset, obname, sizeof(obname), &oboff) &&
-		    !oboff) {
-			printc("\x1b[m%s\x1b[0m:\n", obname);
-		} else if (first_line) {
-			print_address(offset, obname, sizeof(obname));
-			printc("\x1b[m%s\x1b[0m:\n", obname);
+		if (first_line ||
+			(!stab_nearest(offset, obname, sizeof(obname), &oboff) &&
+			 !oboff)) {
+			char buffer[MAX_SYMBOL_LENGTH];
+			print_address(offset, buffer, sizeof(buffer));
+			printc("\x1b[m%s\x1b[0m:\n", buffer);
 		}
 		first_line = 0;
 
@@ -254,15 +255,20 @@ void show_regs(const address_t *regs)
 
 int print_address(address_t addr, char *out, int max_len)
 {
-	char name[128];
+	char name[MAX_SYMBOL_LENGTH];
         address_t offset;
 
         if (!stab_nearest(addr, name, sizeof(name), &offset)) {
+		int len;
 		if (offset)
-			snprintf(out, max_len, "%s+0x%x", name, offset);
+			len = snprintf(out, max_len, "%s+0x%x", name, offset);
 		else
-			snprintf(out, max_len, "%s", name);
+			len = snprintf(out, max_len, "%s", name);
 
+		char demangled[MAX_SYMBOL_LENGTH];
+		if (demangle(name, demangled, sizeof(demangled)) > 0) {
+			snprintf(out + len, max_len - len, " (%s)", demangled);
+		}
 		return 1;
         }
 

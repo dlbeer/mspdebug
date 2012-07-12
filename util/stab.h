@@ -22,6 +22,8 @@
 #include <stdint.h>
 #include "util.h"
 
+#define MAX_SYMBOL_LENGTH 512
+
 /* Create/destroy a symbol table. The constructor returns NULL if it
  * was unable to allocate memory for the table.
  */
