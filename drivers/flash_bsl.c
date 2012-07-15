@@ -37,7 +37,10 @@ struct flash_bsl_device {
 	int		long_password;
 };
 
-#define MAX_PACKET 256
+#define MAX_BLOCK	256
+
+/* This should be at least MAX_BLOCK + 4 */
+#define MAX_PACKET	512
 
 /* adapted from TI's published BSL source code */
 #define CRC_INIT 0xffff
@@ -263,7 +266,6 @@ static void flash_bsl_perror(uint8_t code) {
 	}
 }
 
-#define MAX_BLOCK 256
 static int flash_bsl_readmem(device_t dev_base,
 			     address_t addr, uint8_t *mem, address_t len)
 {
