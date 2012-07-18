@@ -155,6 +155,11 @@ be present in the dynamic loader search path.
 
 USB connection is not supported for this driver. This driver supports
 watchpoints.
+.IP "\fBgoodfet\fR"
+Connect to a GoodFET device. JTAG mode must be used, and only TTY access
+is supported. This device can be used for memory access (read, erase and
+program), but CPU control is limited. The CPU may be halted, run and
+reset, but register access and breakpoints aren't supported.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported

@@ -51,6 +51,7 @@
 #include "olimex.h"
 #include "rf2500.h"
 #include "tilib.h"
+#include "goodfet.h"
 
 struct cmdline_args {
 	const char		*driver_name;
@@ -68,7 +69,8 @@ static const struct device_class *const driver_table[] = {
 	&device_bsl,
 	&device_flash_bsl,
 	&device_gdbc,
-	&device_tilib
+	&device_tilib,
+	&device_goodfet
 };
 
 static const char *version_text =
