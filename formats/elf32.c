@@ -331,8 +331,10 @@ int elf32_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 		Elf32_Shdr *s = &info.file_shdrs[i];
 
 		if (s->sh_type == SHT_PROGBITS && s->sh_flags & SHF_ALLOC &&
-		    feed_section(&info, in, s, cb, user_data) < 0)
+		    feed_section(&info, in, s, cb, user_data) < 0) {
 			ret = -1;
+			break;
+		}
 	}
 
 	if (info.string_tab)
