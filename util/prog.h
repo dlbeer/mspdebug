@@ -36,7 +36,8 @@ struct prog_data {
 	address_t	total_written;
 };
 
-#define PROG_WANT_ERASE        0x01
+#define PROG_WANT_ERASE		0x01
+#define PROG_VERIFY		0x02
 
 void prog_init(struct prog_data *data, int flags);
 int prog_feed(struct prog_data *data, const struct binfile_chunk *ch);

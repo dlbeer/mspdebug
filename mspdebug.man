@@ -488,6 +488,10 @@ Rename symbols by searching for those matching the given regular
 expression and substituting the given string for the matched portion. The
 symbols renamed are displayed, as well as a total count of all symbols
 renamed.
+.IP "\fBverify \fIfilename\fR"
+Compare the contents of the given binary file to the chip memory. If any
+differences are found, a message is printed for the first mismatched
+byte.
 .SH SUPPORTED CHIPS
 The following chips are supported when using FET-compatible drivers:
 .PP

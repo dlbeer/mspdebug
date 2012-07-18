@@ -122,6 +122,13 @@ const struct cmddb_record commands[] = {
 "    or erase the device.\n"
 	},
 	{
+		.name = "verify",
+		.func = cmd_verify,
+		.help =
+"verify <filename>\n"
+"    Compare the contents of the given binary file to the device memory.\n"
+	},
+	{
 		.name = "md",
 		.func = cmd_md,
 		.help =

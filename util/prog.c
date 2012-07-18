@@ -41,13 +41,33 @@ int prog_flush(struct prog_data *prog)
 		prog->have_erased = 1;
 	}
 
-	printc_dbg("Writing %4d bytes to %04x", prog->len, prog->addr);
+	printc_dbg("%s %4d bytes at %04x",
+		   (prog->flags & PROG_VERIFY) ? "Verifying" : "Writing",
+		   prog->len, prog->addr);
 	if (prog->section[0])
 		printc_dbg(" [section: %s]", prog->section);
 	printc_dbg("...\n");
 
-	if (device_writemem(prog->addr, prog->buf, prog->len) < 0)
-		return -1;
+	if (prog->flags & PROG_VERIFY) {
+		uint8_t cmp_buf[PROG_BUFSIZE];
+		int i;
+
+		if (device_readmem(prog->addr, cmp_buf, prog->len) < 0)
+			return -1;
+
+		for (i = 0; i < prog->len; i++)
+			if (cmp_buf[i] != prog->buf[i]) {
+				printc("\x1b[1mERROR:\x1b[0m "
+				       "mismatch at %04x (read %02x, "
+				       "expected %02x)\n",
+				       prog->addr + i,
+				       cmp_buf[i], prog->buf[i]);
+				return -1;
+			}
+	} else {
+		if (device_writemem(prog->addr, prog->buf, prog->len) < 0)
+			return -1;
+	}
 
 	prog->total_written += prog->len;
 	prog->addr += prog->len;
@@ -65,7 +85,7 @@ int prog_feed(struct prog_data *prog, const struct binfile_chunk *ch)
 	 * section.
 	 */
 	if (prog->len &&
-            ((prog->addr + prog->len != ch->addr) ||
+	     ((prog->addr + prog->len != ch->addr) ||
 	     strcmp(prog->section, section))) {
 		if (prog_flush(prog) < 0)
 			return -1;

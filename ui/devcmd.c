@@ -534,7 +534,8 @@ static int do_cmd_prog(char **arg, int prog_flags)
 		return -1;
 	}
 
-	if (prog_flags && (binfile_info(in) & BINFILE_HAS_SYMS)) {
+	if ((prog_flags & PROG_WANT_ERASE) &&
+	    (binfile_info(in) & BINFILE_HAS_SYMS)) {
 		stab_clear();
 		binfile_syms(in);
 	}
@@ -544,7 +545,7 @@ static int do_cmd_prog(char **arg, int prog_flags)
 	if (prog_flush(&prog) < 0)
 		return -1;
 
-	printc("Done, %d bytes written\n", prog.total_written);
+	printc("Done, %d bytes total\n", prog.total_written);
 
 	if (device_ctl(DEVICE_CTL_RESET) < 0)
 		printc_err("warning: prog: "
@@ -562,6 +563,11 @@ int cmd_prog(char **arg)
 int cmd_load(char **arg)
 {
 	return do_cmd_prog(arg, 0);
+}
+
+int cmd_verify(char **arg)
+{
+	return do_cmd_prog(arg, PROG_VERIFY);
 }
 
 static int do_setbreak(device_bptype_t type, char **arg)
