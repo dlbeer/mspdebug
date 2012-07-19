@@ -244,16 +244,24 @@ static int timer_config(struct simio_device *dev,
 	return -1;
 }
 
-static uint16_t calc_iv(struct timer *tr)
+static uint16_t calc_iv(struct timer *tr, int update)
 {
 	int i;
 
 	for (i = 0; i < tr->size; i++)
-		if ((tr->ctls[i] & (CCIE | CCIFG)) == (CCIE | CCIFG))
+		if ((tr->ctls[i] & (CCIE | CCIFG)) == (CCIE | CCIFG)) {
+			/* Reading or writing TAIV clears the highest flag.
+			   TACCR0 is cleared in timer_ack_interrupt(). */
+			if (update && (i > 0))
+				tr->ctls[i] &= ~CCIFG;
 			return i * 2;
+		}
 
-	if ((tr->tactl & (TAIFG | TAIE)) == (TAIFG | TAIE))
+	if ((tr->tactl & (TAIFG | TAIE)) == (TAIFG | TAIE)) {
+		if (update)
+			tr->tactl &= ~TAIFG;
 		return 0xa;
+	}
 
 	return 0;
 }
@@ -270,7 +278,7 @@ static int timer_info(struct simio_device *dev)
 	printc("\n");
 	printc("TACTL:        0x%04x\n", tr->tactl);
 	printc("TAR:          0x%04x\n", tr->tar);
-	printc("TAIV:         0x%02x\n", calc_iv(tr));
+	printc("TAIV:         0x%02x\n", calc_iv(tr, 0));
 	printc("\n");
 
 	for (i = 0; i < tr->size; i++)
@@ -315,6 +323,12 @@ static int timer_write(struct simio_device *dev,
 		return 0;
 	}
 
+	if (addr == tr->iv_addr) {
+		/* Writing to TAIV clears the highest priority bit. */
+		calc_iv(tr, 1);
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -335,13 +349,18 @@ static int timer_read(struct simio_device *dev,
 
 	if (addr >= tr->base_addr + 2 &&
 	    addr < tr->base_addr + tr->size + 2) {
-		*data = tr->ctls[((addr - 0xf) - 2) >> 1];
+		*data = tr->ctls[((addr & 0xf) - 2) >> 1];
 		return 0;
 	}
 
 	if (addr >= tr->base_addr + 0x12 &&
 	    addr < tr->base_addr + tr->size + 0x12) {
 		*data = tr->ccrs[((addr & 0xf) - 2) >> 1];
+		return 0;
+	}
+
+	if (addr == tr->iv_addr) {
+		*data = calc_iv(tr, 1);
 		return 0;
 	}
 
@@ -372,6 +391,7 @@ static void timer_ack_interrupt(struct simio_device *dev, int irq)
 
 	if (irq == tr->irq0)
 		tr->ctls[0] &= ~CCIFG;
+	/* By design irq1 does not clear CCIFG or TAIFG automatically */
 }
 
 static void tar_step(struct timer *tr)
