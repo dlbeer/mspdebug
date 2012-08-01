@@ -383,7 +383,8 @@ int coff_syms(FILE *in)
 				name = strtab + offset;
 		}
 
-		if ((storage_class == C_EXT || storage_class == C_LABEL) &&
+		if (name &&
+		    (storage_class == C_EXT || storage_class == C_LABEL) &&
 		    stab_set(name, value) < 0) {
 			printc_err("coff: failed to insert symbol\n");
 			ret = -1;
