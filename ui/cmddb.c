@@ -301,6 +301,13 @@ const struct cmddb_record commands[] = {
 "    Remove an alias definition.\n"
 "alias <name> <command>\n"
 "    Define a new alias.\n"
+	},
+	{
+		.name = "fill",
+		.func = cmd_fill,
+		.help =
+"fill <address> <length> <b0> [b1 b2 ...]\n"
+"    Fill the given memory range with a repeated byte sequence.\n"
 	}
 };
 

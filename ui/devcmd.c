@@ -753,3 +753,64 @@ int cmd_locka(char **arg)
 	printc("LOCKA is %s\n", (regval[0] & FCTL3_LOCKA) ? "set" : "clear");
 	return 0;
 }
+
+int cmd_fill(char **arg)
+{
+	char *addr_text = get_arg(arg);
+	char *len_text = get_arg(arg);
+	char *byte_text;
+	address_t addr = 0;
+	address_t len = 0;
+	uint8_t buf[256];
+	int period = 0;
+	int phase = 0;
+	int i;
+
+	if (!(addr_text && len_text)) {
+		printc_err("fill: address and length must be supplied\n");
+		return -1;
+	}
+
+	if (expr_eval(addr_text, &addr) < 0) {
+		printc_err("fill: invalid address\n");
+		return -1;
+	}
+
+	if (expr_eval(len_text, &len) < 0) {
+		printc_err("fill: invalid length\n");
+		return -1;
+	}
+
+	while ((byte_text = get_arg(arg))) {
+		if (period >= sizeof(buf)) {
+			printc_err("fill: maximum length exceeded\n");
+			return -1;
+		}
+
+		buf[period++] = strtoul(byte_text, NULL, 16);
+	}
+
+	if (!period) {
+		printc_err("fill: no pattern supplied\n");
+		return -1;
+	}
+
+	for (i = period; i < sizeof(buf); i++)
+		buf[i] = buf[i % period];
+
+	while (len > 0) {
+		int plen = sizeof(buf) - phase;
+
+		if (plen > len)
+			plen = len;
+
+		if (device_writemem(addr, buf + phase, plen) < 0)
+			return -1;
+
+		addr += plen;
+		len -= plen;
+		phase = (phase + plen) % period;
+	}
+
+	return 0;
+}
