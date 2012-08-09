@@ -768,11 +768,16 @@ static void fet_destroy(device_t dev_base)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	if (xfer(dev, C_RESET, NULL, 0, 3, FET_RESET_ALL, 0, 0) < 0)
+	/* The second argument to C_RESET is a boolean which specifies
+	 * whether the chip should run or not. The final argument is
+	 * also a boolean. Setting it non-zero is required to get the
+	 * RST pin working on the G2231, but it must be zero on the
+	 * FR5739, or else the value of the reset vector gets set to
+	 * 0xffff at the start of the next JTAG session.
+	 */
+	if (xfer(dev, C_RESET, NULL, 0, 3, FET_RESET_ALL, 1,
+		 !device_is_fram(dev_base)) < 0)
 		printc_err("fet: final reset failed\n");
-
-	if (xfer(dev, C_RUN, NULL, 0, 2, FET_RUN_FREE, 0) < 0)
-		printc_err("fet: failed to restart CPU\n");
 
 	if (xfer(dev, C_CLOSE, NULL, 0, 1, 0) < 0)
 		printc_err("fet: close command failed\n");
