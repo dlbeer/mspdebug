@@ -153,8 +153,6 @@ extern device_t device_default;
 	device_default->type->readmem(device_default, addr, mem, len)
 #define device_writemem(addr, mem, len) \
 	device_default->type->writemem(device_default, addr, mem, len)
-#define device_erase(et, addr) \
-	device_default->type->erase(device_default, et, addr)
 #define device_getregs(regs) \
 	device_default->type->getregs(device_default, regs)
 #define device_setregs(regs) \
@@ -163,5 +161,7 @@ extern device_t device_default;
 	device_default->type->ctl(device_default, op)
 #define device_poll() \
 	device_default->type->poll(device_default)
+
+int device_erase(device_erase_type_t et, address_t addr);
 
 #endif

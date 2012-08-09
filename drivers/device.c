@@ -134,3 +134,13 @@ int device_is_fram(device_t dev)
 	return ((a < 0x04) && (b == 0x81)) ||
 	       (((a & 0xf0) == 0x70) && ((b & 0x8e) == 0x80));
 }
+
+int device_erase(device_erase_type_t et, address_t addr)
+{
+	if (device_is_fram(device_default)) {
+		printc_err("warning: not attempting erase of FRAM device\n");
+		return 0;
+	}
+
+	return device_default->type->erase(device_default, et, addr);
+}
