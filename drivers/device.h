@@ -113,6 +113,8 @@ struct device_class {
 struct device {
 	const struct device_class	*type;
 
+	uint8_t				dev_id[3];
+
 	/* Breakpoint table. This should not be modified directly.
 	 * Instead, you should use the device_setbrk() helper function. This
 	 * will set the appropriate flags and ensure that the breakpoint is
@@ -121,6 +123,16 @@ struct device {
 	int max_breakpoints;
 	struct device_breakpoint breakpoints[DEVICE_MAX_BREAKPOINTS];
 };
+
+/* Probe the device memory and extract ID bytes. This should be called
+ * after the device structure is ready.
+ */
+int device_probe_id(device_t dev);
+
+/* Determine, from the device ID bytes, whether this chip is an FRAM or
+ * flash-based device.
+ */
+int device_is_fram(device_t dev);
 
 /* Set or clear a breakpoint. The index of the modified entry is
  * returned, or -1 if no free entries were available. The modified

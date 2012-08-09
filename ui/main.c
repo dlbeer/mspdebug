@@ -364,6 +364,9 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	if (device_probe_id(device_default) < 0)
+		printc_err("warning: device ID probe failed\n");
+
 	simio_init();
 
 	if (!args.no_rc)
