@@ -116,12 +116,12 @@ int device_probe_id(device_t dev)
 
 	printc_dbg("Chip ID data: %02x %02x", dev->dev_id[0], dev->dev_id[1]);
 	if (dev->dev_id[2])
-		printc(" %02x", dev->dev_id[2]);
+		printc_dbg(" %02x", dev->dev_id[2]);
 
 	if (device_is_fram(dev))
-		printc(" [FRAM]");
+		printc_dbg(" [FRAM]");
 
-	printc("\n");
+	printc_dbg("\n");
 	return 0;
 }
 
