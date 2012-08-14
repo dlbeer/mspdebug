@@ -388,7 +388,7 @@ static device_t bsl_open(const struct device_args *args)
 	if (enter_via_fet(dev) < 0)
 		printc_err("bsl: warning: FET firmware not responding\n");
 
-	usleep(500000);
+	delay_ms(500);
 
 	/* Show chip info */
 	if (bsl_xfer(dev, CMD_TX_DATA, 0xff0, NULL, 0x10) < 0) {

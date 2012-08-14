@@ -509,7 +509,7 @@ static int do_download(struct usb_device *dev, const struct firmware *f)
 		offset += r;
 	}
 
-	usleep(100000);
+	delay_ms(100);
 	if (usb_reset(hnd) < 0)
 		pr_error("ti3410: warning: reset failed");
 

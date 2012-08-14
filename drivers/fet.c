@@ -676,7 +676,7 @@ static device_status_t fet_poll(device_t dev_base)
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
 	ctrlc_reset();
-	if ((usleep(50000) < 0) || ctrlc_check())
+	if ((delay_ms(50) < 0) || ctrlc_check())
 		return DEVICE_STATUS_INTR;
 
 	if (xfer(dev, C_STATE, NULL, 0, 1, 0) < 0) {
@@ -1002,9 +1002,9 @@ int try_open(struct fet_device *dev, const struct device_args *args,
 	if (dev->flags & FET_PROTO_NOLEAD_SEND) {
 		printc("Resetting Olimex command processor...\n");
 		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
-		usleep(5000);
+		delay_ms(5);
 		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
-		usleep(5000);
+		delay_ms(5);
 	}
 
 	printc_dbg("Initializing FET...\n");
@@ -1064,7 +1064,7 @@ static device_t fet_open(const struct device_args *args,
 	dev->flags = flags;
 
 	if (try_open(dev, args, flags & FET_PROTO_FORCE_RESET) < 0) {
-		usleep(500000);
+		delay_ms(500);
 		printc("Trying again...\n");
 		if (try_open(dev, args, 1) < 0)
 			goto fail;

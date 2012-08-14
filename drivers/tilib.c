@@ -472,7 +472,7 @@ static device_status_t tilib_poll(device_t dev_base)
 	struct tilib_device *dev = (struct tilib_device *)dev_base;
 
         ctrlc_reset();
-        if ((usleep(50000) < 0) || ctrlc_check())
+        if ((delay_ms(50) < 0) || ctrlc_check())
                 return DEVICE_STATUS_INTR;
 
 	if (event_fetch(dev) & MID_HALT_ANY)

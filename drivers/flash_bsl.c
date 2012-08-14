@@ -226,7 +226,7 @@ static int flash_bsl_recv(struct flash_bsl_device *dev,
         debug_hexdump("received message", recv_buf, recv_len);
 #endif
 
-        usleep(10000);
+	delay_ms(10);
 	return recv_len;
 }
 
@@ -550,7 +550,7 @@ static int flash_bsl_writemem(device_t dev_base,
 
 static void entry_delay(void)
 {
-	usleep(1000);
+	delay_ms(1);
 }
 
 static int enter_via_dtr_rts(struct flash_bsl_device *dev)
@@ -657,7 +657,7 @@ static device_t flash_bsl_open(const struct device_args *args)
 	if (enter_via_dtr_rts(dev) < 0)
 		goto fail;
 
-	usleep(500000);
+	delay_ms(500);
 
 	/* unlock device (erase then send password) */
 	if (flash_bsl_unlock(dev) < 0) {

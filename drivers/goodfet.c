@@ -95,7 +95,7 @@ static int reset_sequence(sport_t fd)
 			return -1;
 		}
 
-		usleep(20000);
+		delay_ms(20);
 	}
 
 	return 0;
@@ -578,7 +578,7 @@ static device_status_t goodfet_poll(device_t dev_base)
 	(void)dev_base;
 
 	ctrlc_reset();
-	if (usleep(100000) < 0 || ctrlc_check())
+	if (delay_ms(100) < 0 || ctrlc_check())
 		return DEVICE_STATUS_INTR;
 
 	return DEVICE_STATUS_RUNNING;

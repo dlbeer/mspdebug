@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <assert.h>
+#include <time.h>
 
 #ifdef __Windows__
 #include <windows.h>
@@ -360,3 +361,34 @@ char *expand_tilde(const char *path)
 	/* Caller must free()! */
 	return expanded;
 }
+
+#ifdef __Windows__
+int delay_s(unsigned int s)
+{
+	Sleep(s * 1000);
+
+	return 0;
+}
+
+int delay_ms(unsigned int s)
+{
+	Sleep(s);
+
+	return 0;
+}
+#else
+int delay_s(unsigned int s)
+{
+	return sleep(s);
+}
+
+int delay_ms(unsigned int s)
+{
+	struct timespec ts;
+
+	ts.tv_sec = s / 1000;
+	ts.tv_nsec = (s % 1000) * 1000000;
+
+	return nanosleep(&ts, NULL);
+}
+#endif
