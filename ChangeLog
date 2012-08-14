@@ -1,3 +1,15 @@
+Version 0.20 - 14 Aug 2012
+	* Support for new chips: MSP430F6736, MSP430F2252, MSP430G2403,
+	  MSP430F6435.
+	* Support for building under Cygwin.
+	* Support for watchpoints using MSP430.DLL (tilib) driver.
+	* Support for GoodFET (memory access/programming only).
+	* Various bug fixes, including many disassembly fixes and an
+	  issue causing FRAM reset-vector corruption.
+	* Basic C++ demangling support.
+	* New commands: "fill" and "verify".
+	* Erase requests are now ignored when using FRAM chips.
+
 Version 0.19 - 3 Mar 2012
 	* Support for MSP430-JTAG-ISO on platforms other than Linux, via
 	  both serial drivers and raw USB access.
