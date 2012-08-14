@@ -232,6 +232,11 @@ Specify "segment" and a memory address to erase an individual flash
 segment.
 .IP "\fBexit\fR"
 Exit from MSPDebug.
+.IP "\fBfill\fR \fIaddress\fR \fIlength\fR \fIb0\fR [\fIb1\fR \fIb2\fR ...]
+Fill the memory region of size \fIlength\fR starting at \fIaddress\fR with
+the pattern of bytes given (specified in hexadecimal). The pattern will be
+repeated without padding as many times as necessary without exceeding the
+bounds of the specified region.
 .IP "\fBgdb\fR [\fIport\fR]"
 Start a GDB remote stub, optionally specifying a TCP port to listen on.
 If no port is given, the default port is 2000.
