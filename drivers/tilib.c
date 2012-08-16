@@ -233,7 +233,7 @@ static void report_error(struct tilib_device *dev, const char *what)
 	long err = dev->MSP430_Error_Number();
 	const char *desc = dev->MSP430_Error_String(err);
 
-	printc_err("tilib: %s: %s (error = %d)\n", what, desc, err);
+	printc_err("tilib: %s: %s (error = %ld)\n", what, desc, err);
 }
 
 static int tilib_readmem(device_t dev_base, address_t addr,
@@ -508,7 +508,7 @@ static void fw_progress(unsigned int msg_id, unsigned long w_param,
 		if (w_param > 100)
 			w_param = 100;
 
-		printc("   %3d percent done\n", w_param);
+		printc("   %3lu percent done\n", w_param);
 		break;
 
 	case BL_UPDATE_ERROR:
@@ -591,7 +591,7 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 			return -1;
 		}
 	} else {
-		printc_dbg("Firmware version is %d\n", version);
+		printc_dbg("Firmware version is %ld\n", version);
 	}
 
 	printc_dbg("MSP430_VCC: %d mV\n", args->vcc_mv);

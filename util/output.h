@@ -27,9 +27,12 @@
  * Returns the number of characters printed (not including colour
  * codes).
  */
-int printc(const char *fmt, ...);
-int printc_dbg(const char *fmt, ...);
-int printc_err(const char *fmt, ...);
+int printc(const char *fmt, ...)
+	__attribute__((format (printf, 1, 2)));
+int printc_dbg(const char *fmt, ...)
+	__attribute__((format (printf, 1, 2)));
+int printc_err(const char *fmt, ...)
+	__attribute__((format (printf, 1, 2)));
 
 void pr_error(const char *prefix);
 

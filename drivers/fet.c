@@ -575,7 +575,7 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 	  LE_LONG(r->msg29_data, 0x02)
 	  - LE_WORD(r->msg29_data, 0)
 	  + 1;
-	printc_dbg("  Code size         : %lu byte = %lu kb\n",
+	printc_dbg("  Code size         : %u byte = %u kb\n",
 		   codeSize,
 		   codeSize / 1024);
 

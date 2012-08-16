@@ -79,7 +79,7 @@ static void event_print(const struct event *e)
 		break;
 
 	case EVENT_READ_16:
-		printc("read.w => %s 0x%04x\n", name);
+		printc("read.w => %s\n", name);
 		break;
 
 	case EVENT_WRITE_8:
