@@ -397,6 +397,9 @@ static int refresh_bps(struct tilib_device *dev)
 					     BP_WRITE_DMA);
 				break;
 			}
+		} else if (!dev->bp_handles[i]) {
+			bp->flags &= ~DEVICE_BP_DIRTY;
+			continue;
 		} else {
 			param.bpMode = BP_CLEAR;
 		}
