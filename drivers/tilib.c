@@ -28,8 +28,10 @@
 
 #if defined(__Windows__) || defined(__CYGWIN__)
 static const char tilib_filename[] = "MSP430.DLL";
+#define TIDLL __stdcall
 #else
 static const char tilib_filename[] = "libmsp430.so";
+#define TIDLL
 #endif
 
 struct tilib_device {
@@ -45,43 +47,43 @@ struct tilib_device {
 	char			uifPath[1024];
 
 	/* MSP430.h */
-	STATUS_T WINAPI (*MSP430_Initialize)(char *port, long *version);
-	STATUS_T WINAPI (*MSP430_VCC)(long voltage);
-	STATUS_T WINAPI (*MSP430_Configure)(long mode, long value);
-	STATUS_T WINAPI (*MSP430_OpenDevice)(char *Device, char *Password,
+	STATUS_T TIDLL (*MSP430_Initialize)(char *port, long *version);
+	STATUS_T TIDLL (*MSP430_VCC)(long voltage);
+	STATUS_T TIDLL (*MSP430_Configure)(long mode, long value);
+	STATUS_T TIDLL (*MSP430_OpenDevice)(char *Device, char *Password,
 					     long PwLength, long DeviceCode,
 					     long setId);
-	STATUS_T WINAPI (*MSP430_GetFoundDevice)(char *FoundDevice,
+	STATUS_T TIDLL (*MSP430_GetFoundDevice)(char *FoundDevice,
 						 long count);
-	STATUS_T WINAPI (*MSP430_Close)(long vccOff);
-	STATUS_T WINAPI (*MSP430_Memory)(long address, char *buffer,
+	STATUS_T TIDLL (*MSP430_Close)(long vccOff);
+	STATUS_T TIDLL (*MSP430_Memory)(long address, char *buffer,
 					 long count, long rw);
-	STATUS_T WINAPI (*MSP430_Reset)(long method, long execute,
+	STATUS_T TIDLL (*MSP430_Reset)(long method, long execute,
 					long releaseJTAG);
-	STATUS_T WINAPI (*MSP430_Erase)(long type, long address, long length);
-	STATUS_T WINAPI (*MSP430_Error_Number)(void);
-	const char *WINAPI (*MSP430_Error_String)(long errNumber);
+	STATUS_T TIDLL (*MSP430_Erase)(long type, long address, long length);
+	STATUS_T TIDLL (*MSP430_Error_Number)(void);
+	const char *TIDLL (*MSP430_Error_String)(long errNumber);
 
-	STATUS_T WINAPI (*MSP430_GetNumberOfUsbIfs)(long* number);
-	STATUS_T WINAPI (*MSP430_GetNameOfUsbIf)(long idx, char **name,
+	STATUS_T TIDLL (*MSP430_GetNumberOfUsbIfs)(long* number);
+	STATUS_T TIDLL (*MSP430_GetNameOfUsbIf)(long idx, char **name,
 						 long *status);
 
 	/* MSP430_Debug.h */
-	STATUS_T WINAPI (*MSP430_Registers)(long *registers, long mask,
+	STATUS_T TIDLL (*MSP430_Registers)(long *registers, long mask,
 					    long rw);
-	STATUS_T WINAPI (*MSP430_Run)(long mode, long releaseJTAG);
-	STATUS_T WINAPI (*MSP430_State)(long *state, long stop,
+	STATUS_T TIDLL (*MSP430_Run)(long mode, long releaseJTAG);
+	STATUS_T TIDLL (*MSP430_State)(long *state, long stop,
 					long *pCPUCycles);
 
 	/* MSP430_EEM.h */
-	STATUS_T WINAPI (*MSP430_EEM_Init)(DLL430_EVENTNOTIFY_FUNC callback,
+	STATUS_T TIDLL (*MSP430_EEM_Init)(DLL430_EVENTNOTIFY_FUNC callback,
 					   long clientHandle,
 					   MessageID_t *pMsgIdBuffer);
-	STATUS_T WINAPI (*MSP430_EEM_SetBreakpoint)(uint16_t *pwBpHandle,
+	STATUS_T TIDLL (*MSP430_EEM_SetBreakpoint)(uint16_t *pwBpHandle,
 						    BpParameter_t *pBpBuffer);
 
 	/* MSP430_FET.h */
-	STATUS_T WINAPI (*MSP430_FET_FwUpdate)(char* lpszFileName,
+	STATUS_T TIDLL (*MSP430_FET_FwUpdate)(char* lpszFileName,
 					   DLL430_FET_NOTIFY_FUNC callback,
 					   long clientHandle);
 

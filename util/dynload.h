@@ -27,11 +27,7 @@
 typedef HMODULE dynload_handle_t;
 #else /* __Windows__ */
 typedef void *dynload_handle_t;
-#endif
-
-#ifndef WINAPI
-#define WINAPI
-#endif
+#endif /* __Windows__ */
 
 dynload_handle_t dynload_open(const char *filename);
 void dynload_close(dynload_handle_t hnd);
