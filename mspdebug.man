@@ -334,6 +334,10 @@ command is like \fBprog\fR, but it does not load symbols or erase
 the device before programming.
 
 The CPU is reset and halted before and after programming.
+.IP "\fBload_raw\fR \fIfilename\fR \fIaddress\fR"
+Write the data contained in a raw binary file to the given memory address.
+
+The CPU is reset and halted before and after programming.
 .IP "\fBlocka\fR [\fBset\fR|\fBclear\fR]"
 Show or change the status of the LOCKA bit in the chip's memory
 controller. The LOCKA bit is set on POR and acts as a write-protect bit
@@ -403,6 +407,11 @@ is pressed by the user.
 After the CPU halts, the current register values are shown as well as
 a disassembly of the first few instructions at the address selected
 by the program counter.
+.IP "\fBsave_raw\fR \fIaddress\fR \fIlength\fR \fIfilename\fR"
+Save a region of memory to a raw binary file. The address and length
+arguments may both be address expressions.
+
+If the specified file already exists, then it will be overwritten.
 .IP "\fBset\fR \fIregister\fR \fIvalue\fR"
 Alter the value of a register. Registers are specified as numbers from
 0 through 15. Any leading non-numeric characters are ignored (so a
@@ -497,6 +506,10 @@ renamed.
 Compare the contents of the given binary file to the chip memory. If any
 differences are found, a message is printed for the first mismatched
 byte.
+.IP "\fBverify_raw \fIfilename\fR \fIaddress\fR"
+Compare the contents of a raw binary file to the device memory at the given
+address. If any differences are found, a message is printed for the first
+mismatched byte.
 .SH SUPPORTED CHIPS
 The following chips are supported when using FET-compatible drivers:
 .PP

@@ -68,3 +68,4 @@ Tamas Tevesz <ice@extreme.hu>:
 
 Ingo van Lil <inguin@gmx.de>:
 	* Support for demangling of C++ function names.
+	* load_raw, verify_raw and save_raw commands.

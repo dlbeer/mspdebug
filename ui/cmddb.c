@@ -22,6 +22,7 @@
 #include "util.h"
 
 #include "devcmd.h"
+#include "flatfile.h"
 #include "gdb.h"
 #include "rtools.h"
 #include "sym.h"
@@ -127,6 +128,29 @@ const struct cmddb_record commands[] = {
 		.help =
 "verify <filename>\n"
 "    Compare the contents of the given binary file to the device memory.\n"
+	},
+	{
+		.name = "load_raw",
+		.func = cmd_load_raw,
+		.help =
+"load_raw <filename> <address>\n"
+"    Write the data contained in a raw binary file to the given memory\n"
+"    address.\n"
+	},
+	{
+		.name = "verify_raw",
+		.func = cmd_verify_raw,
+		.help =
+"verify_raw <filename> <address>\n"
+"    Compare the contents of a raw binary file to the device memory at\n"
+"    the given address.\n"
+	},
+	{
+		.name = "save_raw",
+		.func = cmd_save_raw,
+		.help =
+"save_raw <address> <length> <filename>\n"
+"    Save a region of memory to a raw binary file.\n"
 	},
 	{
 		.name = "md",

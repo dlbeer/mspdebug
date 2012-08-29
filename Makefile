@@ -146,6 +146,7 @@ OBJ=\
     ui/rtools.o \
     ui/sym.o \
     ui/devcmd.o \
+    ui/flatfile.o \
     ui/reader.o \
     ui/cmddb.o \
     ui/stdcmd.o \
