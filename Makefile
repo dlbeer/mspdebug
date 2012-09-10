@@ -70,7 +70,7 @@ else
 
 endif
 
-INCLUDES = -I. -Isimio -Iformats -Idrivers -Iutil -Iui
+INCLUDES = -I. -Isimio -Iformats -Itransport -Idrivers -Iutil -Iui
 GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
 CONFIG_CFLAGS = -DLIB_DIR=\"$(LIBDIR)\"
 
@@ -114,6 +114,11 @@ OBJ=\
     util/gdb_proto.o \
     util/dynload.o \
     util/demangle.o \
+    transport/olimex.o \
+    transport/olimex_iso.o \
+    transport/rf2500.o \
+    transport/ti3410.o \
+    transport/uif.o \
     drivers/device.o \
     drivers/bsl.o \
     drivers/fet.o \
@@ -121,13 +126,8 @@ OBJ=\
     drivers/fet_db.o \
     drivers/flash_bsl.o \
     drivers/gdbc.o \
-    drivers/olimex.o \
-    drivers/rf2500.o \
     drivers/sim.o \
-    drivers/uif.o \
-    drivers/ti3410.o \
     drivers/tilib.o \
-    drivers/olimex_iso.o \
     drivers/goodfet.o \
     formats/binfile.o \
     formats/coff.o \

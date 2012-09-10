@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for the eZ430
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2012 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -188,20 +188,50 @@ static void usbtr_destroy(transport_t tr_base)
 	free(tr);
 }
 
+static int usbtr_flush(transport_t tr_base)
+{
+#ifndef __APPLE__
+	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
+	char buf[64];
+
+	/* Flush out lingering data.
+	 *
+	 * The timeout apparently doesn't work on OS/X, and this loop
+	 * just hangs once the endpoint buffer empties.
+	 */
+	while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
+			     buf, sizeof(buf),
+			     100) > 0);
+#endif
+
+	return 0;
+}
+
+static int usbtr_set_modem(transport_t tr_base, transport_modem_t state)
+{
+	printc_err("rf2500: unsupported operation: set_modem\n");
+	return -1;
+}
+
+static const struct transport_class rf2500_transport = {
+	.destroy	= usbtr_destroy,
+	.send		= usbtr_send,
+	.recv		= usbtr_recv,
+	.flush		= usbtr_flush,
+	.set_modem	= usbtr_set_modem
+};
+
 transport_t rf2500_open(const char *devpath, const char *requested_serial)
 {
 	struct rf2500_transport *tr = malloc(sizeof(*tr));
 	struct usb_device *dev;
-	char buf[64];
 
 	if (!tr) {
 		pr_error("rf2500: can't allocate memory");
 		return NULL;
 	}
 
-	tr->base.destroy = usbtr_destroy;
-	tr->base.send = usbtr_send;
-	tr->base.recv = usbtr_recv;
+	tr->base.ops = &rf2500_transport;
 
 	usb_init();
 	usb_find_busses();
@@ -223,16 +253,7 @@ transport_t rf2500_open(const char *devpath, const char *requested_serial)
 		return NULL;
 	}
 
-	/* Flush out lingering data.
-	 *
-	 * The timeout apparently doesn't work on OS/X, and this loop
-	 * just hangs once the endpoint buffer empties.
-	 */
-#ifndef __APPLE__
-	while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
-			     buf, sizeof(buf),
-			     100) > 0);
-#endif
+	usbtr_flush(&tr->base);
 
 	return (transport_t)tr;
 }

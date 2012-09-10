@@ -535,6 +535,25 @@ static int download_firmware(struct usb_device *dev)
 	return 0;
 }
 
+static int ti3410_flush(transport_t tr_base)
+{
+	return 0;
+}
+
+static int ti3410_set_modem(transport_t tr_base, transport_modem_t state)
+{
+	printc_err("ti3410: unsupported operation: set_modem\n");
+	return -1;
+}
+
+static const struct transport_class ti3410_transport = {
+	.destroy	= ti3410_destroy,
+	.send		= ti3410_send,
+	.recv		= ti3410_recv,
+	.flush		= ti3410_flush,
+	.set_modem	= ti3410_set_modem
+};
+
 transport_t ti3410_open(const char *devpath, const char *requested_serial)
 {
 	struct ti3410_transport *tr = malloc(sizeof(*tr));
@@ -545,9 +564,7 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial)
 		return NULL;
 	}
 
-	tr->base.destroy = ti3410_destroy;
-	tr->base.send = ti3410_send;
-	tr->base.recv = ti3410_recv;
+	tr->base.ops = &ti3410_transport;
 
 	usb_init();
 	usb_find_busses();

@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for the eZ430
- * Copyright (C) 2009-2011 Daniel Beer
+ * Copyright (C) 2009-2012 Daniel Beer
  * Copyright (C) 2010 Peter Jansen
  *
  * This program is free software; you can redistribute it and/or modify
@@ -260,20 +260,44 @@ static void usbtr_destroy(transport_t tr_base)
 	free(tr);
 }
 
+static int usbtr_flush(transport_t tr_base)
+{
+	struct olimex_transport *tr = (struct olimex_transport *)tr_base;
+	char buf[64];
+
+	/* Flush out lingering data */
+	while (usb_bulk_read(tr->handle, tr->in_ep,
+			     buf, sizeof(buf),
+			     100) > 0);
+
+	return 0;
+}
+
+static int usbtr_set_modem(transport_t tr_base, transport_modem_t state)
+{
+	printc_err("olimex: unsupported operation: set_modem\n");
+	return -1;
+}
+
+static const struct transport_class olimex_transport = {
+	.destroy	= usbtr_destroy,
+	.send		= usbtr_send,
+	.recv		= usbtr_recv,
+	.flush		= usbtr_flush,
+	.set_modem	= usbtr_set_modem
+};
+
 transport_t olimex_open(const char *devpath, const char *requested_serial)
 {
 	struct olimex_transport *tr = malloc(sizeof(*tr));
 	struct usb_device *dev;
-	char buf[64];
 
 	if (!tr) {
 		pr_error(__FILE__": can't allocate memory");
 		return NULL;
 	}
 
-	tr->base.destroy = usbtr_destroy;
-	tr->base.send = usbtr_send;
-	tr->base.recv = usbtr_recv;
+	tr->base.ops = &olimex_transport;
 
 	usb_init();
 	usb_find_busses();
@@ -299,10 +323,7 @@ transport_t olimex_open(const char *devpath, const char *requested_serial)
 		return NULL;
 	}
 
-	/* Flush out lingering data */
-	while (usb_bulk_read(tr->handle, tr->in_ep,
-			     buf, sizeof(buf),
-			     100) > 0);
+	usbtr_flush(&tr->base);
 
 	return (transport_t)tr;
 }

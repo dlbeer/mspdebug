@@ -226,6 +226,25 @@ static int tr_send(transport_t tr_base, const uint8_t *databuf, int len)
 	return 0;
 }
 
+static int tr_flush(transport_t tr_base)
+{
+	return 0;
+}
+
+static int tr_set_modem(transport_t tr_base, transport_modem_t state)
+{
+	printc_err("olimex_iso: unsupported operation: set_modem\n");
+	return -1;
+}
+
+static const struct transport_class olimex_iso_transport = {
+	.destroy	= tr_destroy,
+	.send		= tr_send,
+	.recv		= tr_recv,
+	.flush		= tr_flush,
+	.set_modem	= tr_set_modem
+};
+
 transport_t olimex_iso_open(const char *devpath,
 			    const char *requested_serial)
 {
@@ -237,9 +256,7 @@ transport_t olimex_iso_open(const char *devpath,
 		return NULL;
 	}
 
-	tr->base.destroy = tr_destroy;
-	tr->base.send = tr_send;
-	tr->base.recv = tr_recv;
+	tr->base.ops = &olimex_iso_transport;
 
 	usb_init();
 	usb_find_busses();

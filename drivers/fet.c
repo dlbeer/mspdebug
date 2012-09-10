@@ -231,7 +231,8 @@ static int send_rf2500_data(struct fet_device *dev,
 		pbuf[2] = offset >> 8;
 		pbuf[3] = plen;
 		memcpy(pbuf + 4, data, plen);
-		if (dev->transport->send(dev->transport, pbuf, plen + 4) < 0)
+		if (dev->transport->ops->send(dev->transport,
+			pbuf, plen + 4) < 0)
 			return -1;
 
 		data += plen;
@@ -360,10 +361,10 @@ static int recv_packet(struct fet_device *dev)
 		if (dev->fet_len >= plen + pkt_extra)
 			return parse_packet(dev, plen);
 
-		len = dev->transport->recv(dev->transport,
-					   dev->fet_buf + dev->fet_len,
-					   sizeof(dev->fet_buf) -
-					   dev->fet_len);
+		len = dev->transport->ops->recv(dev->transport,
+						dev->fet_buf + dev->fet_len,
+						sizeof(dev->fet_buf) -
+						dev->fet_len);
 		if (len < 0)
 			return -1;
 		dev->fet_len += len;
@@ -449,7 +450,7 @@ static int send_command(struct fet_device *dev, int command_code,
 
 	assert (i < sizeof(buf));
 
-	return dev->transport->send(dev->transport, buf, i);
+	return dev->transport->ops->send(dev->transport, buf, i);
 }
 
 static int xfer(struct fet_device *dev,
@@ -776,7 +777,7 @@ static void fet_destroy(device_t dev_base)
 	if (xfer(dev, C_CLOSE, NULL, 0, 1, 0) < 0)
 		printc_err("fet: close command failed\n");
 
-	dev->transport->destroy(dev->transport);
+	dev->transport->ops->destroy(dev->transport);
 	free(dev);
 }
 
@@ -995,9 +996,11 @@ int try_open(struct fet_device *dev, const struct device_args *args,
 
 	if (dev->flags & FET_PROTO_NOLEAD_SEND) {
 		printc("Resetting Olimex command processor...\n");
-		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
+		transport->ops->send(dev->transport,
+			(const uint8_t *)"\x7e", 1);
 		delay_ms(5);
-		transport->send(dev->transport, (const uint8_t *)"\x7e", 1);
+		transport->ops->send(dev->transport,
+			(const uint8_t *)"\x7e", 1);
 		delay_ms(5);
 	}
 
@@ -1073,7 +1076,7 @@ static device_t fet_open(const struct device_args *args,
 	return (device_t)dev;
 
  fail:
-	transport->destroy(transport);
+	transport->ops->destroy(transport);
 	free(dev);
 	return NULL;
 }

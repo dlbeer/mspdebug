@@ -75,6 +75,45 @@ static void serial_destroy(transport_t tr_base)
 	free(tr);
 }
 
+static int serial_flush(transport_t tr_base)
+{
+	struct uif_transport *tr = (struct uif_transport *)tr_base;
+
+	if (sport_flush(tr->serial_fd) < 0) {
+		pr_error("uif: flush failed");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int serial_set_modem(transport_t tr_base, transport_modem_t state)
+{
+	struct uif_transport *tr = (struct uif_transport *)tr_base;
+	int bits = 0;
+
+	if (state & TRANSPORT_MODEM_DTR)
+		bits |= SPORT_MC_DTR;
+
+	if (state & TRANSPORT_MODEM_RTS)
+		bits |= SPORT_MC_RTS;
+
+	if (sport_set_modem(tr->serial_fd, bits) < 0) {
+		pr_error("uif: failed to set modem control lines\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static const struct transport_class uif_transport = {
+	.destroy	= serial_destroy,
+	.send		= serial_send,
+	.recv		= serial_recv,
+	.flush		= serial_flush,
+	.set_modem	= serial_set_modem
+};
+
 transport_t uif_open(const char *device, uif_type_t type)
 {
 	struct uif_transport *tr = malloc(sizeof(*tr));
@@ -84,9 +123,7 @@ transport_t uif_open(const char *device, uif_type_t type)
 		return NULL;
 	}
 
-	tr->base.send = serial_send;
-	tr->base.recv = serial_recv;
-	tr->base.destroy = serial_destroy;
+	tr->base.ops = &uif_transport;
 
 	switch (type) {
 	case UIF_TYPE_FET:

@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2012 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,18 +21,44 @@
 
 #include <stdint.h>
 
-/* This structure is used to provide an interface to a lower-level
- * transport. The transport mechanism is viewed as a stream by the FET
- * controller, which handles packet encapsulation, checksums and other
- * high-level functions.
+/* This structure is used to provide a consistent interface to a
+ * lower-level serial-port type device.
  */
 struct transport;
 typedef struct transport *transport_t;
 
-struct transport {
+typedef enum {
+	TRANSPORT_MODEM_DTR = 0x01,
+	TRANSPORT_MODEM_RTS = 0x02
+} transport_modem_t;
+
+struct transport_class {
+	/* Close the port and free resources */
 	void (*destroy)(transport_t tr);
+
+	/* Send a block of data. Returns 0 on success, or -1 if an error
+	 * occurs.
+	 */
 	int (*send)(transport_t tr, const uint8_t *data, int len);
+
+	/* Receive a block of data, up to the maximum size. Returns the
+	 * number of bytes received on success (which must be non-zero),
+	 * or -1 if an error occurs. Read timeouts are treated as
+	 * errors.
+	 */
 	int (*recv)(transport_t tr, uint8_t *data, int max_len);
+
+	/* Flush any lingering data in either direction. */
+	int (*flush)(transport_t tr);
+
+	/* Set modem control lines. Returns 0 on success or -1 if an
+	 * error occurs.
+	 */
+	int (*set_modem)(transport_t tr, transport_modem_t state);
+};
+
+struct transport {
+	const struct transport_class	*ops;
 };
 
 #endif
