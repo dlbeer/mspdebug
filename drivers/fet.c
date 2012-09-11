@@ -39,6 +39,7 @@
 #include "olimex_iso.h"
 #include "rf2500.h"
 #include "ti3410.h"
+#include "obl.h"
 
 /* Send data in separate packets, as in the RF2500 */
 #define FET_PROTO_SEPARATE_DATA		0x01
@@ -1115,14 +1116,41 @@ const struct device_class device_rf2500 = {
 static device_t fet_open_olimex(const struct device_args *args)
 {
 	transport_t trans;
+	uint32_t version;
 
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = uif_open(args->path, UIF_TYPE_OLIMEX);
 	else
 		trans = olimex_open(args->path, args->requested_serial);
 
-        if (!trans)
-                return NULL;
+	if (!trans)
+		return NULL;
+
+	if (args->require_fwupdate) {
+		int r;
+
+		if (obl_update(trans, args->require_fwupdate) < 0) {
+			trans->ops->destroy(trans);
+			return NULL;
+		}
+
+		r = obl_reset(trans);
+		trans->ops->destroy(trans);
+
+		printc("Resetting, please wait...\n");
+		delay_s(15);
+
+		if (args->flags & DEVICE_FLAG_TTY)
+			trans = uif_open(args->path, UIF_TYPE_OLIMEX);
+		else
+			trans = olimex_open(args->path, args->requested_serial);
+
+		if (!trans)
+			return NULL;
+	}
+
+	if (!obl_get_version(trans, &version))
+		printc_dbg("Olimex firmware version: %x\n", version);
 
 	return fet_open(args, FET_PROTO_NOLEAD_SEND | FET_PROTO_EXTRA_RECV |
 			      FET_PROTO_IDENTIFY_NEW | FET_PROTO_FORCE_RESET,

@@ -129,6 +129,7 @@ OBJ=\
     drivers/sim.o \
     drivers/tilib.o \
     drivers/goodfet.o \
+    drivers/obl.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \
