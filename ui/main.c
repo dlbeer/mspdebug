@@ -48,7 +48,6 @@
 #include "gdbc.h"
 
 #include "uif.h"
-#include "olimex.h"
 #include "rf2500.h"
 #include "tilib.h"
 #include "goodfet.h"
@@ -64,6 +63,7 @@ static const struct device_class *const driver_table[] = {
 	&device_olimex,
 	&device_olimex_v1,
 	&device_olimex_iso,
+	&device_olimex_iso_mk2,
 	&device_sim,
 	&device_uif,
 	&device_bsl,

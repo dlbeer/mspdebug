@@ -98,6 +98,9 @@ to a V1 device via a tty interface.
 .IP "\fBolimex-iso\fR"
 Connect to an Olimex MSP-JTAG-ISO device. Both USB and tty access are
 supported.
+.IP "\fBolimex-iso-mk2\fR"
+Connect to an Olimex MSP430-JTAG-ISO-MK2 device. Both USB and tty
+access are supported.
 .IP "\fBsim\fR"
 Do not connect to any hardware device, but instead start in simulation
 mode. A 64k buffer is allocated to simulate the device memory.

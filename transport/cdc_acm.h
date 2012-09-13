@@ -1,5 +1,6 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2012 Daniel Beer
+ * Copyright (C) 2010 Peter Jansen
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,16 +17,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef FET_H_
-#define FET_H_
+#ifndef CDC_ACM_H_
+#define CDC_ACM_H_
 
-#include "device.h"
+#include "transport.h"
 
-extern const struct device_class device_rf2500;
-extern const struct device_class device_olimex;
-extern const struct device_class device_olimex_v1;
-extern const struct device_class device_olimex_iso;
-extern const struct device_class device_olimex_iso_mk2;
-extern const struct device_class device_uif;
+/* Search the USB bus for the first CDC-ACM device, and initialize it.
+ * If successful, return a valid transport object.
+ *
+ * A particular USB device may be specified in bus:dev form.
+ */
+transport_t cdc_acm_open(const char *usb_device, const char *requested_serial,
+			 int baud_rate, uint16_t product, uint16_t vendor);
 
 #endif

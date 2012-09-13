@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2012 Daniel Beer
  * Copyright (C) 2010 Peter Jansen
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,17 +17,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef OLIMEX_H_
-#define OLIMEX_H_
+#ifndef CP210X_H_
+#define CP210X_H_
 
 #include "transport.h"
 
-/* Search the USB bus for the first Olimex MSP-JTAG-TINY, and
- * initialize it. If successful, 0 is returned and the fet_* functions
- * are ready for use.  If an error occurs, -1 is returned.
+/* Search the USB bus for the first CP210x device, and initialize it. If
+ * successful, a valid transport is returned.
  *
  * A particular USB device may be specified in bus:dev form.
  */
-transport_t olimex_open(const char *usb_device, const char *requested_serial);
+transport_t cp210x_open(const char *usb_device, const char *requested_serial,
+			int baud_rate, uint16_t product, uint16_t vendor);
 
 #endif

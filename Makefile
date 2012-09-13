@@ -114,7 +114,8 @@ OBJ=\
     util/gdb_proto.o \
     util/dynload.o \
     util/demangle.o \
-    transport/olimex.o \
+    transport/cp210x.o \
+    transport/cdc_acm.o \
     transport/olimex_iso.o \
     transport/rf2500.o \
     transport/ti3410.o \

@@ -35,10 +35,11 @@
 #include "opdb.h"
 
 #include "uif.h"
-#include "olimex.h"
 #include "olimex_iso.h"
 #include "rf2500.h"
 #include "ti3410.h"
+#include "cp210x.h"
+#include "cdc_acm.h"
 #include "obl.h"
 
 /* Send data in separate packets, as in the RF2500 */
@@ -1113,7 +1114,7 @@ const struct device_class device_rf2500 = {
 	.poll		= fet_poll
 };
 
-static device_t fet_open_olimex(const struct device_args *args)
+static device_t fet_open_olimex_iso_mk2(const struct device_args *args)
 {
 	transport_t trans;
 	uint32_t version;
@@ -1121,7 +1122,8 @@ static device_t fet_open_olimex(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = uif_open(args->path, UIF_TYPE_OLIMEX);
 	else
-		trans = olimex_open(args->path, args->requested_serial);
+		trans = cdc_acm_open(args->path, args->requested_serial,
+				     115200, 0x15ba, 0x0100);
 
 	if (!trans)
 		return NULL;
@@ -1143,7 +1145,9 @@ static device_t fet_open_olimex(const struct device_args *args)
 		if (args->flags & DEVICE_FLAG_TTY)
 			trans = uif_open(args->path, UIF_TYPE_OLIMEX);
 		else
-			trans = olimex_open(args->path, args->requested_serial);
+			trans = cdc_acm_open(args->path,
+				    args->requested_serial,
+				    115200, 0x15ba, 0x0100);
 
 		if (!trans)
 			return NULL;
@@ -1151,6 +1155,39 @@ static device_t fet_open_olimex(const struct device_args *args)
 
 	if (!obl_get_version(trans, &version))
 		printc_dbg("Olimex firmware version: %x\n", version);
+
+	return fet_open(args, FET_PROTO_NOLEAD_SEND | FET_PROTO_EXTRA_RECV |
+			      FET_PROTO_IDENTIFY_NEW | FET_PROTO_FORCE_RESET,
+			trans, &device_olimex_iso_mk2);
+}
+
+const struct device_class device_olimex_iso_mk2 = {
+	.name		= "olimex-iso-mk2",
+	.help		=
+"Olimex MSP430-JTAG-ISO-MK2.",
+	.open		= fet_open_olimex_iso_mk2,
+	.destroy	= fet_destroy,
+	.readmem	= fet_readmem,
+	.writemem	= fet_writemem,
+	.erase		= fet_erase,
+	.getregs	= fet_getregs,
+	.setregs	= fet_setregs,
+	.ctl		= fet_ctl,
+	.poll		= fet_poll
+};
+
+static device_t fet_open_olimex(const struct device_args *args)
+{
+	transport_t trans;
+
+	if (args->flags & DEVICE_FLAG_TTY)
+		trans = uif_open(args->path, UIF_TYPE_OLIMEX);
+	else
+		trans = cdc_acm_open(args->path, args->requested_serial,
+				     115200, 0x15ba, 0x0031);
+
+	if (!trans)
+		return NULL;
 
 	return fet_open(args, FET_PROTO_NOLEAD_SEND | FET_PROTO_EXTRA_RECV |
 			      FET_PROTO_IDENTIFY_NEW | FET_PROTO_FORCE_RESET,
@@ -1179,7 +1216,8 @@ static device_t fet_open_olimex_v1(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = uif_open(args->path, UIF_TYPE_OLIMEX_V1);
 	else
-		trans = olimex_open(args->path, args->requested_serial);
+		trans = cp210x_open(args->path, args->requested_serial,
+				    500000, 0x15ba, 0x0002);
 
         if (!trans)
                 return NULL;
