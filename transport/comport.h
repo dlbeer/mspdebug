@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2012 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,22 +16,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef UIF_H_
-#define UIF_H_
+#ifndef COMPORT_H_
+#define COMPORT_H_
 
 #include "transport.h"
 
-typedef enum {
-	UIF_TYPE_FET,
-	UIF_TYPE_OLIMEX,
-	UIF_TYPE_OLIMEX_V1,
-	UIF_TYPE_OLIMEX_ISO
-} uif_type_t;
-
-/* This function is for opening an eZ430-F2013 or FET430UIF device via
- * a kernel-supported serial interface. The argument given should be the
- * filename of the relevant tty device.
+/* This function is for opening a system serial device.  The argument
+ * given should be the filename of the relevant tty device (POSIX) or a
+ * COM port name (Windows).
  */
-transport_t uif_open(const char *device, uif_type_t type);
+transport_t comport_open(const char *device, int baud_rate);
 
 #endif

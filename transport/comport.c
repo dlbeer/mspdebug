@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for the eZ430
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2012 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +23,12 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "uif.h"
+#include "comport.h"
 #include "util.h"
 #include "output.h"
 #include "sport.h"
 
-struct uif_transport {
+struct comport_transport {
 	struct transport        base;
 
 	sport_t                 serial_fd;
@@ -36,14 +36,14 @@ struct uif_transport {
 
 static int serial_send(transport_t tr_base, const uint8_t *data, int len)
 {
-	struct uif_transport *tr = (struct uif_transport *)tr_base;
+	struct comport_transport *tr = (struct comport_transport *)tr_base;
 
 #ifdef DEBUG_SERIAL
 	debug_hexdump("Serial transfer out:", data, len);
 #endif
 
 	if (sport_write_all(tr->serial_fd, data, len) < 0) {
-		pr_error("uif: write error");
+		pr_error("comport: write error");
 		return -1;
 	}
 
@@ -52,12 +52,12 @@ static int serial_send(transport_t tr_base, const uint8_t *data, int len)
 
 static int serial_recv(transport_t tr_base, uint8_t *data, int max_len)
 {
-	struct uif_transport *tr = (struct uif_transport *)tr_base;
+	struct comport_transport *tr = (struct comport_transport *)tr_base;
 	int r;
 
 	r = sport_read(tr->serial_fd, data, max_len);
 	if (r < 0) {
-		pr_error("uif: read error");
+		pr_error("comport: read error");
 		return -1;
 	}
 
@@ -69,7 +69,7 @@ static int serial_recv(transport_t tr_base, uint8_t *data, int max_len)
 
 static void serial_destroy(transport_t tr_base)
 {
-	struct uif_transport *tr = (struct uif_transport *)tr_base;
+	struct comport_transport *tr = (struct comport_transport *)tr_base;
 
 	sport_close(tr->serial_fd);
 	free(tr);
@@ -77,10 +77,10 @@ static void serial_destroy(transport_t tr_base)
 
 static int serial_flush(transport_t tr_base)
 {
-	struct uif_transport *tr = (struct uif_transport *)tr_base;
+	struct comport_transport *tr = (struct comport_transport *)tr_base;
 
 	if (sport_flush(tr->serial_fd) < 0) {
-		pr_error("uif: flush failed");
+		pr_error("comport: flush failed");
 		return -1;
 	}
 
@@ -89,7 +89,7 @@ static int serial_flush(transport_t tr_base)
 
 static int serial_set_modem(transport_t tr_base, transport_modem_t state)
 {
-	struct uif_transport *tr = (struct uif_transport *)tr_base;
+	struct comport_transport *tr = (struct comport_transport *)tr_base;
 	int bits = 0;
 
 	if (state & TRANSPORT_MODEM_DTR)
@@ -99,14 +99,14 @@ static int serial_set_modem(transport_t tr_base, transport_modem_t state)
 		bits |= SPORT_MC_RTS;
 
 	if (sport_set_modem(tr->serial_fd, bits) < 0) {
-		pr_error("uif: failed to set modem control lines\n");
+		pr_error("comport: failed to set modem control lines\n");
 		return -1;
 	}
 
 	return 0;
 }
 
-static const struct transport_class uif_transport = {
+static const struct transport_class comport_transport = {
 	.destroy	= serial_destroy,
 	.send		= serial_send,
 	.recv		= serial_recv,
@@ -114,48 +114,29 @@ static const struct transport_class uif_transport = {
 	.set_modem	= serial_set_modem
 };
 
-transport_t uif_open(const char *device, uif_type_t type)
+transport_t comport_open(const char *device, int baud_rate)
 {
-	struct uif_transport *tr = malloc(sizeof(*tr));
+	struct comport_transport *tr = malloc(sizeof(*tr));
 
 	if (!tr) {
-		pr_error("uif: couldn't allocate memory");
+		pr_error("comport: couldn't allocate memory");
 		return NULL;
 	}
 
-	tr->base.ops = &uif_transport;
+	tr->base.ops = &comport_transport;
 
-	switch (type) {
-	case UIF_TYPE_FET:
-		printc("Trying to open UIF on %s...\n", device);
-		tr->serial_fd = sport_open(device, 460800, 0);
-		break;
-
-	case UIF_TYPE_OLIMEX:
-		printc("Trying to open Olimex (V2) on %s...\n", device);
-		tr->serial_fd = sport_open(device, 115200, 0);
-		if (sport_set_modem(tr->serial_fd, 0) < 0)
-			pr_error("warning: uif: failed to set "
-				 "modem control lines");
-		break;
-
-	case UIF_TYPE_OLIMEX_V1:
-		printc("Trying to open Olimex (V1) on %s...\n", device);
-		tr->serial_fd = sport_open(device, 500000, 0);
-		break;
-
-	case UIF_TYPE_OLIMEX_ISO:
-		printc("Trying to open Olimex (ISO) on %s...\n", device);
-		tr->serial_fd = sport_open(device, 200000, 0);
-		break;
-	}
-
+	printc("Trying to open %s at %d bps...\n", device, baud_rate);
+	tr->serial_fd = sport_open(device, baud_rate, 0);
 	if (SPORT_ISERR(tr->serial_fd)) {
-		printc_err("uif: can't open serial device: %s: %s\n",
+		printc_err("comport: can't open serial device: %s: %s\n",
 			   device, last_error());
 		free(tr);
 		return NULL;
 	}
+
+	if (sport_set_modem(tr->serial_fd, 0) < 0)
+		pr_error("warning: comport: failed to set "
+			 "modem control lines");
 
 	return (transport_t)tr;
 }

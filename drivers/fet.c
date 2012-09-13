@@ -34,7 +34,7 @@
 #include "output.h"
 #include "opdb.h"
 
-#include "uif.h"
+#include "comport.h"
 #include "olimex_iso.h"
 #include "rf2500.h"
 #include "ti3410.h"
@@ -1120,7 +1120,7 @@ static device_t fet_open_olimex_iso_mk2(const struct device_args *args)
 	uint32_t version;
 
 	if (args->flags & DEVICE_FLAG_TTY)
-		trans = uif_open(args->path, UIF_TYPE_OLIMEX);
+		trans = comport_open(args->path, 115200);
 	else
 		trans = cdc_acm_open(args->path, args->requested_serial,
 				     115200, 0x15ba, 0x0100);
@@ -1143,7 +1143,7 @@ static device_t fet_open_olimex_iso_mk2(const struct device_args *args)
 		delay_s(15);
 
 		if (args->flags & DEVICE_FLAG_TTY)
-			trans = uif_open(args->path, UIF_TYPE_OLIMEX);
+			trans = comport_open(args->path, 115200);
 		else
 			trans = cdc_acm_open(args->path,
 				    args->requested_serial,
@@ -1181,7 +1181,7 @@ static device_t fet_open_olimex(const struct device_args *args)
 	transport_t trans;
 
 	if (args->flags & DEVICE_FLAG_TTY)
-		trans = uif_open(args->path, UIF_TYPE_OLIMEX);
+		trans = comport_open(args->path, 115200);
 	else
 		trans = cdc_acm_open(args->path, args->requested_serial,
 				     115200, 0x15ba, 0x0031);
@@ -1214,7 +1214,7 @@ static device_t fet_open_olimex_v1(const struct device_args *args)
 	transport_t trans;
 
 	if (args->flags & DEVICE_FLAG_TTY)
-		trans = uif_open(args->path, UIF_TYPE_OLIMEX_V1);
+		trans = comport_open(args->path, 500000);
 	else
 		trans = cp210x_open(args->path, args->requested_serial,
 				    500000, 0x15ba, 0x0002);
@@ -1247,7 +1247,7 @@ static device_t fet_open_olimex_iso(const struct device_args *args)
 	transport_t trans;
 
 	if (args->flags & DEVICE_FLAG_TTY)
-		trans = uif_open(args->path, UIF_TYPE_OLIMEX_ISO);
+		trans = comport_open(args->path, 200000);
 	else
 		trans = olimex_iso_open(args->path, args->requested_serial);
 
@@ -1279,7 +1279,7 @@ static device_t fet_open_uif(const struct device_args *args)
 	transport_t trans;
 
 	if (args->flags & DEVICE_FLAG_TTY)
-		trans = uif_open(args->path, UIF_TYPE_FET);
+		trans = comport_open(args->path, 460800);
 	else
 		trans = ti3410_open(args->path, args->requested_serial);
 

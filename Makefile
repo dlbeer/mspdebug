@@ -119,7 +119,7 @@ OBJ=\
     transport/olimex_iso.o \
     transport/rf2500.o \
     transport/ti3410.o \
-    transport/uif.o \
+    transport/comport.o \
     drivers/device.o \
     drivers/bsl.o \
     drivers/fet.o \

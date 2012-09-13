@@ -46,9 +46,6 @@
 #include "fet_db.h"
 #include "flash_bsl.h"
 #include "gdbc.h"
-
-#include "uif.h"
-#include "rf2500.h"
 #include "tilib.h"
 #include "goodfet.h"
 
