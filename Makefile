@@ -116,7 +116,7 @@ OBJ=\
     util/demangle.o \
     transport/cp210x.o \
     transport/cdc_acm.o \
-    transport/olimex_iso.o \
+    transport/ftdi.o \
     transport/rf2500.o \
     transport/ti3410.o \
     transport/comport.o \

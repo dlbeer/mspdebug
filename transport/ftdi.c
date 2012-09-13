@@ -20,18 +20,16 @@
 #include <string.h>
 #include <time.h>
 
-#include "olimex_iso.h"
+#include "ftdi.h"
 #include "util.h"
 #include "usbutil.h"
 #include "output.h"
 
-struct iso_transport {
+struct ftdi_transport {
 	struct transport        base;
 	struct usb_dev_handle   *handle;
 };
 
-#define USB_VENDOR              0x15ba
-#define USB_PRODUCT             0x0008
 #define USB_INTERFACE           0
 #define USB_CONFIG              1
 
@@ -62,61 +60,61 @@ struct iso_transport {
 
 #define FTDI_PACKET_SIZE                64
 
-struct config_rec {
-	const char      *desc;
-	int             request;
-	int             value;
-};
+#define FTDI_CLOCK			3000000
 
-static const struct config_rec config[] = {
-	{"reset FTDI",
-	 FTDI_SIO_RESET, FTDI_SIO_RESET_SIO},
-	{"set data characteristics",
-	 FTDI_SIO_SET_DATA, 8}, /* 8,N,1 */
-	{"disable flow control",
-	 FTDI_SIO_SET_FLOW_CTRL, 0},
-	{"set modem control lines",
-	 FTDI_SIO_MODEM_CTRL, 0x303}, /* DSR + CTS */
-	{"set baud rate divisor",
-	 FTDI_SIO_SET_BAUD_RATE, 0xf}, /* 200 kbps */
-	{"set latency timer",
-	 FTDI_SIO_SET_LATENCY_TIMER, 50}, /* 50 ms */
-	{"purge TX",
-	 FTDI_SIO_RESET, FTDI_SIO_RESET_PURGE_TX},
-	{"purge RX",
-	 FTDI_SIO_RESET, FTDI_SIO_RESET_PURGE_RX}
-};
+#define FTDI_DTR			0x0001
+#define FTDI_RTS			0x0002
+#define FTDI_WRITE_DTR			0x0100
+#define FTDI_WRITE_RTS			0x0200
 
-int configure_ftdi(struct usb_dev_handle *handle)
+static int do_cfg(struct usb_dev_handle *handle, const char *what,
+		  int request, int value)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_LEN(config); i++) {
-		const struct config_rec *r = &config[i];
-
-		if (usb_control_msg(handle, REQTYPE_HOST_TO_DEVICE,
-				    r->request, r->value, 0,
-				    NULL, 0, REQ_TIMEOUT_MS)) {
-			printc_err("olimex_iso: %s failed: %s\n",
-				   r->desc, usb_strerror());
-			return -1;
-		}
+	if (usb_control_msg(handle, REQTYPE_HOST_TO_DEVICE,
+			    request, value, 0,
+			    NULL, 0, REQ_TIMEOUT_MS)) {
+		printc_err("ftdi: %s failed: %s\n", what, usb_strerror());
+		return -1;
 	}
 
 	return 0;
 }
 
-static int open_device(struct iso_transport *tr, struct usb_device *dev)
+int configure_ftdi(struct usb_dev_handle *h, int baud_rate)
+{
+	if (do_cfg(h, "reset FTDI",
+		   FTDI_SIO_RESET, FTDI_SIO_RESET_SIO) < 0 ||
+	    do_cfg(h, "set data characteristics",
+		   FTDI_SIO_SET_DATA, 8) < 0 ||
+	    do_cfg(h, "disable flow control",
+		   FTDI_SIO_SET_FLOW_CTRL, 0) < 0 ||
+	    do_cfg(h, "set modem control lines",
+		   FTDI_SIO_MODEM_CTRL, 0x303) < 0 ||
+	    do_cfg(h, "set baud rate",
+		   FTDI_SIO_SET_BAUD_RATE, FTDI_CLOCK / baud_rate) < 0 ||
+	    do_cfg(h, "set latency timer",
+		   FTDI_SIO_SET_LATENCY_TIMER, 50) < 0 ||
+	    do_cfg(h, "purge TX",
+		   FTDI_SIO_RESET, FTDI_SIO_RESET_PURGE_TX) < 0 ||
+	    do_cfg(h, "purge RX",
+		   FTDI_SIO_RESET, FTDI_SIO_RESET_PURGE_RX) < 0)
+		return -1;
+
+	return 0;
+}
+
+static int open_device(struct ftdi_transport *tr, struct usb_device *dev,
+		       int baud_rate)
 {
 #ifdef __linux__
 	int driver;
 	char drv_name[128];
 #endif
 
-	printc_dbg("olimex_iso: trying to open %s\n", dev->filename);
+	printc_dbg("ftdi: trying to open %s\n", dev->filename);
 	tr->handle = usb_open(dev);
 	if (!tr->handle) {
-		printc_err("olimex_iso: can't open device: %s\n",
+		printc_err("ftdi: can't open device: %s\n",
 			   usb_strerror());
 		return -1;
 	}
@@ -127,14 +125,14 @@ static int open_device(struct iso_transport *tr, struct usb_device *dev)
 	if (driver >= 0) {
 		printc_dbg("Detaching kernel driver \"%s\"\n", drv_name);
 		if (usb_detach_kernel_driver_np(tr->handle, USB_INTERFACE) < 0)
-			printc_err("warning: olimex_iso: can't detach "
+			printc_err("warning: ftdi: can't detach "
 				   "kernel driver: %s\n", usb_strerror());
 	}
 #endif
 
 #ifdef __Windows__
 	if (usb_set_configuration(tr->handle, USB_CONFIG) < 0) {
-		printc_err("olimex_iso: can't set configuration: %s\n",
+		printc_err("ftdi: can't set configuration: %s\n",
 			   usb_strerror());
 		usb_close(tr->handle);
 		return -1;
@@ -142,14 +140,14 @@ static int open_device(struct iso_transport *tr, struct usb_device *dev)
 #endif
 
 	if (usb_claim_interface(tr->handle, USB_INTERFACE) < 0) {
-		printc_err("olimex_iso: can't claim interface: %s\n",
+		printc_err("ftdi: can't claim interface: %s\n",
 			   usb_strerror());
 		usb_close(tr->handle);
 		return -1;
 	}
 
-	if (configure_ftdi(tr->handle) < 0) {
-		printc_err("olimex_iso: failed to configure device: %s\n",
+	if (configure_ftdi(tr->handle, baud_rate) < 0) {
+		printc_err("ftdi: failed to configure device: %s\n",
 			   usb_strerror());
 		usb_close(tr->handle);
 		return -1;
@@ -160,7 +158,7 @@ static int open_device(struct iso_transport *tr, struct usb_device *dev)
 
 static void tr_destroy(transport_t tr_base)
 {
-	struct iso_transport *tr = (struct iso_transport *)tr_base;
+	struct ftdi_transport *tr = (struct ftdi_transport *)tr_base;
 
 	usb_close(tr->handle);
 	free(tr);
@@ -168,7 +166,7 @@ static void tr_destroy(transport_t tr_base)
 
 static int tr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 {
-	struct iso_transport *tr = (struct iso_transport *)tr_base;
+	struct ftdi_transport *tr = (struct ftdi_transport *)tr_base;
 	time_t deadline = time(NULL) + TIMEOUT_S;
 	char tmpbuf[FTDI_PACKET_SIZE];
 
@@ -181,7 +179,7 @@ static int tr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 				      TIMEOUT_S * 1000);
 
 		if (r <= 0) {
-			printc_err("olimex_iso: usb_bulk_read: %s\n",
+			printc_err("ftdi: usb_bulk_read: %s\n",
 				   usb_strerror());
 			return -1;
 		}
@@ -189,24 +187,24 @@ static int tr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 		if (r > 2) {
 			memcpy(databuf, tmpbuf + 2, r - 2);
 #ifdef DEBUG_OLIMEX_ISO
-			printc_dbg("olimex_iso: tr_recv: flags = %02x %02x\n",
+			printc_dbg("ftdi: tr_recv: flags = %02x %02x\n",
 				   tmpbuf[0], tmpbuf[1]);
-			debug_hexdump("olimex_iso: tr_recv", databuf, r - 2);
+			debug_hexdump("ftdi: tr_recv", databuf, r - 2);
 #endif
 			return r - 2;
 		}
 	}
 
-	printc_err("olimex_iso: timed out while receiving data\n");
+	printc_err("ftdi: timed out while receiving data\n");
 	return -1;
 }
 
 static int tr_send(transport_t tr_base, const uint8_t *databuf, int len)
 {
-	struct iso_transport *tr = (struct iso_transport *)tr_base;
+	struct ftdi_transport *tr = (struct ftdi_transport *)tr_base;
 
 #ifdef DEBUG_OLIMEX_ISO
-	debug_hexdump("olimex_iso: tr_send", databuf, len);
+	debug_hexdump("ftdi: tr_send", databuf, len);
 #endif
 	while (len) {
 		int r = usb_bulk_write(tr->handle, EP_OUT,
@@ -214,7 +212,7 @@ static int tr_send(transport_t tr_base, const uint8_t *databuf, int len)
 				       TIMEOUT_S * 1000);
 
 		if (r <= 0) {
-			printc_err("olimex_iso: usb_bulk_write: %s\n",
+			printc_err("ftdi: usb_bulk_write: %s\n",
 				   usb_strerror());
 			return -1;
 		}
@@ -228,16 +226,28 @@ static int tr_send(transport_t tr_base, const uint8_t *databuf, int len)
 
 static int tr_flush(transport_t tr_base)
 {
-	return 0;
+	struct ftdi_transport *tr = malloc(sizeof(*tr));
+
+	return do_cfg(tr->handle, "purge RX",
+		      FTDI_SIO_RESET, FTDI_SIO_RESET_PURGE_RX);
 }
 
 static int tr_set_modem(transport_t tr_base, transport_modem_t state)
 {
-	printc_err("olimex_iso: unsupported operation: set_modem\n");
-	return -1;
+	struct ftdi_transport *tr = malloc(sizeof(*tr));
+	int value = FTDI_WRITE_DTR | FTDI_WRITE_RTS;
+
+	/* DTR and RTS bits are active-low for this device */
+	if (!(state & TRANSPORT_MODEM_DTR))
+		value |= FTDI_DTR;
+	if (!(state & TRANSPORT_MODEM_RTS))
+		value |= FTDI_RTS;
+
+	return do_cfg(tr->handle, "set modem control lines",
+		      FTDI_SIO_MODEM_CTRL, value);
 }
 
-static const struct transport_class olimex_iso_transport = {
+static const struct transport_class ftdi_class = {
 	.destroy	= tr_destroy,
 	.send		= tr_send,
 	.recv		= tr_recv,
@@ -245,18 +255,20 @@ static const struct transport_class olimex_iso_transport = {
 	.set_modem	= tr_set_modem
 };
 
-transport_t olimex_iso_open(const char *devpath,
-			    const char *requested_serial)
+transport_t ftdi_open(const char *devpath,
+		      const char *requested_serial,
+		      uint16_t vendor, uint16_t product,
+		      int baud_rate)
 {
-	struct iso_transport *tr = malloc(sizeof(*tr));
+	struct ftdi_transport *tr = malloc(sizeof(*tr));
 	struct usb_device *dev;
 
 	if (!tr) {
-		pr_error("olimex_iso: can't allocate memory");
+		pr_error("ftdi: can't allocate memory");
 		return NULL;
 	}
 
-	tr->base.ops = &olimex_iso_transport;
+	tr->base.ops = &ftdi_class;
 
 	usb_init();
 	usb_find_busses();
@@ -265,16 +277,15 @@ transport_t olimex_iso_open(const char *devpath,
 	if (devpath)
 		dev = usbutil_find_by_loc(devpath);
 	else
-		dev = usbutil_find_by_id(USB_VENDOR, USB_PRODUCT,
-					 requested_serial);
+		dev = usbutil_find_by_id(vendor, product, requested_serial);
 
 	if (!dev) {
 		free(tr);
 		return NULL;
 	}
 
-	if (open_device(tr, dev) < 0) {
-		printc_err("olimex_iso: failed to open device\n");
+	if (open_device(tr, dev, baud_rate) < 0) {
+		printc_err("ftdi: failed to open device\n");
 		return NULL;
 	}
 

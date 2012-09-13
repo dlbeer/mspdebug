@@ -35,7 +35,7 @@
 #include "opdb.h"
 
 #include "comport.h"
-#include "olimex_iso.h"
+#include "ftdi.h"
 #include "rf2500.h"
 #include "ti3410.h"
 #include "cp210x.h"
@@ -1249,7 +1249,8 @@ static device_t fet_open_olimex_iso(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = comport_open(args->path, 200000);
 	else
-		trans = olimex_iso_open(args->path, args->requested_serial);
+		trans = ftdi_open(args->path, args->requested_serial,
+				  0x15ba, 0x0008, 200000);
 
 	if (!trans)
 		return NULL;

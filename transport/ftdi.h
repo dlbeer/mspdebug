@@ -16,8 +16,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef OLIMEX_ISO_H_
-#define OLIMEX_ISO_H_
+#ifndef FTDI_H_
+#define FTDI_H_
 
 #include "transport.h"
 
@@ -26,7 +26,9 @@
  *
  * A particular USB device or serial number may be specified.
  */
-transport_t olimex_iso_open(const char *usb_device,
-			    const char *requested_serial);
+transport_t ftdi_open(const char *usb_device,
+		      const char *requested_serial,
+		      uint16_t vendor, uint16_t product,
+		      int baud_rate);
 
 #endif
