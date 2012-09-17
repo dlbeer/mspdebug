@@ -123,6 +123,7 @@ OBJ=\
     drivers/device.o \
     drivers/bsl.o \
     drivers/fet.o \
+    drivers/fet_core.o \
     drivers/fet_proto.o \
     drivers/fet_error.o \
     drivers/fet_db.o \
