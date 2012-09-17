@@ -32,8 +32,11 @@ static const char *device_help(const struct usb_device *dev)
 	} info[] = {
 		{0x0451, 0xf432, "eZ430-RF2500"},
 		{0x0451, 0xf430, "FET430UIF"},
-		{0x15ba, 0x0002, "Olimex MSP-JTAG-TINY (v1)"},
-		{0x15ba, 0x0031, "Olimex MSP-JTAG-TINY (v2)"}
+		{0x2047, 0x0010, "FET430UIF (V3 firmware)"},
+		{0x15ba, 0x0002, "Olimex MSP430-JTAG-TINY (v1)"},
+		{0x15ba, 0x0008, "Olimex MSP430-JTAG-ISO"},
+		{0x15ba, 0x0031, "Olimex MSP430-JTAG-TINY (v2)"},
+		{0x15ba, 0x0100, "Olimex MSP430-JTAG-ISO-MK2 (v2)"}
 	};
 	int i;
 

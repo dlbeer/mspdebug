@@ -89,14 +89,14 @@ connect to. Valid driver names are listed here.
 Connect to an eZ430-RF2500, Launchpad or Chronos device. Only USB
 connection is supported.
 .IP "\fBolimex\fR"
-Connect to an Olimex MSP-JTAG-TINY device. Both USB and tty access are
+Connect to an Olimex MSP430-JTAG-TINY device. Both USB and tty access are
 supported.
 .IP "\fBolimex-v1\fR"
-Connect to an Olimex MSP-JTAG-TINY (V1) device. Both USB and tty access are
+Connect to an Olimex MSP430-JTAG-TINY (V1) device. Both USB and tty access are
 supported. This driver must be used instead of \fBolimex\fR if connecting
 to a V1 device via a tty interface.
 .IP "\fBolimex-iso\fR"
-Connect to an Olimex MSP-JTAG-ISO device. Both USB and tty access are
+Connect to an Olimex MSP430-JTAG-ISO device. Both USB and tty access are
 supported.
 .IP "\fBolimex-iso-mk2\fR"
 Connect to an Olimex MSP430-JTAG-ISO-MK2 device. Both USB and tty
@@ -158,7 +158,10 @@ file (MSP430.DLL for Windows, libmsp430.so for Unix-like systems) must
 be present in the dynamic loader search path.
 
 USB connection is not supported for this driver. This driver supports
-watchpoints.
+watchpoints. Note that the \fB-d\fR option for this driver passes its
+argument straight through to the library's \fBMSP430_Initialize\fR
+function. Any special argument supported by that function is therefore
+accessible via the \fB-d\fR option.
 .IP "\fBgoodfet\fR"
 Connect to a GoodFET device. JTAG mode must be used, and only TTY access
 is supported. This device can be used for memory access (read, erase and
