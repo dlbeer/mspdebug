@@ -23,16 +23,19 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "fet_proto.h"
 #include "bsl.h"
 #include "util.h"
 #include "output.h"
-#include "fet_error.h"
-#include "sport.h"
+#include "transport.h"
+#include "comport.h"
+#include "ti3410.h"
 
 struct bsl_device {
 	struct device   base;
 
-	sport_t         serial_fd;
+	transport_t     serial;
+
 	uint8_t         reply_buf[256];
 	int             reply_len;
 };
@@ -45,7 +48,7 @@ static int bsl_ack(struct bsl_device *dev)
 {
 	uint8_t reply;
 
-	if (sport_read(dev->serial_fd, &reply, 1) < 0) {
+	if (dev->serial->ops->recv(dev->serial, &reply, 1) < 0) {
 		printc_err("bsl: failed to receive reply\n");
 		return -1;
 	}
@@ -68,13 +71,14 @@ static int bsl_sync(struct bsl_device *dev)
 	static const uint8_t c = DATA_HDR;
 	int tries = 2;
 
-	if (sport_flush(dev->serial_fd) < 0) {
+	if (dev->serial->ops->flush(dev->serial) < 0) {
 		pr_error("bsl: tcflush");
 		return -1;
 	}
 
 	while (tries--)
-		if (!(sport_write_all(dev->serial_fd, &c, 1) || bsl_ack(dev)))
+		if (!(dev->serial->ops->send(dev->serial, &c, 1) ||
+		      bsl_ack(dev)))
 			return 0;
 
 	printc_err("bsl: sync failed\n");
@@ -116,7 +120,7 @@ static int send_command(struct bsl_device *dev,
 	pktbuf[pktlen + 4] = cklow;
 	pktbuf[pktlen + 5] = ckhigh;
 
-	return sport_write_all(dev->serial_fd, pktbuf, pktlen + 6);
+	return dev->serial->ops->send(dev->serial, pktbuf, pktlen + 6);
 }
 
 static int verify_checksum(struct bsl_device *dev)
@@ -144,10 +148,9 @@ static int fetch_reply(struct bsl_device *dev)
 	dev->reply_len = 0;
 
 	for (;;) {
-		int r = sport_read(dev->serial_fd,
-				   dev->reply_buf + dev->reply_len,
-				   sizeof(dev->reply_buf) -
-				   dev->reply_len);
+		int r = dev->serial->ops->recv(dev->serial,
+			       dev->reply_buf + dev->reply_len,
+			       sizeof(dev->reply_buf) - dev->reply_len);
 
 		if (r < 0)
 			return -1;
@@ -202,7 +205,7 @@ static void bsl_destroy(device_t dev_base)
 	struct bsl_device *dev = (struct bsl_device *)dev_base;
 
 	bsl_xfer(dev, CMD_RESET, 0, NULL, 0);
-	sport_close(dev->serial_fd);
+	dev->serial->ops->destroy(dev->serial);
 	free(dev);
 }
 
@@ -331,27 +334,12 @@ static int bsl_erase(device_t dev_base, device_erase_type_t type,
 
 static int enter_via_fet(struct bsl_device *dev)
 {
-	uint8_t buf[16];
+	struct fet_proto proto;
 
-	/* Enter bootloader command */
-	if (sport_write_all(dev->serial_fd,
-		            (uint8_t *)"\x7e\x24\x01\x9d\x5a\x7e", 6)) {
-		printc_err("bsl: couldn't write bootloader transition "
-			"command\n");
-		return -1;
-	}
+	fet_proto_init(&proto, dev->serial, 0);
 
-	/* Wait for reply */
-	if (sport_read_all(dev->serial_fd, buf, 8) < 0) {
-		printc_err("bsl: couldn't read bootloader "
-			"transition acknowledgement\n");
-		return -1;
-	}
-
-	/* Check that it's what we expect */
-	if (memcmp(buf, "\x06\x00\x24\x00\x00\x00\x61\x01", 8)) {
-		printc_err("bsl: bootloader start returned error "
-			"%d (%s)\n", buf[5], fet_error(buf[5]));
+	if (fet_proto_xfer(&proto, 0x24, NULL, 0, 0) < 0) {
+		printc_err("bsl: failed to enter bootloader\n");
 		return -1;
 	}
 
@@ -361,11 +349,6 @@ static int enter_via_fet(struct bsl_device *dev)
 static device_t bsl_open(const struct device_args *args)
 {
 	struct bsl_device *dev;
-
-	if (!(args->flags & DEVICE_FLAG_TTY)) {
-		printc_err("This driver does not support raw USB access.\n");
-		return NULL;
-	}
 
 	dev = malloc(sizeof(*dev));
 	if (!dev) {
@@ -377,10 +360,12 @@ static device_t bsl_open(const struct device_args *args)
 
 	dev->base.type = &device_bsl;
 
-	dev->serial_fd = sport_open(args->path, 460800, 0);
-	if (SPORT_ISERR(dev->serial_fd)) {
-		printc_err("bsl: can't open %s: %s\n",
-			   args->path, last_error());
+	if (args->flags & DEVICE_FLAG_TTY)
+		dev->serial = comport_open(args->path, 460800);
+	else
+		dev->serial = ti3410_open(args->path, args->requested_serial);
+
+	if (!dev->serial) {
 		free(dev);
 		return NULL;
 	}
@@ -409,7 +394,7 @@ static device_t bsl_open(const struct device_args *args)
 	return (device_t)dev;
 
  fail:
-	sport_close(dev->serial_fd);
+	dev->serial->ops->destroy(dev->serial);
 	free(dev);
 	return NULL;
 }

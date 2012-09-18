@@ -133,8 +133,6 @@ programming device itself.
 
 Currently, only memory read/write and erase are supported. CPU control
 via the bootloader is not possible.
-
-USB connection is not supported for this driver.
 .IP "\fBflash-bsl\fR"
 Connect to the built-in bootloader in MSP430 devices with flash bootloader
 memory. Devices with ROM bootloaders require another driver. Currently,
