@@ -29,6 +29,8 @@
 #include <linux/serial.h>
 #endif
 
+#define TIMEOUT_S	30
+
 #ifndef __Windows__
 
 #ifndef B460800
@@ -157,7 +159,7 @@ int sport_read(sport_t s, uint8_t *data, int len)
 
 	do {
 		struct timeval tv = {
-			.tv_sec = 5,
+			.tv_sec = TIMEOUT_S,
 			.tv_usec = 0
 		};
 
@@ -262,7 +264,7 @@ static int xfer_wait(sport_t s, LPOVERLAPPED ovl)
 			return -1;
 		}
 
-		r = WaitForSingleObject(ctrlc_win32_event(), 5000);
+		r = WaitForSingleObject(ctrlc_win32_event(), TIMEOUT_S * 1000);
 		if (r == WAIT_TIMEOUT) {
 			CancelIo(s);
 			SetLastError(WAIT_TIMEOUT);

@@ -36,7 +36,7 @@ struct ftdi_transport {
 #define EP_IN                   0x81
 #define EP_OUT                  0x02
 
-#define TIMEOUT_S               10
+#define TIMEOUT_S               30
 #define REQ_TIMEOUT_MS          100
 
 #define REQTYPE_HOST_TO_DEVICE  0x40

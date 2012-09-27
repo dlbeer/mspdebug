@@ -47,7 +47,7 @@ struct cdc_acm_transport {
 
 #define CDC_INTERFACE_CLASS		10
 
-#define TIMEOUT		                10000
+#define TIMEOUT		                30000
 
 /* CDC requests */
 #define CDC_REQTYPE_HOST_TO_DEVICE	0x21

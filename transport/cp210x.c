@@ -67,7 +67,7 @@ struct cp210x_transport {
 #define CP210X_WRITE_DTR		0x0100
 #define CP210X_WRITE_RTS		0x0200
 
-#define TIMEOUT		                10000
+#define TIMEOUT		                30000
 
 static int configure_port(struct cp210x_transport *tr, int baud_rate)
 {

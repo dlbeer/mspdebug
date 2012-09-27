@@ -656,19 +656,19 @@ int try_open(struct fet_device *dev, const struct device_args *args,
 	if (do_configure(dev, args) < 0)
 		return -1;
 
-	if (send_reset || args->flags & DEVICE_FLAG_FORCE_RESET) {
-		printc_dbg("Sending reset...\n");
-		if (fet_proto_xfer(&dev->proto, C_RESET, NULL, 0,
-				   3, FET_RESET_ALL, 0, 0) < 0)
-			printc_err("warning: fet: reset failed\n");
-	}
-
 	/* set VCC */
 	if (fet_proto_xfer(&dev->proto, C_VCC, NULL, 0,
 			   1, args->vcc_mv) < 0)
 		printc_err("warning: fet: set VCC failed\n");
 	else
 		printc_dbg("Set Vcc: %d mV\n", args->vcc_mv);
+
+	if (send_reset || args->flags & DEVICE_FLAG_FORCE_RESET) {
+		printc_dbg("Sending reset...\n");
+		if (fet_proto_xfer(&dev->proto, C_RESET, NULL, 0,
+				   3, FET_RESET_ALL, 0, 0) < 0)
+			printc_err("warning: fet: reset failed\n");
+	}
 
 	/* Identify the chip */
 	if (do_identify(dev, args->forced_chip_id) < 0) {
