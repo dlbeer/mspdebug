@@ -384,6 +384,28 @@ values may be specified as address expressions.
 With no arguments, this command displays all available option variables.
 With just an option name as its argument, it displays the current value
 of that option.
+.IP "\fBpower info\fR"
+Show basic power statistics gathered over the last few sessions. This
+includes total charge consumption, run time and average current.
+.IP "\fBpower clear\fR"
+Clear all recorded power statistics.
+.IP "\fBpower all\fR [\fIgranularity\fR]"
+Show sample data gathered over all sessions. An optional granularity can
+be specified, in microseconds. For each time slice, relative session time,
+charge consumption, current consumption and approximate code location are
+shown.
+.IP "\fBpower session\fR \fIN\fR [\fIgranularity\fR]"
+Same as \fBpower all\fR, except that data is shown only for the \fIN\fRth
+session.
+.IP "\fBpower export-csv\fR \fIN\fR \fIfilename\fR"
+Export raw sample data for the \fIN\fRth session to the given file in CSV
+format. For each line, the columns are, in order: relative time in
+microseconds, current consumption in microamps, memory address.
+.IP "\fBpower profile\fR"
+If a symbol table is loaded, compile and correlate all gathered power data
+against the symbol table. A single table is then shown listing, per function,
+charge consumption, run time and average current. The functions are listed
+in order of charge consumption (biggest consumers first).
 .IP "\fBprog\fR \fIfilename\fR"
 Erase and reprogram the device under test using the binary file
 supplied. The file format will be auto-detected and may be any of
