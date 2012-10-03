@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "util.h"
+#include "stab.h"
 #include "output.h"
 #include "output_util.h"
 #include "device.h"
@@ -214,6 +215,136 @@ static int sc_export_csv(powerbuf_t pb, char **arg)
 	return 0;
 }
 
+struct profile_rec {
+	char			name[64];
+	address_t		addr;
+	unsigned long long	charge;
+	int			samples;
+};
+
+static int add_symbol(void *user_data, const char *name, address_t offset)
+{
+	struct vector *v = (struct vector *)user_data;
+	struct profile_rec rec;
+
+	strncpy(rec.name, name, sizeof(rec.name));
+	rec.name[sizeof(rec.name) - 1] = 0;
+
+	rec.addr = offset;
+	rec.charge = 0;
+	rec.samples = 0;
+
+	return vector_push(v, &rec, 1);
+}
+
+static void merge_power(struct vector *list, powerbuf_t pb)
+{
+	int num_samples =
+		(pb->current_head + pb->max_samples - pb->current_tail) %
+			pb->max_samples;
+	int dst = 0;
+	int src = 0;
+
+	/* Skip samples that don't match any known symbol */
+	while ((dst < list->size) && (src < num_samples) &&
+	       (pb->mab[pb->sorted[src]] <
+		VECTOR_PTR(*list, dst, struct profile_rec)->addr))
+		src++;
+
+	while ((dst < list->size) && (src < num_samples)) {
+		address_t mab = pb->mab[pb->sorted[src]];
+		unsigned int ua = pb->current_ua[pb->sorted[src]];
+
+		if ((dst + 1 < list->size) &&
+		    (VECTOR_PTR(*list, dst + 1,
+				struct profile_rec)->addr <= mab)) {
+			dst++;
+		} else {
+			struct profile_rec *r =
+				VECTOR_PTR(*list, dst, struct profile_rec);
+
+			r->charge += ua;
+			r->samples++;
+			src++;
+		}
+	}
+}
+
+static int cmp_by_addr(const void *a, const void *b)
+{
+	const struct profile_rec *pa = (const struct profile_rec *)a;
+	const struct profile_rec *pb = (const struct profile_rec *)b;
+
+	if (pa->addr < pb->addr)
+		return -1;
+	if (pa->addr > pb->addr)
+		return 1;
+
+	return 0;
+}
+
+static int cmp_by_charge_rev(const void *a, const void *b)
+{
+	const struct profile_rec *pa = (const struct profile_rec *)a;
+	const struct profile_rec *pb = (const struct profile_rec *)b;
+
+	if (pa->charge < pb->charge)
+		return 1;
+	if (pa->charge > pb->charge)
+		return -1;
+
+	return 0;
+}
+
+static void print_profile(int interval_us, const struct vector *list)
+{
+	int i;
+
+	printc("%-7s %-15s %15s %15s %15s\n",
+		"Addr", "Name", "Charge (uAs)", "Time (ms)", "Current (uA)");
+	printc("---------------------------------------"
+	       "---------------------------------\n");
+
+	for (i = 0; i < list->size; i++) {
+		const struct profile_rec *r =
+			VECTOR_PTR(*list, i, const struct profile_rec);
+
+		if (!r->samples)
+			continue;
+
+		printc("0x%05x %-15s %15.01f %15.01f %15.01f\n",
+			r->addr, r->name,
+			(double)(r->charge * interval_us) / 1000000.0,
+			(double)(r->samples * interval_us) / 1000.0,
+			(double)r->charge / (double)r->samples);
+	}
+}
+
+static int sc_profile(powerbuf_t pb)
+{
+	struct vector list;
+
+	/* First, assemble a list of symbols */
+	vector_init(&list, sizeof(struct profile_rec));
+	if (stab_enum(add_symbol, &list) < 0) {
+		printc_err("Out of memory: %s\n", last_error());
+		vector_destroy(&list);
+		return -1;
+	}
+
+	/* Merge in power profile samples */
+	qsort(list.ptr, list.size, list.elemsize, cmp_by_addr);
+	powerbuf_sort(pb);
+	merge_power(&list, pb);
+
+	/* Prepare and print profile */
+	qsort(list.ptr, list.size, list.elemsize, cmp_by_charge_rev);
+	print_profile(pb->interval_us, &list);
+	vector_destroy(&list);
+
+	return 0;
+}
+
 int cmd_power(char **arg)
 {
 	powerbuf_t pb = device_default->power_buf;
@@ -241,6 +372,8 @@ int cmd_power(char **arg)
 		return sc_session(pb, arg);
 	if (!strcasecmp(subcmd, "export-csv"))
 		return sc_export_csv(pb, arg);
+	if (!strcasecmp(subcmd, "profile"))
+		return sc_profile(pb);
 
 	printc_err("power: unknown subcommand: %s (try \"help power\")\n",
 		   subcmd);

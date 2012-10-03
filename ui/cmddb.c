@@ -348,6 +348,8 @@ const struct cmddb_record commands[] = {
 "    Show data only for the specified session.\n"
 "power export-csv <N> <filename>\n"
 "    Write session data for the given session to a CSV file.\n"
+"power profile\n"
+"    List power profile data by symbol.\n"
 	}
 };
 
