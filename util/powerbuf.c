@@ -43,6 +43,12 @@ powerbuf_t powerbuf_new(unsigned int max_samples, unsigned int interval_us)
 	pb->mab = malloc(sizeof(pb->mab[0]) * max_samples);
 	if (!pb->mab) {
 		free(pb->current_ua);
+		return NULL;
+	}
+
+	pb->sorted = malloc(sizeof(pb->sorted[0]) * max_samples);
+	if (!pb->sorted) {
+		free(pb->current_ua);
 		free(pb->mab);
 		return NULL;
 	}
@@ -60,6 +66,7 @@ void powerbuf_free(powerbuf_t pb)
 {
 	free(pb->current_ua);
 	free(pb->mab);
+	free(pb->sorted);
 	free(pb);
 }
 
@@ -67,6 +74,7 @@ void powerbuf_clear(powerbuf_t pb)
 {
 	pb->session_head = pb->session_tail = 0;
 	pb->current_head = pb->current_tail = 0;
+	pb->sort_valid = 0;
 }
 
 static unsigned int session_length(powerbuf_t pb, unsigned int idx)
@@ -264,6 +272,8 @@ void powerbuf_add_samples(powerbuf_t pb, unsigned int count,
 		mab += cont_len;
 		count -= cont_len;
 	}
+
+	pb->sort_valid = 0;
 }
 
 address_t powerbuf_last_mab(powerbuf_t pb)
@@ -276,4 +286,146 @@ address_t powerbuf_last_mab(powerbuf_t pb)
 		return 0;
 
 	return pb->mab[last];
+}
+
+static void sift_down(powerbuf_t pb, int start, int end)
+{
+	int root = start;
+
+	while (root * 2 + 1 <= end) {
+		int left_child = root * 2 + 1;
+		int biggest = root;
+		unsigned int temp;
+
+		/* Find the largest of
+		 *   (root, left child, right child)
+		 */
+		if (pb->mab[pb->sorted[biggest]] <
+		    pb->mab[pb->sorted[left_child]])
+			biggest = left_child;
+		if (left_child + 1 <= end &&
+		    (pb->mab[pb->sorted[biggest]] <
+		     pb->mab[pb->sorted[left_child + 1]]))
+			biggest = left_child + 1;
+
+		/* If no changes are needed, the heap property is ok and
+		 * we can stop.
+		 */
+		if (biggest == root)
+			break;
+
+		/* Swap the root with its largest child */
+		temp = pb->sorted[biggest];
+		pb->sorted[biggest] = pb->sorted[root];
+		pb->sorted[root] = temp;
+
+		/* Continue to push down the old root (now a child) */
+		root = biggest;
+	}
+}
+
+static void heapify(powerbuf_t pb, int num_samples)
+{
+	int start = (num_samples - 2) / 2;
+
+	while (start >= 0) {
+		sift_down(pb, start, num_samples - 1);
+		start--;
+	}
+}
+
+static void heap_extract(powerbuf_t pb, int num_samples)
+{
+	int end = num_samples - 1;
+
+	while (end > 0) {
+		unsigned int temp;
+
+		/* Swap the top of the heap with the end of the array,
+		 * and shrink the heap.
+		 */
+		temp = pb->sorted[0];
+		pb->sorted[0] = pb->sorted[end];
+		pb->sorted[end] = temp;
+		end--;
+
+		/* Fix up the heap (push down the new root) */
+		sift_down(pb, 0, end);
+	}
+}
+
+void powerbuf_sort(powerbuf_t pb)
+{
+	const unsigned int num_samples =
+		(pb->current_head + pb->max_samples - pb->current_tail) %
+			pb->max_samples;
+	unsigned int i;
+
+	if (pb->sort_valid)
+		return;
+
+	/* Prepare an index list */
+	for (i = 0; i < num_samples; i++)
+		pb->sorted[i] = (pb->current_tail + i) % pb->max_samples;
+
+	if (num_samples < 2) {
+		pb->sort_valid = 1;
+		return;
+	}
+
+	heapify(pb, num_samples);
+	heap_extract(pb, num_samples);
+	pb->sort_valid = 1;
+}
+
+/* Find the index within the sorted index of the first sample with an
+ * MAB >= the given mab parameter.
+ */
+static int find_mab_ge(powerbuf_t pb, address_t mab)
+{
+	const int num_samples =
+		(pb->current_head + pb->max_samples - pb->current_tail) %
+			pb->max_samples;
+	int low = 0;
+	int high = num_samples - 1;
+
+	while (low <= high) {
+		int mid = (low + high) / 2;
+
+		if (pb->mab[pb->sorted[mid]] < mab)
+			low = mid + 1;
+		else if ((mid <= 0) || (pb->mab[pb->sorted[mid - 1]] < mab))
+			return mid;
+		else
+			high = mid - 1;
+	}
+
+	return -1;
+}
+
+int powerbuf_get_by_mab(powerbuf_t pb, address_t mab,
+			unsigned long long *sum_ua)
+{
+	const unsigned int num_samples =
+		(pb->current_head + pb->max_samples - pb->current_tail) %
+			pb->max_samples;
+	int i;
+	int count = 0;
+
+	if (!pb->sort_valid)
+		powerbuf_sort(pb);
+
+	i = find_mab_ge(pb, mab);
+	if (i < 0)
+		return 0;
+
+	*sum_ua = 0;
+
+	while ((i < num_samples) && (pb->mab[pb->sorted[i]] == mab)) {
+		*sum_ua += pb->current_ua[pb->sorted[i]];
+		count++;
+		i++;
+	}
+
+	return count;
 }

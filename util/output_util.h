@@ -21,9 +21,11 @@
 
 #include "output.h"
 #include "util.h"
+#include "powerbuf.h"
 
 /* Print colorized disassembly on command processor standard output */
-void disassemble(address_t addr, const uint8_t *buf, int len);
+void disassemble(address_t addr, const uint8_t *buf, int len,
+		 powerbuf_t power);
 
 /* Print colorized hexdump on standard output */
 void hexdump(address_t addr, const uint8_t *buf, int len);

@@ -371,7 +371,8 @@ static int do_isearch(address_t addr, address_t len,
 		int count = dis_decode(mbuf + i, addr + i, len - i, &insn);
 
 		if (count >= 0 && isearch_match(&insn, q))
-			disassemble(addr + i, mbuf + i, count);
+			disassemble(addr + i, mbuf + i, count,
+				    device_default->power_buf);
 	}
 
 	free(mbuf);

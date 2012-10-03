@@ -136,10 +136,10 @@ static int dis_format(const struct msp430_instruction *insn)
 				      insn->src_addr,
 				      insn->src_reg);
 
-		printc(",");
+		len += printc(",");
 		while (len < 15)
 			len += printc(" ");
-		printc(" ");
+		len += printc(" ");
 	}
 
 	/* Destination operand */
@@ -157,9 +157,12 @@ static int dis_format(const struct msp430_instruction *insn)
 	return len;
 }
 
-void disassemble(address_t offset, const uint8_t *data, int length)
+void disassemble(address_t offset, const uint8_t *data, int length,
+		 powerbuf_t power)
 {
 	int first_line = 1;
+	unsigned long long ua_total = 0;
+	int samples_total = 0;
 
 	while (length) {
 		struct msp430_instruction insn = {0};
@@ -194,13 +197,39 @@ void disassemble(address_t offset, const uint8_t *data, int length)
 		}
 
 		if (retval >= 0)
-			dis_format(&insn);
+			i = dis_format(&insn);
+
+		if (power) {
+			unsigned long long ua;
+			int samples;
+
+			while (i < 40) {
+				printc(" ");
+				i++;
+			}
+
+			samples = powerbuf_get_by_mab(power, offset, &ua);
+			if (samples) {
+				printc(" ;; %.01f uA",
+					(double)ua / (double)samples);
+				ua_total += ua;
+				samples_total += samples;
+			}
+		}
+
 		printc("\n");
 
 		offset += count;
 		length -= count;
 		data += count;
 	}
+
+	if (power && samples_total)
+		printc(";; Total over this block: "
+			"%.01f uAs in %.01f ms (%.01f uA avg)\n",
+		       (double)(ua_total * power->interval_us) / 1000000.0,
+		       (double)(samples_total * power->interval_us) / 1000.0,
+		       (double)ua_total / (double)samples_total);
 }
 
 void hexdump(address_t addr, const uint8_t *data, int data_len)
@@ -256,9 +285,9 @@ void show_regs(const address_t *regs)
 int print_address(address_t addr, char *out, int max_len)
 {
 	char name[MAX_SYMBOL_LENGTH];
-        address_t offset;
+	address_t offset;
 
-        if (!stab_nearest(addr, name, sizeof(name), &offset)) {
+	if (!stab_nearest(addr, name, sizeof(name), &offset)) {
 		int len;
 		if (offset)
 			len = snprintf(out, max_len, "%s+0x%x", name, offset);
@@ -270,7 +299,7 @@ int print_address(address_t addr, char *out, int max_len)
 			snprintf(out + len, max_len - len, " (%s)", demangled);
 		}
 		return 1;
-        }
+	}
 
 	snprintf(out, max_len, "0x%04x", addr);
 	return 0;

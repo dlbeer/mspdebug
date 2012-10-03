@@ -78,6 +78,17 @@ struct powerbuf {
 	address_t			*mab;
 	unsigned int			current_head;
 	unsigned int			current_tail;
+
+	/* Index by MAB. This is a flat array which points to indices
+	 * within current_ua/mab. The indices are sorted in order of
+	 * increasing MAB.
+	 *
+	 * Note that this array is invalidated by any modification to
+	 * the sample buffers. You need to call powerbuf_sort() before
+	 * accessing it.
+	 */
+	int				sort_valid;
+	unsigned int			*sorted;
 };
 
 typedef struct powerbuf *powerbuf_t;
@@ -119,5 +130,17 @@ void powerbuf_add_samples(powerbuf_t pb, unsigned int count,
 
 /* Retrieve the last known MAB for this session, or 0 if none exists. */
 address_t powerbuf_last_mab(powerbuf_t pb);
+
+/* Prepare the sorted MAB index. */
+void powerbuf_sort(powerbuf_t pb);
+
+/* Obtain charge consumption data by MAB over all sessions. This
+ * automatically calls powerbuf_sort() if necessary.
+ *
+ * Returns the number of samples found on success. The sum of all
+ * current samples is written to the sum_ua argument.
+ */
+int powerbuf_get_by_mab(powerbuf_t pb, address_t mab,
+			unsigned long long *sum_ua);
 
 #endif

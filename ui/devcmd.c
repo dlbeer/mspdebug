@@ -50,7 +50,7 @@ int cmd_regs(char **arg)
 	if (device_readmem(regs[0], code, len) < 0)
 		return 0;
 
-	disassemble(regs[0], (uint8_t *)code, len);
+	disassemble(regs[0], (uint8_t *)code, len, device_default->power_buf);
 	return 0;
 }
 
@@ -324,7 +324,7 @@ int cmd_dis(char **arg)
 	}
 
 	reader_set_repeat("dis 0x%x 0x%x", offset + length, length);
-	disassemble(offset, buf, length);
+	disassemble(offset, buf, length, device_default->power_buf);
 	free(buf);
 	return 0;
 }
