@@ -128,7 +128,6 @@ static int parse_packet(struct fet_proto *dev, int plen)
 	uint16_t r = LE_WORD(dev->fet_buf, plen);
 	int i = 2;
 	int type;
-	int error;
 
 	if (c != r) {
 		printc_err("fet: checksum error (calc %04x,"
@@ -142,11 +141,11 @@ static int parse_packet(struct fet_proto *dev, int plen)
 	dev->command_code = dev->fet_buf[i++];
 	type = dev->fet_buf[i++];
 	dev->state = dev->fet_buf[i++];
-	error = dev->fet_buf[i++];
+	dev->error = dev->fet_buf[i++];
 
-	if (error) {
+	if (dev->error) {
 		printc_err("fet: FET returned error code %d (%s)\n",
-			error, fet_error(error));
+				dev->error, fet_error(dev->error));
 		return -1;
 	}
 

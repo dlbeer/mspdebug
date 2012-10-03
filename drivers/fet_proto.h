@@ -48,6 +48,7 @@ struct fet_proto {
 	/* Received packet is parsed into these fields */
 	int				command_code;
 	int				state;
+	int				error;
 
 	int				argc;
 	uint32_t			argv[FET_PROTO_MAX_PARAMS];
