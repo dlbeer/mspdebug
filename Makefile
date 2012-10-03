@@ -133,6 +133,8 @@ OBJ=\
     drivers/tilib.o \
     drivers/goodfet.o \
     drivers/obl.o \
+    drivers/devicelist.o \
+    drivers/fet_olimex_db.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \

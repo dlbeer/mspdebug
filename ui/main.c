@@ -44,6 +44,7 @@
 #include "fet.h"
 #include "vector.h"
 #include "fet_db.h"
+#include "fet_olimex_db.h"
 #include "flash_bsl.h"
 #include "gdbc.h"
 #include "tilib.h"
@@ -152,6 +153,13 @@ static int add_fet_device(void *user_data, const struct fet_db_record *r)
 	return vector_push(v, &r->name, 1);
 }
 
+static int add_fet_olimex_device(void *user_data, const char *name)
+{
+	struct vector *v = (struct vector *)user_data;
+
+	return vector_push(v, &name, 1);
+}
+
 static int list_devices(void)
 {
 	struct vector v;
@@ -164,6 +172,18 @@ static int list_devices(void)
 	}
 
 	printc("Devices supported by FET driver:\n");
+	namelist_print(&v);
+	vector_destroy(&v);
+
+	vector_init(&v, sizeof(const char *));
+	if (fet_olimex_db_enum(add_fet_olimex_device, &v) < 0) {
+		pr_error("couldn't allocate memory");
+		vector_destroy(&v);
+		return -1;
+	}
+
+	printc("\n");
+	printc("Devices supported by Olimex FET driver:\n");
 	namelist_print(&v);
 	vector_destroy(&v);
 

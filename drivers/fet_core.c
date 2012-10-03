@@ -1,5 +1,6 @@
 /* MSPDebug - debugging tool for the eZ430
  * Copyright (C) 2009-2012 Daniel Beer
+ * Copyright (C) 2012 Stanimir Bonev
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +36,9 @@
 #include "fet_db.h"
 #include "output.h"
 #include "opdb.h"
+
+#include "fet_olimex_db.h"
+#include "devicelist.h"
 
 struct fet_device {
 	struct device                   base;
@@ -229,8 +233,144 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 	return 0;
 }
 
+static int identify_olimex(struct fet_device *dev, const char *force_id)
+{
+	const struct fet_olimex_db_record *r;
+	int db_indx;
+	devicetype_t set_id = DT_UNKNOWN_DEVICE;
+	devicetype_t dev_id = DT_UNKNOWN_DEVICE;
+	uint8_t jtag_id;
+
+	printc_dbg("Using Olimex identification procedure\n");
+
+	if (force_id) {
+		db_indx = fet_olimex_db_find_by_name(force_id);
+
+		if (db_indx < 0) {
+			printc_err("fet: no such device: %s\n", force_id);
+			return -1;
+		}
+
+		dev_id = set_id = fet_olimex_db_index_to_type(db_indx);
+	}
+
+	/* first try */
+	if (fet_proto_xfer(&dev->proto, C_IDENT1, NULL, 0, 3,
+			   set_id, set_id, 0) < 0 &&
+	    (4 != dev->proto.error)) /* No device error */
+	{
+
+		printc_err("fet: command C_IDENT1 failed\n");
+		return -1;
+	}
+
+	if (dev->proto.datalen < 19) {
+		printc_err("fet: missing info\n");
+		return -1;
+	}
+
+	jtag_id = dev->proto.data[18];
+
+	/* find device in data base */
+	if (DT_UNKNOWN_DEVICE == dev_id) {
+		db_indx = fet_olimex_db_identify(dev->proto.data);
+		dev_id = fet_olimex_db_index_to_type(db_indx);
+	}
+
+	if ((DT_UNKNOWN_DEVICE == dev_id && 0x91 == jtag_id) ||
+	    (4 == dev->proto.error)) {
+		/* second try with magic pattern */
+		if (fet_proto_xfer(&dev->proto, C_IDENT1, NULL, 0, 3,
+				   set_id, dev_id, 0) < 0) {
+			printc_err("fet: command C_IDENT1 with "
+				   "magic patern failed\n");
+			return -1;
+		}
+
+		db_indx = fet_olimex_db_identify(dev->proto.data);
+		dev_id = fet_olimex_db_index_to_type(db_indx);
+	}
+
+	printc_dbg("Device ID: 0x%02x%02x\n",
+	       dev->proto.data[0], dev->proto.data[1]);
+
+	if (DT_UNKNOWN_DEVICE == dev_id) {
+		printc_err("fet: can't find device in DB\n");
+		return -1;
+	}
+
+	r = fet_db_get_record(dev_id);
+
+	dev->base.max_breakpoints = r->msg29_data[0x14];
+
+	printc_dbg("  Code start address: 0x%x\n",
+		   LE_WORD(r->msg29_data, 0));
+	/*
+	 * The value at 0x02 seems to contain a "virtual code end
+	 * address". So this value seems to be useful only for
+	 * calculating the total ROM size.
+	 *
+	 * For example, as for the msp430f6736 with 128kb ROM, the ROM
+	 * is split into two areas: A "near" ROM, and a "far ROM".
+	 */
+	const uint32_t codeSize =
+	  LE_LONG(r->msg29_data, 0x02)
+	  - LE_WORD(r->msg29_data, 0)
+	  + 1;
+	printc_dbg("  Code size         : %u byte = %u kb\n",
+		   codeSize,
+		   codeSize / 1024);
+
+	printc_dbg("  RAM  start address: 0x%x\n",
+		   LE_WORD(r->msg29_data, 0x0c));
+	printc_dbg("  RAM  end   address: 0x%x\n",
+		   LE_WORD(r->msg29_data, 0x0e));
+
+	const uint16_t ramSize =
+	  LE_WORD(r->msg29_data, 0x0e)
+	  - LE_WORD(r->msg29_data, 0x0c)
+	  + 1;
+
+	printc_dbg("  RAM  size         : %u byte = %u kb\n",
+		   ramSize, ramSize / 1024);
+
+	show_dev_info(r->name, dev);
+
+	if (fet_proto_xfer(&dev->proto, C_IDENT3,
+			   r->msg2b_data, r->msg2b_len, 0) < 0)
+		printc_err("fet: warning: message C_IDENT3 failed\n");
+
+	if (fet_proto_xfer(&dev->proto, C_IDENT2,
+			   r->msg29_data, FET_DB_MSG29_LEN,
+			   3, r->msg29_params[0], r->msg29_params[1],
+			   r->msg29_params[2]) < 0) {
+		printc_err("fet: message C_IDENT2 failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int is_new_olimex(const struct fet_device *dev)
+{
+	if ((&device_olimex_iso_mk2 == dev->base.type) &&
+	    (20000004 <= dev->version))
+		return 1;
+
+	if (((&device_olimex == dev->base.type) ||
+	     (&device_olimex_v1 == dev->base.type) ||
+	     (&device_olimex_iso == dev->base.type)) &&
+	    (10004003 <= dev->version))
+		return 1;
+
+	return 0;
+}
+
 static int do_identify(struct fet_device *dev, const char *force_id)
 {
+	if (is_new_olimex(dev))
+		return identify_olimex(dev, force_id);
+
 	if (dev->fet_flags & FET_IDENTIFY_NEW)
 		return identify_new(dev, force_id);
 
@@ -653,15 +793,16 @@ int try_open(struct fet_device *dev, const struct device_args *args,
 		return -1;
 	}
 
-	if (do_configure(dev, args) < 0)
-		return -1;
-
 	/* set VCC */
 	if (fet_proto_xfer(&dev->proto, C_VCC, NULL, 0,
 			   1, args->vcc_mv) < 0)
 		printc_err("warning: fet: set VCC failed\n");
 	else
 		printc_dbg("Set Vcc: %d mV\n", args->vcc_mv);
+
+
+	if (do_configure(dev, args) < 0)
+		return -1;
 
 	if (send_reset || args->flags & DEVICE_FLAG_FORCE_RESET) {
 		printc_dbg("Sending reset...\n");
@@ -702,7 +843,7 @@ device_t fet_open(const struct device_args *args,
 	if (try_open(dev, args, fet_flags & FET_FORCE_RESET) < 0) {
 		delay_ms(500);
 		printc("Trying again...\n");
-		if (try_open(dev, args, 1) < 0)
+		if (try_open(dev, args, !is_new_olimex(dev)) < 0)
 			goto fail;
 	}
 
