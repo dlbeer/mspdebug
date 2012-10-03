@@ -346,6 +346,8 @@ const struct cmddb_record commands[] = {
 "    Show all power data, optionally specifying a granularity in us.\n"
 "power session <N> [granularity]\n"
 "    Show data only for the specified session.\n"
+"power export-csv <N> <filename>\n"
+"    Write session data for the given session to a CSV file.\n"
 	}
 };
 

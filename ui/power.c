@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -159,6 +160,60 @@ static int sc_session(powerbuf_t pb, char **arg)
 	return 0;
 }
 
+static int sc_export_csv(powerbuf_t pb, char **arg)
+{
+	const char *sess_text = get_arg(arg);
+	const char *filename = get_arg(arg);
+	unsigned int length;
+	const struct powerbuf_session *rec;
+	FILE *out;
+	int sess;
+	unsigned int i;
+
+	if (!(sess_text && filename)) {
+		printc_err("power: expected a session number and filename\n");
+		return -1;
+	}
+
+	sess = atoi(sess_text);
+	if (sess < 0 || sess >= powerbuf_num_sessions(pb)) {
+		printc_err("power: invalid session: %d\n", sess);
+		return -1;
+	}
+
+	rec = powerbuf_session_info(pb, sess, &length);
+
+	out = fopen(filename, "w");
+	if (!out) {
+		printc_err("power: can't open %s: %s\n",
+			   filename, last_error());
+		return -1;
+	}
+
+	for (i = 0; i < length; i++) {
+		const unsigned int idx =
+			(rec->start_index + i) % pb->max_samples;
+
+		if (fprintf(out, "%15d,%15d, 0x%05x\n",
+			    i * pb->interval_us,
+			    pb->current_ua[idx], pb->mab[idx]) < 0) {
+			printc_err("power: write error: %s: %s\n",
+				   filename, last_error());
+			fclose(out);
+			return -1;
+		}
+	}
+
+	if (fclose(out) < 0) {
+		printc_err("power: error on close of %s: %s\n",
+			    filename, last_error());
+		return -1;
+	}
+
+	printc("Exported %d samples to %s\n", length, filename);
+	return 0;
+}
+
 int cmd_power(char **arg)
 {
 	powerbuf_t pb = device_default->power_buf;
@@ -184,6 +239,8 @@ int cmd_power(char **arg)
 		return sc_all(pb, arg);
 	if (!strcasecmp(subcmd, "session"))
 		return sc_session(pb, arg);
+	if (!strcasecmp(subcmd, "export-csv"))
+		return sc_export_csv(pb, arg);
 
 	printc_err("power: unknown subcommand: %s (try \"help power\")\n",
 		   subcmd);
