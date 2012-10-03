@@ -114,6 +114,7 @@ OBJ=\
     util/gdb_proto.o \
     util/dynload.o \
     util/demangle.o \
+    util/powerbuf.o \
     transport/cp210x.o \
     transport/cdc_acm.o \
     transport/ftdi.o \
@@ -157,6 +158,7 @@ OBJ=\
     ui/cmddb.o \
     ui/stdcmd.o \
     ui/aliasdb.o \
+    ui/power.o \
     ui/main.o
 
 $(BINARY): $(OBJ)

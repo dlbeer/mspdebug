@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include "util.h"
+#include "powerbuf.h"
 
 struct device;
 typedef struct device *device_t;
@@ -122,6 +123,11 @@ struct device {
 	 */
 	int max_breakpoints;
 	struct device_breakpoint breakpoints[DEVICE_MAX_BREAKPOINTS];
+
+	/* Power sample buffer, if power profiling is supported by this
+	 * device.
+	 */
+	powerbuf_t power_buf;
 };
 
 /* Probe the device memory and extract ID bytes. This should be called

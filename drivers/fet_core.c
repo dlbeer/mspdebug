@@ -46,6 +46,8 @@ struct fet_device {
 	int                             version;
 	int				fet_flags;
 
+	int				poll_enable;
+
 	struct fet_proto		proto;
 };
 
@@ -96,6 +98,10 @@ struct fet_device {
 #define C_IDENT1                0x28
 #define C_IDENT2                0x29
 #define C_IDENT3                0x2b
+
+#define C_CMM_PARAM		0x36
+#define C_CMM_CTRL		0x37
+#define C_CMM_READ		0x38
 
 /* Constants for parameters of various FET commands */
 #define FET_CONFIG_VERIFICATION 0
@@ -380,6 +386,105 @@ static int do_identify(struct fet_device *dev, const char *force_id)
 	return identify_new(dev, force_id);
 }
 
+static void power_init(struct fet_device *dev)
+{
+	if (fet_proto_xfer(&dev->proto, C_CMM_PARAM, NULL, 0, 0) < 0) {
+		printc_err("warning: device does not support power "
+			   "profiling\n");
+		return;
+	}
+
+	if (dev->proto.argv[0] <= 0 || dev->proto.argv[0] <= 0) {
+		printc_err("Bad parameters returned by C_CMM_PARAM: "
+			   "bufsize = %d bytes, %d us/sample\n",
+			   dev->proto.argv[1], dev->proto.argv[0]);
+		return;
+	}
+
+	printc("Power profiling enabled: bufsize = %d bytes, %d us/sample\n",
+		dev->proto.argv[1], dev->proto.argv[0]);
+
+	dev->base.power_buf = powerbuf_new(POWERBUF_DEFAULT_SAMPLES,
+		dev->proto.argv[0]);
+	if (!dev->base.power_buf) {
+		printc_err("Failed to allocate memory for power profile\n");
+		return;
+	}
+}
+
+static int power_start(struct fet_device *dev)
+{
+	if (!dev->base.power_buf)
+		return 0;
+
+	if (fet_proto_xfer(&dev->proto, C_CMM_CTRL, NULL, 0, 1, 1) < 0) {
+		printc_err("fet: failed to start power profiling, "
+			   "disabling\n");
+		powerbuf_free(dev->base.power_buf);
+		dev->base.power_buf = NULL;
+		return -1;
+	}
+
+	powerbuf_begin_session(dev->base.power_buf, time(NULL));
+	dev->poll_enable = 1;
+	return 0;
+}
+
+static int power_end(struct fet_device *dev)
+{
+	if (!dev->base.power_buf)
+		return 0;
+
+	powerbuf_end_session(dev->base.power_buf);
+	dev->poll_enable = 0;
+
+	if (fet_proto_xfer(&dev->proto, C_CMM_CTRL, NULL, 0, 1, 1) < 0) {
+		printc_err("fet: failed to end power profiling\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int power_poll(struct fet_device *dev)
+{
+	address_t mab;
+	address_t mab_samples[1024];
+	unsigned int cur_samples[1024];
+	unsigned int count = 0;
+	int i;
+
+	if (!dev->base.power_buf || !dev->poll_enable)
+		return 0;
+
+	if (fet_proto_xfer(&dev->proto, C_CMM_READ, NULL, 0, 0) < 0) {
+		printc_err("fet: failed to fetch power data, disabling\n");
+		power_end(dev);
+		powerbuf_free(dev->base.power_buf);
+		dev->base.power_buf = NULL;
+		dev->poll_enable = 0;
+		return -1;
+	}
+
+	mab = powerbuf_last_mab(dev->base.power_buf);
+	for (i = 0; i + 3 < dev->proto.datalen; i += 4) {
+		uint32_t s = LE_LONG(dev->proto.data, i);
+
+		if (s & 0x80000000) {
+			mab = s & 0x7fffffff;
+		} else if (count + 1 < ARRAY_LEN(cur_samples)) {
+			cur_samples[count] = s;
+			mab_samples[count] = mab;
+			count++;
+		}
+	}
+
+	powerbuf_add_samples(dev->base.power_buf, count,
+			     cur_samples, mab_samples);
+
+	return 0;
+}
+
 static int do_run(struct fet_device *dev, int type)
 {
 	if (fet_proto_xfer(&dev->proto, C_RUN, NULL, 0, 2, type, 0) < 0) {
@@ -443,16 +548,25 @@ device_status_t fet_poll(device_t dev_base)
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
 	ctrlc_reset();
-	if ((delay_ms(50) < 0) || ctrlc_check())
-		return DEVICE_STATUS_INTR;
 
 	if (fet_proto_xfer(&dev->proto, C_STATE, NULL, 0, 1, 0) < 0) {
 		printc_err("fet: polling failed\n");
+		power_end(dev);
 		return DEVICE_STATUS_ERROR;
 	}
 
-	if (!(dev->proto.argv[0] & FET_POLL_RUNNING))
+	if (dev->base.power_buf)
+		power_poll(dev);
+	else
+		delay_ms(50);
+
+	if (!(dev->proto.argv[0] & FET_POLL_RUNNING)) {
+		power_end(dev);
 		return DEVICE_STATUS_HALTED;
+	}
+
+	if (ctrlc_check())
+		return DEVICE_STATUS_INTR;
 
 	return DEVICE_STATUS_RUNNING;
 }
@@ -503,9 +617,17 @@ int fet_ctl(device_t dev_base, device_ctl_t action)
 		if (refresh_bps(dev) < 0)
 			printc_err("warning: fet: failed to refresh "
 				"breakpoints\n");
-		return do_run(dev, FET_RUN_BREAKPOINT);
+
+		power_start(dev);
+		if (do_run(dev, FET_RUN_BREAKPOINT) < 0) {
+			power_end(dev);
+			return -1;
+		}
+
+		return 0;
 
 	case DEVICE_CTL_HALT:
+		power_end(dev);
 		if (fet_proto_xfer(&dev->proto, C_STATE, NULL, 0, 1, 1) < 0) {
 			printc_err("fet: failed to halt CPU\n");
 			return -1;
@@ -549,6 +671,9 @@ void fet_destroy(device_t dev_base)
 
 	if (fet_proto_xfer(&dev->proto, C_CLOSE, NULL, 0, 1, 0) < 0)
 		printc_err("fet: close command failed\n");
+
+	if (dev->base.power_buf)
+		powerbuf_free(dev->base.power_buf);
 
 	dev->proto.transport->ops->destroy(dev->proto.transport);
 	free(dev);
@@ -852,6 +977,9 @@ device_t fet_open(const struct device_args *args,
 		dev->base.max_breakpoints = DEVICE_MAX_BREAKPOINTS;
 	for (i = 0; i < dev->base.max_breakpoints; i++)
 		dev->base.breakpoints[i].flags = DEVICE_BP_DIRTY;
+
+	/* Initialize power profiling */
+	power_init(dev);
 
 	return (device_t)dev;
 

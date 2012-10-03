@@ -29,6 +29,7 @@
 #include "stdcmd.h"
 #include "simio.h"
 #include "aliasdb.h"
+#include "power.h"
 
 const struct cmddb_record commands[] = {
 	{
@@ -332,6 +333,19 @@ const struct cmddb_record commands[] = {
 		.help =
 "fill <address> <length> <b0> [b1 b2 ...]\n"
 "    Fill the given memory range with a repeated byte sequence.\n"
+	},
+	{
+		.name = "power",
+		.func = cmd_power,
+		.help =
+"power info\n"
+"    Show basic power statistics.\n"
+"power clear\n"
+"    Clear power statistics.\n"
+"power all [granularity]\n"
+"    Show all power data, optionally specifying a granularity in us.\n"
+"power session <N> [granularity]\n"
+"    Show data only for the specified session.\n"
 	}
 };
 
