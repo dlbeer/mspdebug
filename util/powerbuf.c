@@ -27,7 +27,7 @@ powerbuf_t powerbuf_new(unsigned int max_samples, unsigned int interval_us)
 	if (!pb)
 		return NULL;
 
-	if (pb->max_samples <= 0) {
+	if (max_samples <= 0) {
 		free(pb);
 		return NULL;
 	}
