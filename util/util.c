@@ -124,6 +124,12 @@ void ctrlc_reset(void)
 
 int ctrlc_check(void)
 {
+#ifdef __CYGWIN__
+	/* Cygwin's signal emulation seems to require the process to
+	 * block.
+	 */
+	delay_ms(1);
+#endif
 	return ctrlc_flag;
 }
 #endif

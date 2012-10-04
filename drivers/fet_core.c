@@ -547,8 +547,6 @@ device_status_t fet_poll(device_t dev_base)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	ctrlc_reset();
-
 	if (fet_proto_xfer(&dev->proto, C_STATE, NULL, 0, 1, 0) < 0) {
 		printc_err("fet: polling failed\n");
 		power_end(dev);
@@ -624,6 +622,7 @@ int fet_ctl(device_t dev_base, device_ctl_t action)
 			return -1;
 		}
 
+		ctrlc_reset();
 		return 0;
 
 	case DEVICE_CTL_HALT:
