@@ -81,14 +81,12 @@ static device_t fet_open_olimex_iso_mk2(const struct device_args *args)
 		return NULL;
 
 	if (args->require_fwupdate) {
-		int r;
-
 		if (obl_update(trans, args->require_fwupdate) < 0) {
 			trans->ops->destroy(trans);
 			return NULL;
 		}
 
-		r = obl_reset(trans);
+		obl_reset(trans);
 		trans->ops->destroy(trans);
 
 		printc("Resetting, please wait...\n");
