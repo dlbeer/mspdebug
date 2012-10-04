@@ -40,7 +40,7 @@ static CRITICAL_SECTION ctrlc_cs;
 
 static WINAPI BOOL ctrlc_handler(DWORD event)
 {
-	if (event == CTRL_C_EVENT) {
+	if ((event == CTRL_C_EVENT) || (event == CTRL_BREAK_EVENT)) {
 		EnterCriticalSection(&ctrlc_cs);
 		ctrlc_flag = 1;
 		LeaveCriticalSection(&ctrlc_cs);
