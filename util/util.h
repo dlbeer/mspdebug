@@ -73,4 +73,11 @@ char *expand_tilde(const char *path);
 int delay_s(unsigned int s);
 int delay_ms(unsigned int s);
 
+/* printf format for long long args */
+#ifdef __MINGW32__
+#define LLFMT "I64d"
+#else
+#define LLFMT "lld"
+#endif
+
 #endif

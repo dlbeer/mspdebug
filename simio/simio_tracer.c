@@ -71,7 +71,7 @@ static void event_print(const struct event *e)
 	char name[128];
 
 	print_address(e->addr, name, sizeof(name));
-	printc("  %10lld: ", e->when);
+	printc("  %10" LLFMT ": ", e->when);
 
 	switch (e->what) {
 	case EVENT_WRITE_16:
@@ -234,10 +234,10 @@ static int tracer_info(struct simio_device *dev)
 	struct tracer *tr = (struct tracer *)dev;
 	int i;
 
-	printc("Instruction count: %lld\n", tr->inscount);
-	printc("MCLK:              %lld\n", tr->cycles[SIMIO_MCLK]);
-	printc("SMCLK              %lld\n", tr->cycles[SIMIO_SMCLK]);
-	printc("ACLK:              %lld\n", tr->cycles[SIMIO_ACLK]);
+	printc("Instruction count: %" LLFMT "\n", tr->inscount);
+	printc("MCLK:              %" LLFMT "\n", tr->cycles[SIMIO_MCLK]);
+	printc("SMCLK              %" LLFMT "\n", tr->cycles[SIMIO_SMCLK]);
+	printc("ACLK:              %" LLFMT "\n", tr->cycles[SIMIO_ACLK]);
 
 	if (tr->irq_request >= 0)
 		printc("IRQ pending:       %d\n", tr->irq_request);
