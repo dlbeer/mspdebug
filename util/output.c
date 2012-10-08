@@ -21,109 +21,200 @@
 #include <stdarg.h>
 #include <string.h>
 
+#ifdef __Windows__
+#include <windows.h>
+#endif
+
 #include "opdb.h"
 #include "output.h"
 #include "util.h"
 
-struct outbuf {
-	char	buf[4096];
-	int	len;
-	int	in_code;
-
-	int	ansi_cur;
-	int	ansi_num;
-	int	ansi_next;
-};
-
-static struct outbuf stdout_buf;
-static struct outbuf stderr_buf;
-
 static capture_func_t capture_func;
 static void *capture_data;
 
-static void process_ansi_part(struct outbuf *out)
+#define LINEBUF_SIZE	4096
+
+struct linebuf {
+	/* Line buffer */
+	char		buf[LINEBUF_SIZE];
+	int		len;
+
+	/* Does the buffer contain a trailing incomplete ANSI code? */
+	int		ansi_mode;
+};
+
+/* Return the lower three bits of n, reversed */
+static int rev_bits(int n)
 {
-	if (!out->ansi_num) {
-		out->ansi_next = 7;
-	} else if (out->ansi_num == 1) {
-		out->ansi_next |= 0x8;
-	} else if (out->ansi_num >= 30) {
-		const int attr = out->ansi_num % 10;
-		const int col = ((attr & 1) << 2) |
-		      (attr & 2) |
-		      ((attr & 4) >> 2);
+	const int a = (n & 1) << 2;
+	const int b = (n & 2);
+	const int c = (n & 4) >> 2;
 
-		if (out->ansi_num >= 40)
-			out->ansi_next = (out->ansi_next & 0x0f) |
-					(col << 4);
-		else
-			out->ansi_next = (out->ansi_next & 0xf0) | col;
-	}
-
-	out->ansi_num = 0;
+	return a | b | c;
 }
 
-static int write_text(struct outbuf *out, const char *buf, FILE *fout)
+/* Take a Windows color code and an ANSI colour-change code component
+ * and return the resulting Windows color code.
+ */
+static int ansi_apply(int old_state, int code)
 {
-	int want_color = opdb_get_boolean("color");
+	/* 0: reset */
+	if (code == 0)
+		return 7;
+
+	/* 1: bold */
+	if (code == 1)
+		return old_state | 0x8;
+
+	/* 30-37: foreground colour */
+	if (code >= 30 && code <= 37)
+		return (old_state & 0xf8) | rev_bits(code - 30);
+
+	/* 40-47: background colour */
+	if (code >= 40 && code <= 47)
+		return (old_state & 0x0f) | (rev_bits(code - 40) << 4);
+
+	return old_state;
+}
+
+/* Parse an ANSI code and compute the next Windows console colour code.
+ * Returns the number of bytes consumed.
+ */
+static int parse_ansi(const char *text, int *ansi_state)
+{
+	int next_state = *ansi_state;
+	int code = 0;
 	int len = 0;
 
-	if (!out->ansi_cur)
-		out->ansi_cur = 7;
+	/* Parse the ANSI code and see how long it is */
+	while (text[len]) {
+		char c = text[len++];
 
-	while (*buf) {
-		if (*buf == 27) {
-			out->in_code = 1;
-			out->ansi_num = 0;
-			out->ansi_next = out->ansi_cur;
-		}
-
-		if (!out->in_code)
-			len++;
-
-		if (*buf == '\n') {
-			fputc('\n', fout);
-			fflush(fout);
-			out->buf[out->len] = 0;
-			if (capture_func)
-				capture_func(capture_data, out->buf);
-			out->len = 0;
-		} else if (out->in_code) {
-			if (isdigit(*buf)) {
-				out->ansi_num =
-					out->ansi_num * 10 + *buf - '0';
-			} else if (*buf == ';') {
-				process_ansi_part(out);
-			} else if (isalpha(*buf)) {
-				process_ansi_part(out);
-				out->in_code = 0;
-				if (*buf == 'm')
-					out->ansi_cur = out->ansi_next;
-#ifdef __Windows__
-				if (want_color && *buf == 'm') {
-					fflush(fout);
-					SetConsoleTextAttribute(GetStdHandle
-					  (STD_OUTPUT_HANDLE), out->ansi_cur);
-				}
-#endif
-			}
-
-#ifndef __Windows__
-			if (want_color)
-				fputc(*buf, fout);
-#endif
+		if (isdigit(c)) {
+			code = code * 10 + c - '0';
 		} else {
-			if (out->len + 1 < sizeof(out->buf))
-				out->buf[out->len++] = *buf;
-
-			fputc(*buf, fout);
+			next_state = ansi_apply(next_state, code);
+			code = 0;
 		}
 
-		buf++;
+		if (isalpha(c))
+			break;
 	}
+
+	*ansi_state = next_state;
+	return len;
+}
+
+/* Parse printable characters, up to either the end of the line or the
+ * next ANSI code. Returns the number of bytes consumed.
+ */
+static int parse_text(const char *text)
+{
+	int len = 0;
+
+	while (text[len] && text[len] != 0x1b)
+		len++;
 
 	return len;
 }
+
+/* Print an ANSI code, or change the console text colour. */
+static void emit_ansi(const char *code, int len, int ansi_state, FILE *out)
+{
+#ifdef __Windows__
+	fflush(out);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), ansi_state);
+#else
+	fwrite(code, 1, len, out);
+#endif
+}
+
+/* Process and print a single line of text. The given line of text must
+ * be nul-terminated with no line-ending characters. Embedded ANSI
+ * sequences are handled appropriately.
+ */
+static void handle_line(const char *text, FILE *out)
+{
+	const int want_color = opdb_get_boolean("color");
+	char cap_buf[LINEBUF_SIZE];
+	int cap_len = 0;
+	int ansi_state = 7;
+
+	while (*text) {
+		int r;
+
+		if (*text == 0x1b) {
+			r = parse_ansi(text, &ansi_state);
+			if (want_color)
+				emit_ansi(text, r, ansi_state, out);
+		} else {
+			r = parse_text(text);
+
+			memcpy(cap_buf + cap_len, text, r);
+			cap_len += r;
+			fwrite(text, 1, r, out);
+		}
+
+		text += r;
+	}
+
+	/* Reset colours if necessary */
+	if (want_color && (ansi_state != 7))
+		emit_ansi("\x1b[0m", 4, 7, out);
+
+	fputc('\n', out);
+	fflush(out);
+
+	/* Invoke output capture callback */
+	cap_buf[cap_len] = 0;
+	if (capture_func)
+		capture_func(capture_data, cap_buf);
+}
+
+/* Push a chunk of text, possibly with embedded ANSI sequences, into a
+ * buffer. The text is reassembled into lines, and each line is
+ * processed/printed once completely assembled.
+ *
+ * The number of printable (non-ANSI, non-newline) characters in the
+ * chunk of text is returned. The buffer keeps track of whether or not
+ * we're currently within an ANSI code, so pushing code fragments works
+ * correctly.
+ */
+static int write_text(struct linebuf *ob, const char *text, FILE *out)
+{
+	int count = 0;
+
+	/* Separate the text into lines and count the number of
+	 * printing characters.
+	 */
+	while (*text) {
+		if (*text == '\n') {
+			ob->buf[ob->len] = 0;
+			ob->len = 0;
+			ob->ansi_mode = 0;
+			handle_line(ob->buf, out);
+		} else {
+			if (*text == 0x1b)
+				ob->ansi_mode = 1;
+
+			if (ob->len + 1 < sizeof(ob->buf))
+				ob->buf[ob->len++] = *text;
+			if (!ob->ansi_mode)
+				count++;
+
+			if (isalpha(*text))
+				ob->ansi_mode = 0;
+		}
+
+		text++;
+	}
+
+	return count;
+}
+
+static struct linebuf lb_normal;
+static struct linebuf lb_debug;
+static struct linebuf lb_error;
 
 int printc(const char *fmt, ...)
 {
@@ -134,7 +225,7 @@ int printc(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return write_text(&stdout_buf, buf, stdout);
+	return write_text(&lb_normal, buf, stdout);
 }
 
 int printc_dbg(const char *fmt, ...)
@@ -149,7 +240,7 @@ int printc_dbg(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return write_text(&stdout_buf, buf, stdout);
+	return write_text(&lb_debug, buf, stdout);
 }
 
 int printc_err(const char *fmt, ...)
@@ -161,7 +252,7 @@ int printc_err(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return write_text(&stderr_buf, buf, stderr);
+	return write_text(&lb_error, buf, stderr);
 }
 
 void pr_error(const char *prefix)
