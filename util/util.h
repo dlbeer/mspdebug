@@ -22,10 +22,6 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#ifdef __Windows__
-#include <windows.h>
-#endif
-
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 #define LE_BYTE(b, x) ((int)((uint8_t *)(b))[x])
@@ -37,12 +33,6 @@ typedef uint32_t address_t;
 
 /* Retrive a string describing the last system error */
 const char *last_error(void);
-
-/* Check and catch ^C from the user */
-void ctrlc_init(void);
-void ctrlc_exit(void);
-void ctrlc_reset(void);
-int ctrlc_check(void);
 
 /* Retrieve the next word from a pointer to the rest of a command
  * argument buffer. Returns NULL if no more words.
@@ -62,8 +52,6 @@ int hexval(int c);
 
 #ifdef __Windows__
 char *strsep(char **strp, const char *delim);
-
-HANDLE ctrlc_win32_event(void);
 #endif
 
 /* Expand `~' in path names. Caller must free the returned ptr */

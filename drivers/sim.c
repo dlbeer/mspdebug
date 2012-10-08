@@ -26,6 +26,7 @@
 #include "output.h"
 #include "sim.h"
 #include "simio_cpu.h"
+#include "ctrlc.h"
 
 #define MEM_SIZE	65536
 #define MEM_IO_END      0x200
@@ -722,7 +723,6 @@ static device_status_t sim_poll(device_t dev_base)
 	if (!dev->running)
 		return DEVICE_STATUS_HALTED;
 
-	ctrlc_reset();
 	dev->watchpoint_hit = 0;
 	while (count > 0) {
 		int i;

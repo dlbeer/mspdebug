@@ -25,6 +25,7 @@
 #include "tilib.h"
 #include "tilib_defs.h"
 #include "threads.h"
+#include "ctrlc.h"
 
 #if defined(__Windows__) || defined(__CYGWIN__)
 static const char tilib_filename[] = "MSP430.DLL";
@@ -476,7 +477,6 @@ static device_status_t tilib_poll(device_t dev_base)
 {
 	struct tilib_device *dev = (struct tilib_device *)dev_base;
 
-        ctrlc_reset();
         if ((delay_ms(50) < 0) || ctrlc_check())
                 return DEVICE_STATUS_INTR;
 

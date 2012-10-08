@@ -23,6 +23,7 @@
 #include "sport.h"
 #include "output.h"
 #include "goodfet.h"
+#include "ctrlc.h"
 
 /* GoodFET protocol definitions */
 #define APP_JTAG430		0x11
@@ -577,7 +578,6 @@ static device_status_t goodfet_poll(device_t dev_base)
 {
 	(void)dev_base;
 
-	ctrlc_reset();
 	if (delay_ms(100) < 0 || ctrlc_check())
 		return DEVICE_STATUS_INTR;
 

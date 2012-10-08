@@ -63,9 +63,9 @@ else
     BINARY = mspdebug
 
     ifneq ($(filter $(UNAME_S),FreeBSD OpenBSD),)
-	OS_LIBS =
+	OS_LIBS = -lpthread
     else
-	OS_LIBS = -ldl
+	OS_LIBS = -lpthread -ldl
     endif
 
 endif
@@ -115,6 +115,7 @@ OBJ=\
     util/dynload.o \
     util/demangle.o \
     util/powerbuf.o \
+    util/ctrlc.o \
     transport/cp210x.o \
     transport/cdc_acm.o \
     transport/ftdi.o \

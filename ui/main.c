@@ -38,6 +38,7 @@
 #include "reader.h"
 #include "output.h"
 #include "simio.h"
+#include "ctrlc.h"
 
 #include "sim.h"
 #include "bsl.h"

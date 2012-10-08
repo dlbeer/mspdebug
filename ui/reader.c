@@ -35,6 +35,7 @@
 #include "reader.h"
 #include "opdb.h"
 #include "aliasdb.h"
+#include "ctrlc.h"
 
 #define MAX_READER_LINE		1024
 
@@ -209,6 +210,7 @@ void reader_loop(void)
 				memcpy(tmpbuf, repeat_buf, sizeof(tmpbuf));
 			}
 
+			ctrlc_clear();
 			do_command(buf, 1);
 
 			if (want_exit)

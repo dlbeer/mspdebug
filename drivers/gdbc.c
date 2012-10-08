@@ -26,6 +26,7 @@
 #include "gdb_proto.h"
 #include "opdb.h"
 #include "util.h"
+#include "ctrlc.h"
 
 struct gdb_client {
 	struct device			base;
@@ -348,7 +349,6 @@ static device_status_t gdbc_poll(device_t dev_base)
 	if (!dev->is_running)
 		return DEVICE_STATUS_HALTED;
 
-	ctrlc_reset();
 	len = gdb_peek(&dev->gdb, 50);
 	if (ctrlc_check())
 		return DEVICE_STATUS_INTR;

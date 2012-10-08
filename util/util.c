@@ -22,7 +22,6 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <signal.h>
 #include <assert.h>
 #include <time.h>
 
@@ -32,107 +31,6 @@
 
 #include "util.h"
 #include "output.h"
-
-#ifdef __Windows__
-static int ctrlc_flag;
-static HANDLE ctrlc_event;
-static CRITICAL_SECTION ctrlc_cs;
-
-static WINAPI BOOL ctrlc_handler(DWORD event)
-{
-	if ((event == CTRL_C_EVENT) || (event == CTRL_BREAK_EVENT)) {
-		EnterCriticalSection(&ctrlc_cs);
-		ctrlc_flag = 1;
-		LeaveCriticalSection(&ctrlc_cs);
-		SetEvent(ctrlc_event);
-		return TRUE;
-	}
-
-	return FALSE;
-}
-
-void ctrlc_init(void)
-{
-	ctrlc_event = CreateEvent(0, TRUE, FALSE, NULL);
-	InitializeCriticalSection(&ctrlc_cs);
-	SetConsoleCtrlHandler(ctrlc_handler, TRUE);
-}
-
-void ctrlc_exit(void)
-{
-	SetConsoleCtrlHandler(NULL, TRUE);
-	DeleteCriticalSection(&ctrlc_cs);
-	CloseHandle(ctrlc_event);
-}
-
-int ctrlc_check(void)
-{
-	int cc;
-
-	EnterCriticalSection(&ctrlc_cs);
-	cc = ctrlc_flag;
-	LeaveCriticalSection(&ctrlc_cs);
-
-	return cc;
-}
-
-void ctrlc_reset(void)
-{
-	EnterCriticalSection(&ctrlc_cs);
-	ctrlc_flag = 0;
-	LeaveCriticalSection(&ctrlc_cs);
-	ResetEvent(ctrlc_event);
-}
-
-HANDLE ctrlc_win32_event(void)
-{
-	return ctrlc_event;
-}
-#else /* __Windows__ */
-static volatile int ctrlc_flag;
-
-static void sigint_handler(int signum)
-{
-	(void)signum;
-
-	ctrlc_flag = 1;
-}
-
-void ctrlc_init(void)
-{
-#ifdef __CYGWIN__
-       signal(SIGINT, sigint_handler);
-#else
-       static const struct sigaction siga = {
-               .sa_handler = sigint_handler,
-               .sa_flags = 0
-       };
-
-       sigaction(SIGINT, &siga, NULL);
-#endif
-}
-
-void ctrlc_exit(void)
-{
-	signal(SIGINT, SIG_DFL);
-}
-
-void ctrlc_reset(void)
-{
-	ctrlc_flag = 0;
-}
-
-int ctrlc_check(void)
-{
-#ifdef __CYGWIN__
-	/* Cygwin's signal emulation seems to require the process to
-	 * block.
-	 */
-	delay_ms(1);
-#endif
-	return ctrlc_flag;
-}
-#endif
 
 char *get_arg(char **text)
 {

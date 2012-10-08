@@ -36,6 +36,7 @@
 #include "fet_db.h"
 #include "output.h"
 #include "opdb.h"
+#include "ctrlc.h"
 
 #include "fet_olimex_db.h"
 #include "devicelist.h"
@@ -622,7 +623,6 @@ int fet_ctl(device_t dev_base, device_ctl_t action)
 			return -1;
 		}
 
-		ctrlc_reset();
 		return 0;
 
 	case DEVICE_CTL_HALT:
