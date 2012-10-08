@@ -33,6 +33,7 @@
 #include "reader.h"
 #include "expr.h"
 #include "gdb_proto.h"
+#include "ctrlc.h"
 
 /************************************************************************
  * GDB server
@@ -450,7 +451,7 @@ static int process_gdb_command(struct gdb_data *data, char *buf)
 
 static void gdb_reader_loop(struct gdb_data *data)
 {
-	for (;;) {
+	while (!ctrlc_check()) {
 		char buf[GDB_BUF_SIZE];
 		int len = 0;
 
