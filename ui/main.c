@@ -37,6 +37,7 @@
 #include "opdb.h"
 #include "reader.h"
 #include "output.h"
+#include "output_util.h"
 #include "simio.h"
 #include "ctrlc.h"
 

@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "output.h"
+#include "output_util.h"
 #include "dis.h"
 #include "simio.h"
 #include "simio_cpu.h"

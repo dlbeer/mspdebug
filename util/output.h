@@ -48,9 +48,4 @@ typedef void (*capture_func_t)(void *user_data, const char *text);
 void capture_start(capture_func_t, void *user_data);
 void capture_end(void);
 
-/* Name lists. This function is used for printing multi-column sorted
- * lists of constant strings. Expected is a vector of const char *.
- */
-void namelist_print(struct vector *v);
-
 #endif

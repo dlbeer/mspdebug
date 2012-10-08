@@ -25,6 +25,7 @@
 #include "vector.h"
 #include "stdcmd.h"
 #include "output.h"
+#include "output_util.h"
 #include "reader.h"
 #include "expr.h"
 

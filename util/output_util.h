@@ -39,4 +39,9 @@ void show_regs(const address_t *regs);
  */
 int print_address(address_t addr, char *buf, int max_len);
 
+/* Name lists. This function is used for printing multi-column sorted
+ * lists of constant strings. Expected is a vector of const char *.
+ */
+void namelist_print(struct vector *v);
+
 #endif

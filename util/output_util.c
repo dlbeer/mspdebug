@@ -18,6 +18,8 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "dis.h"
 #include "output_util.h"
@@ -303,4 +305,54 @@ int print_address(address_t addr, char *out, int max_len)
 
 	snprintf(out, max_len, "0x%04x", addr);
 	return 0;
+}
+
+/************************************************************************
+ * Name lists
+ */
+
+static int namelist_cmp(const void *a, const void *b)
+{
+	return strcasecmp(*(const char **)a, *(const char **)b);
+}
+
+void namelist_print(struct vector *v)
+{
+	int i;
+	int max_len = 0;
+	int rows, cols;
+
+	qsort(v->ptr, v->size, v->elemsize, namelist_cmp);
+
+	for (i = 0; i < v->size; i++) {
+		const char *text = VECTOR_AT(*v, i, const char *);
+		int len = strlen(text);
+
+		if (len > max_len)
+			max_len = len;
+	}
+
+	max_len += 2;
+	cols = 72 / max_len;
+	rows = (v->size + cols - 1) / cols;
+
+	for (i = 0; i < rows; i++) {
+		int j;
+
+		printc("    ");
+		for (j = 0; j < cols; j++) {
+			int k = j * rows + i;
+			const char *text;
+
+			if (k >= v->size)
+				break;
+
+			text = VECTOR_AT(*v, k, const char *);
+			printc("%s", text);
+			for (k = strlen(text); k < max_len; k++)
+				printc(" ");
+		}
+
+		printc("\n");
+	}
 }
