@@ -126,7 +126,7 @@ int cmd_alias(char **arg)
 			list_is_sorted = 1;
 		}
 
-		printf("%d aliases defined:\n", alias_list.size);
+		printc("%d aliases defined:\n", alias_list.size);
 		for (i = 0; i < alias_list.size; i++) {
 			struct alias *a =
 				VECTOR_PTR(alias_list, i, struct alias);
