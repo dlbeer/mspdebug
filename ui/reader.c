@@ -22,11 +22,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#ifdef USE_READLINE
-#include <readline/readline.h>
-#include <readline/history.h>
-#endif
-
 #include "vector.h"
 #include "util.h"
 #include "output.h"
@@ -36,6 +31,7 @@
 #include "opdb.h"
 #include "aliasdb.h"
 #include "ctrlc.h"
+#include "input.h"
 
 #define MAX_READER_LINE		1024
 
@@ -56,63 +52,12 @@ void unmark_modified(int flags)
 
 int prompt_abort(int flags)
 {
-        char buf[32];
+	if (!(in_reader_loop && (modify_flags & flags)))
+		return 0;
 
-        if (!(in_reader_loop && (modify_flags & flags)))
-                return 0;
-
-        for (;;) {
-                printf("Symbols have not been saved since modification. "
-                       "Continue (y/n)? ");
-                fflush(stdout);
-
-                if (!fgets(buf, sizeof(buf), stdin)) {
-                        printc("\n");
-                        return 1;
-                }
-
-                if (toupper(buf[0]) == 'Y')
-                        return 0;
-                if (toupper(buf[0]) == 'N')
-                        return 1;
-
-                printc("Please answer \"y\" or \"n\".\n");
-        }
-
-        return 0;
+	return input_module->prompt_abort("Symbols have not been saved "
+			"since modification. Continue (y/n)?");
 }
-
-#ifndef USE_READLINE
-#define LINE_BUF_SIZE 128
-
-static char *readline(const char *prompt)
-{
-	char *buf = malloc(LINE_BUF_SIZE);
-
-	if (!buf) {
-		pr_error("readline: can't allocate memory");
-		return NULL;
-	}
-
-	for (;;) {
-		printf("(mspdebug) ");
-		fflush(stdout);
-
-		if (fgets(buf, LINE_BUF_SIZE, stdin))
-			return buf;
-
-		if (feof(stdin))
-			break;
-
-		printc("\n");
-	}
-
-	free(buf);
-	return NULL;
-}
-
-#define add_history(x)
-#endif
 
 static int do_command(char *arg, int interactive)
 {
@@ -189,26 +134,16 @@ void reader_loop(void)
 		want_exit = 0;
 
 		for (;;) {
-			char *buf = readline("(mspdebug) ");
 			char tmpbuf[MAX_READER_LINE];
+			char *buf = tmpbuf;
 
-			if (!buf) {
-				printc("\n");
+			if (input_module->read_command(tmpbuf, sizeof(tmpbuf)))
 				break;
-			}
 
-			/* Copy into our local buffer and free */
-			strncpy(tmpbuf, buf, sizeof(tmpbuf));
-			tmpbuf[sizeof(tmpbuf) - 1] = 0;
-			free(buf);
-			buf = tmpbuf;
-
-			if (*buf) {
-				add_history(buf);
+			if (*buf)
 				repeat_buf[0] = 0;
-			} else {
+			else
 				memcpy(tmpbuf, repeat_buf, sizeof(tmpbuf));
-			}
 
 			ctrlc_clear();
 			do_command(buf, 1);

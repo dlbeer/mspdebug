@@ -51,6 +51,7 @@
 #include "gdbc.h"
 #include "tilib.h"
 #include "goodfet.h"
+#include "input.h"
 
 struct cmdline_args {
 	const char		*driver_name;
@@ -374,6 +375,9 @@ int main(int argc, char **argv)
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		return -1;
 
+	if (input_module->init() < 0)
+		return -1;
+
 	if (sockets_init() < 0)
 		return -1;
 
@@ -407,6 +411,7 @@ int main(int argc, char **argv)
 	stab_exit();
 	device_destroy();
 	sockets_exit();
+	input_module->exit();
 
 	return ret;
 }

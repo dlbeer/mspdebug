@@ -160,6 +160,8 @@ OBJ=\
     ui/stdcmd.o \
     ui/aliasdb.o \
     ui/power.o \
+    ui/input.o \
+    ui/input_console.o \
     ui/main.o
 
 $(BINARY): $(OBJ)
