@@ -137,6 +137,7 @@ void reader_loop(void)
 			char tmpbuf[MAX_READER_LINE];
 			char *buf = tmpbuf;
 
+			printc_shell("ready\n");
 			if (input_module->read_command(tmpbuf, sizeof(tmpbuf)))
 				break;
 
@@ -146,6 +147,8 @@ void reader_loop(void)
 				memcpy(tmpbuf, repeat_buf, sizeof(tmpbuf));
 
 			ctrlc_clear();
+
+			printc_shell("busy\n");
 			do_command(buf, 1);
 
 			if (want_exit)

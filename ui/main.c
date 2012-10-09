@@ -53,9 +53,12 @@
 #include "goodfet.h"
 #include "input.h"
 
+#define OPT_NO_RC		0x01
+#define OPT_EMBEDDED		0x02
+
 struct cmdline_args {
 	const char		*driver_name;
-	int			no_rc;
+	int			flags;
 	struct device_args	devarg;
 };
 
@@ -120,6 +123,8 @@ static void usage(const char *progname)
 "        on the driver.\n"
 "    --version\n"
 "        Show copyright and version information.\n"
+"    --embedded\n"
+"        Run in embedded mode.\n"
 "\n"
 "Most drivers connect by default via USB, unless told otherwise via the\n"
 "-d option. By default, the first USB device found is opened.\n"
@@ -207,6 +212,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"force-reset",		0, 0, 'R'},
 		{"allow-fw-update",	0, 0, 'A'},
 		{"require-fw-update",	1, 0, 'M'},
+		{"embedded",		0, 0, 'E'},
 		{NULL, 0, 0, 0}
 	};
 	int want_usb = 0;
@@ -222,6 +228,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 				opdb_set("quiet", &v);
 			}
+			break;
+
+		case 'E':
+			args->flags |= OPT_EMBEDDED;
 			break;
 
 		case 'A':
@@ -277,7 +287,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			break;
 
 		case 'n':
-			args->no_rc = 1;
+			args->flags |= OPT_NO_RC;
 			break;
 
 		case 'P':
@@ -378,6 +388,8 @@ int main(int argc, char **argv)
 	if (input_module->init() < 0)
 		return -1;
 
+	output_set_embedded(args.flags & OPT_EMBEDDED);
+
 	if (sockets_init() < 0)
 		return -1;
 
@@ -392,7 +404,7 @@ int main(int argc, char **argv)
 
 	simio_init();
 
-	if (!args.no_rc)
+	if (!(args.flags & OPT_NO_RC))
 		process_rc_file();
 
 	/* Process commands */

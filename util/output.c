@@ -31,6 +31,7 @@
 
 static capture_func_t capture_func;
 static void *capture_data;
+static int is_embedded_mode;
 
 #define LINEBUF_SIZE	4096
 
@@ -133,12 +134,17 @@ static void emit_ansi(const char *code, int len, int ansi_state, FILE *out)
  * be nul-terminated with no line-ending characters. Embedded ANSI
  * sequences are handled appropriately.
  */
-static void handle_line(const char *text, FILE *out)
+static void handle_line(const char *text, FILE *out, char sigil)
 {
 	const int want_color = opdb_get_boolean("color");
 	char cap_buf[LINEBUF_SIZE];
 	int cap_len = 0;
 	int ansi_state = 7;
+
+	if (is_embedded_mode) {
+		out = stdout;
+		fputc(sigil, out);
+	}
 
 	while (*text) {
 		int r;
@@ -180,7 +186,8 @@ static void handle_line(const char *text, FILE *out)
  * we're currently within an ANSI code, so pushing code fragments works
  * correctly.
  */
-static int write_text(struct linebuf *ob, const char *text, FILE *out)
+static int write_text(struct linebuf *ob, const char *text,
+		      FILE *out, char sigil)
 {
 	int count = 0;
 
@@ -192,7 +199,7 @@ static int write_text(struct linebuf *ob, const char *text, FILE *out)
 			ob->buf[ob->len] = 0;
 			ob->len = 0;
 			ob->ansi_mode = 0;
-			handle_line(ob->buf, out);
+			handle_line(ob->buf, out, sigil);
 		} else {
 			if (*text == 0x1b)
 				ob->ansi_mode = 1;
@@ -215,6 +222,7 @@ static int write_text(struct linebuf *ob, const char *text, FILE *out)
 static struct linebuf lb_normal;
 static struct linebuf lb_debug;
 static struct linebuf lb_error;
+static struct linebuf lb_shell;
 
 int printc(const char *fmt, ...)
 {
@@ -225,7 +233,7 @@ int printc(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return write_text(&lb_normal, buf, stdout);
+	return write_text(&lb_normal, buf, stdout, ':');
 }
 
 int printc_dbg(const char *fmt, ...)
@@ -240,7 +248,7 @@ int printc_dbg(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return write_text(&lb_debug, buf, stdout);
+	return write_text(&lb_debug, buf, stdout, '-');
 }
 
 int printc_err(const char *fmt, ...)
@@ -252,7 +260,27 @@ int printc_err(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	return write_text(&lb_error, buf, stderr);
+	return write_text(&lb_error, buf, stderr, '!');
+}
+
+int printc_shell(const char *fmt, ...)
+{
+	char buf[4096];
+	va_list ap;
+
+	if (!is_embedded_mode)
+		return 0;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	return write_text(&lb_shell, buf, stdout, '\\');
+}
+
+void output_set_embedded(int enable)
+{
+	is_embedded_mode = enable;
 }
 
 void pr_error(const char *prefix)
