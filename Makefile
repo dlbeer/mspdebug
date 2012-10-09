@@ -38,15 +38,15 @@ UNAME_S := $(shell sh -c 'uname -s')
 UNAME_O := $(shell sh -c 'uname -o 2> /dev/null')
 
 ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
-	PORTS_CFLAGS = -I/opt/local/include
-	PORTS_LDFLAGS = -L/opt/local/lib
+	PORTS_CFLAGS := -I/opt/local/include
+	PORTS_LDFLAGS := -L/opt/local/lib
 else
   ifeq ($(UNAME_S),OpenBSD) # OpenBSD Ports stuff
-	PORTS_CFLAGS = `pkg-config --cflags libusb`
-	PORTS_LDFLAGS = `pkg-config --libs libusb` -ltermcap -pthread
+	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
+	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
   else
-	PORTS_CFLAGS =
-	PORTS_LDFLAGS =
+	PORTS_CFLAGS :=
+	PORTS_LDFLAGS :=
   endif
 endif
 
@@ -63,11 +63,10 @@ else
     BINARY = mspdebug
 
     ifneq ($(filter $(UNAME_S),FreeBSD OpenBSD),)
-	OS_LIBS = -lpthread
+	OS_LIBS =
     else
 	OS_LIBS = -lpthread -ldl
     endif
-
 endif
 
 INCLUDES = -I. -Isimio -Iformats -Itransport -Idrivers -Iutil -Iui
