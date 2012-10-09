@@ -82,6 +82,9 @@ update using the given firmware image. The firmware format depends on
 the driver.
 .IP "\-\-version"
 Show program version and copyright information.
+.IP "\-\-embedded"
+Start mspdebug as an embedded subprocess. See the documentation
+accompanying the source release for more information on embedded mode.
 .SH DRIVERS
 A driver name must be specified on the command line for MSPDebug to
 connect to. Valid driver names are listed here.
