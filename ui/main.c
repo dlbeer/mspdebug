@@ -52,6 +52,7 @@
 #include "tilib.h"
 #include "goodfet.h"
 #include "input.h"
+#include "input_async.h"
 
 #define OPT_NO_RC		0x01
 #define OPT_EMBEDDED		0x02
@@ -385,6 +386,8 @@ int main(int argc, char **argv)
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		return -1;
 
+	if (args.flags & OPT_EMBEDDED)
+		input_module = &input_async;
 	if (input_module->init() < 0)
 		return -1;
 

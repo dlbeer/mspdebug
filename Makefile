@@ -162,6 +162,7 @@ OBJ=\
     ui/power.o \
     ui/input.o \
     ui/input_console.o \
+    ui/input_async.o \
     ui/main.o
 
 $(BINARY): $(OBJ)
