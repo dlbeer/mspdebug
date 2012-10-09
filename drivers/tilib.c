@@ -24,7 +24,7 @@
 #include "dynload.h"
 #include "tilib.h"
 #include "tilib_defs.h"
-#include "threads.h"
+#include "thread.h"
 #include "ctrlc.h"
 
 #if defined(__Windows__) || defined(__CYGWIN__)
@@ -40,7 +40,7 @@ struct tilib_device {
 
 	dynload_handle_t	hnd;
 
-	threads_lock_t		mb_lock;
+	thread_lock_t		mb_lock;
 	uint32_t		mailbox;
 
 	uint16_t		bp_handles[DEVICE_MAX_BREAKPOINTS];
@@ -116,19 +116,19 @@ static void event_notify(unsigned int msg_id, unsigned int w_param,
 	(void)w_param;
 	(void)l_param;
 
-	threads_lock_acquire(&dev->mb_lock);
+	thread_lock_acquire(&dev->mb_lock);
 	dev->mailbox |= msg_id;
-	threads_lock_release(&dev->mb_lock);
+	thread_lock_release(&dev->mb_lock);
 }
 
 static uint32_t event_fetch(struct tilib_device *dev)
 {
 	uint32_t ret;
 
-	threads_lock_acquire(&dev->mb_lock);
+	thread_lock_acquire(&dev->mb_lock);
 	ret = dev->mailbox;
 	dev->mailbox = 0;
-	threads_lock_release(&dev->mb_lock);
+	thread_lock_release(&dev->mb_lock);
 
 	return ret;
 }
@@ -497,7 +497,7 @@ static void tilib_destroy(device_t dev_base)
 	printc_dbg("MSP430_Close\n");
 	dev->MSP430_Close(0);
 	dynload_close(dev->hnd);
-	threads_lock_destroy(&dev->mb_lock);
+	thread_lock_destroy(&dev->mb_lock);
 	free(dev);
 }
 
@@ -631,12 +631,12 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 		dev->base.max_breakpoints = DEVICE_MAX_BREAKPOINTS;
 
 	printc_dbg("MSP430_EEM_Init\n");
-	threads_lock_init(&dev->mb_lock);
+	thread_lock_init(&dev->mb_lock);
 	if (dev->MSP430_EEM_Init(event_notify, (long)dev,
 				 (MessageID_t *)&my_message_ids) < 0) {
 		report_error(dev, "MSP430_EEM_Init");
 		dev->MSP430_Close(0);
-		threads_lock_destroy(&dev->mb_lock);
+		thread_lock_destroy(&dev->mb_lock);
 		return -1;
 	}
 
