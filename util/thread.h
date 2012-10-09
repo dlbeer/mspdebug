@@ -74,24 +74,32 @@ static inline void thread_lock_release(thread_lock_t *lock)
 	LeaveCriticalSection(lock);
 }
 
-/* Windows condition variables. */
-typedef CONDITION_VARIABLE thread_cond_t;
+/* Windows condition variables. These are simulated using kernel event
+ * objects. Note that this implementation is correct _only_ for the
+ * case of a single waiter.
+ */
+typedef HANDLE thread_cond_t;
 
 static inline void thread_cond_init(thread_cond_t *c)
 {
-	InitializeConditionVariable(c);
+	*c = CreateEvent(0, TRUE, FALSE, NULL);
 }
 
-static inline void thread_cond_destroy(thread_cond_t *c) { }
+static inline void thread_cond_destroy(thread_cond_t *c) {
+	CloseHandle(*c);
+}
 
 static inline void thread_cond_wait(thread_cond_t *c, thread_lock_t *m)
 {
-	SleepConditionVariableCS(c, m, INFINITE);
+	thread_lock_release(m);
+	WaitForSingleObject(*c, INFINITE);
+	thread_lock_acquire(m);
+	ResetEvent(*c);
 }
 
 static inline void thread_cond_notify(thread_cond_t *c)
 {
-	WakeConditionVariable(c);
+	SetEvent(*c);
 }
 #else /* __Windows__ */
 

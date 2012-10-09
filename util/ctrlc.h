@@ -19,6 +19,10 @@
 #ifndef CTRLC_H_
 #define CTRLC_H_
 
+#ifdef __Windows__
+#include <windows.h>
+#endif
+
 /* The Ctrl+C subsystem provides a mechanism for interrupting IO
  * operations in a controlled way. Relevant signals are captured (SIGINT
  * on Linux and console events on Windows) and the event is reported to

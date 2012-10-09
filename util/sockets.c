@@ -22,6 +22,7 @@
 
 #include "sockets.h"
 #include "util.h"
+#include "ctrlc.h"
 
 #ifdef __Windows__
 #include <windows.h>
@@ -35,7 +36,6 @@ static void sockets_begin(SOCKET s, DWORD event)
 	u_long mode = 1;
 
 	ioctlsocket(s, FIONBIO, &mode);
-	ctrlc_reset();
 	WSAEventSelect(s, ctrlc_win32_event(), event);
 }
 

@@ -123,8 +123,13 @@ static int parse_text(const char *text)
 static void emit_ansi(const char *code, int len, int ansi_state, FILE *out)
 {
 #ifdef __Windows__
-	fflush(out);
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), ansi_state);
+	if (is_embedded_mode) {
+		fwrite(code, 1, len, out);
+	} else {
+		fflush(out);
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),
+					ansi_state);
+	}
 #else
 	fwrite(code, 1, len, out);
 #endif
