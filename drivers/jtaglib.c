@@ -1,0 +1,906 @@
+/* MSPDebug - debugging tool for MSP430 MCUs
+ * Copyright (C) 2009-2012 Daniel Beer
+ * Copyright (C) 2012 Peter Bägel
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/* jtag functions are taken from TIs SLAA149–September 2002
+ *
+ * 2012-10-03 Peter Bägel (DF5EQ)
+ */
+
+/*===== includes =============================================================*/
+
+#include <stdlib.h>
+#include "jtaglib.h"
+#include "output.h"
+
+/* JTAG identification value for all   */
+/* existing Flash-based MSP430 devices */
+#define JTAG_ID 0x89
+
+/* Instructions for the JTAG control signal register */
+/* in reverse bit order                              */
+#define IR_CNTRL_SIG_16BIT   0xC8 /* 0x13 */
+#define IR_CNTRL_SIG_CAPTURE 0x28 /* 0x14 */
+#define IR_CNTRL_SIG_RELEASE 0xA8 /* 0x15 */
+/* Instructions for the JTAG data register */
+#define IR_DATA_16BIT        0x82 /* 0x41 */
+#define IR_DATA_CAPTURE      0x42 /* 0x42 */
+#define IR_DATA_QUICK        0xC2 /* 0x43 */
+/* Instructions for the JTAG address register */
+#define IR_ADDR_16BIT        0xC1 /* 0x83 */
+#define IR_ADDR_CAPTURE      0x21 /* 0x84 */
+#define IR_DATA_TO_ADDR      0xA1 /* 0x85 */
+/* Instructions for the JTAG PSA mode */
+#define IR_DATA_PSA          0x22 /* 0x44 */
+#define IR_SHIFT_OUT_PSA     0x62 /* 0x46 */
+/* Instructions for the JTAG Fuse */
+#define IR_PREPARE_BLOW      0x44 /* 0x22 */
+#define IR_EX_BLOW           0x24 /* 0x24 */
+/* Bypass instruction */
+#define IR_BYPASS            0xFF /* 0xFF */
+
+#define jtag_tms_set(p) jtdev_tms(p, 1)
+#define jtag_tms_clr(p) jtdev_tms(p, 0)
+#define jtag_tck_set(p) jtdev_tck(p, 1)
+#define jtag_tck_clr(p) jtdev_tck(p, 0)
+#define jtag_tdi_set(p) jtdev_tdi(p, 1)
+#define jtag_tdi_clr(p) jtdev_tdi(p, 0)
+#define jtag_tclk_set(p) jtdev_tclk(p, 1)
+#define jtag_tclk_clr(p) jtdev_tclk(p, 0)
+#define jtag_rst_set(p) jtdev_rst(p, 1)
+#define jtag_rst_clr(p) jtdev_rst(p, 0)
+#define jtag_tst_set(p) jtdev_tst(p, 1)
+#define jtag_tst_clr(p) jtdev_tst(p, 0)
+
+#define jtag_led_green_on(p) jtdev_led_green(p, 1)
+#define jtag_led_green_off(p) jtdev_led_green(p, 0)
+#define jtag_led_red_on(p) jtdev_led_red(p, 1)
+#define jtag_led_red_off(p) jtdev_led_red(p, 0)
+
+/*----------------------------------------------------------------------------*/
+static void jtag_reset_tap(struct jtdev *p)
+/* Reset target JTAG interface and perform fuse-HW check */
+{
+  int loop_counter;
+
+  jtag_tms_set(p);
+  jtag_tck_set(p);
+  /* perform fuse check */
+  jtag_tms_clr(p);
+  jtag_tms_set(p);
+  jtag_tms_clr(p);
+  jtag_tms_set(p);
+  /* reset JTAG state machine */
+  for (loop_counter = 6; loop_counter > 0; loop_counter--) {
+    jtag_tck_clr(p);
+    jtag_tck_set(p);
+    if (p->failed)
+      return;
+  }
+  /* set JTAG state machine to Run-Test/IDLE */
+  jtag_tck_clr(p);
+  jtag_tms_clr(p);
+  jtag_tck_set(p);
+}
+
+/*----------------------------------------------------------------------------*/
+static void jtag_tclk_prep (struct jtdev *p)
+/* This function sets the target JTAG state machine */
+/* back into the Run-Test/Idle state after a shift access */
+{
+  /* JTAG state = Exit-DR */
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Update-DR */
+  jtag_tms_clr(p);
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Run-Test/Idle */
+}
+
+/*----------------------------------------------------------------------------*/
+static unsigned int jtag_shift( struct jtdev *p,
+				unsigned char number_of_bits,
+				unsigned int  data_out )
+/* shift a value into TDI (MSB first) and simultaneously */
+/* shift out a value from TDO (MSB first)                */
+/* number_of_bits: number of bits to shift               */
+/* data_out      : data to be shifted out                */
+/* return        : scanned TDO value                     */
+{
+  unsigned int data_in;
+  unsigned int mask;
+  unsigned int tclk_save;
+
+  tclk_save = jtdev_tclk_get(p);
+
+  data_in = 0;
+  for (mask = (unsigned int)0x0001 << (number_of_bits-1);
+       mask != 0;
+       mask >>= 1) {
+    if ((data_out & mask) != 0) {
+      jtag_tdi_set(p);
+    }
+    else {
+      jtag_tdi_clr(p);
+    }
+    if (mask == 1) {
+      jtag_tms_set(p);
+    }
+    jtag_tck_clr(p);
+    jtag_tck_set(p);
+    if (jtdev_tdo_get(p) == 1) {
+      data_in |= mask;
+    }
+  }
+
+  jtdev_tclk(p, tclk_save);
+
+  /* Set JTAG state back to Run-Test/Idle */
+  jtag_tclk_prep(p);
+  return data_in;
+}
+
+/*----------------------------------------------------------------------------*/
+static unsigned int jtag_ir_shift(struct jtdev *p, unsigned int instruction)
+/* shifts a new instruction into the JTAG instruction register through TDI */
+/* MSB first, with interchanged MSB/LSB, to use the shifting function      */
+/* instruction: 8 bit instruction                                          */
+/* return     : scanned TDO value                                          */
+{
+  /* JTAG state = Run-Test/Idle */
+  jtag_tms_set(p);
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Select DR-Scan */
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Select IR-Scan */
+  jtag_tms_clr(p);
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Capture-IR */
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Shift-IR, Shift in TDI (8-bit) */
+  return jtag_shift(p, 8, instruction);
+  /* JTAG state = Run-Test/Idle */
+}
+
+/*----------------------------------------------------------------------------*/
+static unsigned int jtag_dr_shift( struct jtdev *p, unsigned int data )
+/* shifts a given 16-bit word into the JTAG data register through TDI. */
+/* data  : 16 bit data                                                 */
+/* return: scanned TDO value                                           */
+{
+  /* JTAG state = Run-Test/Idle */
+  jtag_tms_set(p);
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Select DR-Scan */
+  jtag_tms_clr(p);
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Capture-DR */
+  jtag_tck_clr(p);
+  jtag_tck_set(p);
+  /* JTAG state = Shift-DR, Shift in TDI (16-bit) */
+  return jtag_shift(p, 16, data);
+  /* JTAG state = Run-Test/Idle */
+}
+
+/*----------------------------------------------------------------------------*/
+static int jtag_set_instruction_fetch(struct jtdev *p)
+/* set target CPU JTAG state machine into the instruction fetch state */
+/* return: 1 - instruction fetch was set                              */
+/*         0 - otherwise                                              */
+{
+  unsigned int loop_counter;
+
+  jtag_ir_shift(p, IR_CNTRL_SIG_CAPTURE);
+  /* wait until CPU is in instruction fetch state */
+  /* timeout after limited attempts               */
+  for (loop_counter = 50; loop_counter > 0; loop_counter--) {
+    if ((jtag_dr_shift(p, 0x0000) & 0x0080) == 0x0080) {
+      return 1;
+    }
+    jtag_tclk_clr(p); /* the TCLK pulse befor jtag_dr_shift leads to   */
+    jtag_tclk_set(p); /* problems at MEM_QUICK_READ, it's from SLAU265 */
+  }
+  printc_err("jtag_set_instruction_fetch: failed\n");
+  p->failed = 1;
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+static void jtag_halt_cpu(struct jtdev *p)
+/* set the CPU into a controlled stop state */
+{
+  /* set CPU into instruction fetch mode */
+  jtag_set_instruction_fetch(p);
+  /* set device into JTAG mode + read */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2401);
+  /* send JMP $ instruction to keep CPU from changing the state */
+  jtag_ir_shift(p, IR_DATA_16BIT);
+  jtag_dr_shift(p, 0x3FFF);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  /* set JTAG_HALT bit */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2409);
+  jtag_tclk_set(p);
+}
+
+/*----------------------------------------------------------------------------*/
+static void jtag_release_cpu(struct jtdev *p)
+/* release the target CPU from the controlled stop state */
+{
+  jtag_tclk_clr(p);
+  /* clear the HALT_JTAG bit */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2401);
+  jtag_ir_shift(p, IR_ADDR_CAPTURE);
+  jtag_tclk_set(p);
+}
+
+/*----------------------------------------------------------------------------*/
+static int jtag_verify_psa( struct jtdev *p,
+			    unsigned int start_address,
+			    unsigned int length,
+			    const uint16_t *data )
+/* compares the computed PSA (Pseudo Signature Analysis) value to the PSA  */
+/* value shifted out from the target device. It is used for very fast data */
+/* block write or erasure verification.                                    */
+/* start_address: start of data                                            */
+/* length       : number of data                                           */
+/* data         : pointer to data, 0 for erase check                       */
+/* RETURN       : 1 - comparison was successful                            */
+/*                0 - otherwise                                            */
+{
+  unsigned int psa_value;
+  unsigned int index;
+
+  /* Polynom value for PSA calculation */
+  unsigned int polynom = 0x0805;
+  /* Start value for PSA calculation */
+  unsigned int psa_crc = start_address-2;
+
+  jtag_execute_puc(p);
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2401);
+  jtag_set_instruction_fetch(p);
+  jtag_ir_shift(p, IR_DATA_16BIT);
+  jtag_dr_shift(p, 0x4030);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_dr_shift(p, start_address-2);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_ir_shift(p, IR_ADDR_CAPTURE);
+  jtag_dr_shift(p, 0x0000);
+  jtag_ir_shift(p, IR_DATA_PSA);
+  for (index = 0; index < length; index++) {
+    /* Calculate the PSA value */
+    if ((psa_crc & 0x8000) == 0x8000) {
+      psa_crc  ^= polynom;
+      psa_crc <<= 1;
+      psa_crc  |= 0x0001;
+    } else {
+      psa_crc <<= 1;
+    }
+    if ( data == 0) {
+      /* use erase check mask */
+      psa_crc ^= 0xFFFF;
+    } else {
+      /* use data */
+      psa_crc ^= data[index];
+    }
+    /* Clock through the PSA */
+    jtag_tclk_set(p);
+    jtag_tck_clr(p);
+    jtag_tms_set(p);
+    jtag_tck_set(p); /* select DR scan */
+    jtag_tck_clr(p);
+    jtag_tms_clr(p);
+    jtag_tck_set(p); /* capture DR */
+    jtag_tck_clr(p);
+    jtag_tck_set(p); /* shift DR */
+    jtag_tck_clr(p);
+    jtag_tms_set(p);
+    jtag_tck_set(p); /* exit DR */
+    jtag_tck_clr(p);
+    jtag_tck_set(p);
+    jtag_tms_clr(p);
+    jtag_tck_clr(p);
+    jtag_tck_set(p);
+    jtag_tclk_clr(p);
+  }
+  /* read out the PSA value */
+  jtag_ir_shift(p, IR_SHIFT_OUT_PSA);
+  psa_value = jtag_dr_shift(p, 0x0000);
+  jtag_tclk_set(p);
+  return (psa_value == psa_crc) ? 1 : 0;
+}
+
+/*===== public functions =====================================================*/
+
+unsigned int jtag_init (struct jtdev *p)
+/* Take target device under JTAG control. */
+/* Disable the target watchdog.           */
+/* return: 0 - fuse is blown              */
+/*        >0 - jtag id                    */
+{
+  unsigned int jtag_id;
+
+  jtag_rst_clr(p);
+  jtdev_power_on(p);
+  jtag_tst_set(p);
+  jtag_tdi_set(p);
+  jtag_tms_set(p);
+  jtag_tck_set(p);
+  jtag_tclk_set(p);
+  jtag_rst_clr(p);
+  jtdev_connect(p);
+  jtag_rst_set(p);
+  jtag_reset_tap(p);
+  /* check fuse */
+  if (jtag_is_fuse_blown(p)) {
+    printc_err("jtag_init: fuse is blown\n");
+    p->failed = 1;
+    return 0;
+  }
+  /* Set device into JTAG mode */
+  jtag_id = jtag_get_device(p);
+  if ( jtag_id == 0 ) {
+    printc_err("jtag_init: invalid jtag_id: 0x%02x\n", jtag_id);
+    p->failed = 1;
+    return 0;
+  }
+  /* Perform PUC, includes target watchdog disable */
+  if ( jtag_execute_puc(p) != jtag_id ) {
+    printc_err("jtag_init: PUC failed\n");
+    p->failed = 1;
+    return 0;
+  }
+  return jtag_id;
+}
+
+/*----------------------------------------------------------------------------*/
+unsigned int jtag_get_device(struct jtdev *p)
+{
+  unsigned int jtag_id = 0;
+  unsigned int loop_counter;
+
+  /* Set device into JTAG mode + read */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2401);
+  /* Wait until CPU is synchronized,            */
+  /* timeout after a limited number of attempts */
+  jtag_id = jtag_ir_shift(p, IR_CNTRL_SIG_CAPTURE);
+  for ( loop_counter = 50;
+	loop_counter > 0  && ((jtag_dr_shift(p, 0x0000) & 0x0200) != 0x0200);
+	loop_counter--);
+  if (loop_counter == 0){
+    printc_err("jtag_get_device: timed out\n");
+    p->failed = 1;
+    /* timeout reached */
+    return 0;
+  }
+  jtag_led_green_on(p);
+  return jtag_id;
+}
+
+/*----------------------------------------------------------------------------*/
+unsigned int jtag_chip_id(struct jtdev *p)
+/* Read the target chip id. */
+/* return: chip id         */
+{
+  unsigned short chip_id;
+
+  /* read id from address 0x0ff0 */
+  chip_id = jtag_read_mem(p, 16, 0x0FF0);
+  /* high / low byte are stored in reverse order */
+  chip_id = (chip_id << 8) + (chip_id >> 8);
+  return chip_id;
+}
+
+/*----------------------------------------------------------------------------*/
+uint16_t jtag_read_mem( struct jtdev *p,
+			unsigned int format,
+			address_t address )
+/* reads one byte/word from a given address */
+/* format : 8-byte, 16-word                 */
+/* address: address of memory               */
+/* return : content of memory               */
+{
+  uint16_t content;
+
+  jtag_halt_cpu(p);
+  jtag_tclk_clr(p);
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  if (format == 16) {
+    /* set word read */
+    jtag_dr_shift(p, 0x2409);
+  }
+  else {
+    /* set byte read */
+    jtag_dr_shift(p, 0x2419);
+  }
+  /* set address */
+  jtag_ir_shift(p, IR_ADDR_16BIT);
+  jtag_dr_shift(p, address);
+  jtag_ir_shift(p, IR_DATA_TO_ADDR);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  /* shift out 16 bits */
+  content = jtag_dr_shift(p, 0x0000);
+  jtag_tclk_set(p); /* is also the first instruction in jtag_release_cpu() */
+  jtag_release_cpu(p);
+  if (format == 8) {
+    content &= 0x00ff;
+  }
+  return content;
+}
+
+/*----------------------------------------------------------------------------*/
+void jtag_read_mem_quick( struct jtdev *p,
+			  address_t address,
+			  unsigned int length,
+			  uint16_t *data )
+/* reads an array of words from target memory */
+/* address: address to read from              */
+/* length : number of word to read            */
+/* data   : memory to write to                */
+{
+  unsigned int index;
+
+  /* Initialize reading: */
+  jtag_write_reg(p, 0,address-4);
+  jtag_halt_cpu(p);
+  jtag_tclk_clr(p);
+  /* set RW to read */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2409);
+  jtag_ir_shift(p, IR_DATA_QUICK);
+  for (index = 0; index < length; index++) {
+    jtag_tclk_set(p);
+    jtag_tclk_clr(p);
+    /* shift out the data from the target */
+    data[index] = jtag_dr_shift(p, 0x0000);
+   }
+  jtag_tclk_set(p);
+  jtag_release_cpu(p);
+}
+
+/*----------------------------------------------------------------------------*/
+void jtag_write_mem( struct jtdev *p,
+		     unsigned int format,
+		     address_t address,
+		     uint16_t data )
+/* writes one byte/word at a given address */
+/* format : 8-byte, 16-word                */
+/* address: address to be written          */
+/* data   : data to write                  */
+{
+  jtag_halt_cpu(p);
+  jtag_tclk_clr(p);
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  if (format == 16) {
+    /* set word write */
+    jtag_dr_shift(p, 0x2408);
+  }
+  else {
+    /* set byte write */
+    jtag_dr_shift(p, 0x2418);
+  }
+  jtag_ir_shift(p, IR_ADDR_16BIT);
+  /* set addr */
+  jtag_dr_shift(p, address);
+  jtag_ir_shift(p, IR_DATA_TO_ADDR);
+  /* shift in 16 bits */
+  jtag_dr_shift(p, data);
+  jtag_tclk_set(p);
+  jtag_release_cpu(p);
+}
+
+/*----------------------------------------------------------------------------*/
+void jtag_write_mem_quick( struct jtdev *p,
+			   address_t address,
+			   unsigned int length,
+			   const uint16_t *data )
+/* writes an array of words into target memory */
+/* address: address to write to                */
+/* length : number of word to write            */
+/* data   : data to write                      */
+{
+  unsigned int index;
+
+  /* Initialize writing: */
+  jtag_write_reg(p, 0, address-4);
+  jtag_halt_cpu(p);
+  jtag_tclk_clr(p);
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  /* set RW to write */
+  jtag_dr_shift(p, 0x2408);
+  jtag_ir_shift(p, IR_DATA_QUICK);
+  for (index = 0; index < length; index++) {
+    /* write data */
+    jtag_dr_shift(p, data[index]);
+    /* increment PC by 2 */
+    jtag_tclk_set(p);
+    jtag_tclk_clr(p);
+  }
+  jtag_tclk_set(p);
+  jtag_release_cpu(p);
+}
+
+/*----------------------------------------------------------------------------*/
+int jtag_is_fuse_blown (struct jtdev *p)
+/* This function checks if the JTAG access security fuse is blown */
+/* return: 1 - fuse is blown                                      */
+/*         0 - otherwise                                          */
+{
+  unsigned int loop_counter;
+
+  /* First trial could be wrong */
+  for (loop_counter = 3; loop_counter > 0; loop_counter--) {
+    jtag_ir_shift(p, IR_CNTRL_SIG_CAPTURE);
+    if (jtag_dr_shift(p, 0xAAAA) == 0x5555) {
+      /* Fuse is blown */
+      return 1;
+    }
+  }
+  /* fuse is not blown */
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+unsigned int jtag_execute_puc(struct jtdev *p)
+/* execute a Power-Up Clear (PUC) using JTAG CNTRL SIG register */
+/* return: JTAG ID                                              */
+{
+  unsigned int jtag_id;
+
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  /* apply and remove reset */
+  jtag_dr_shift(p, 0x2C01);
+  jtag_dr_shift(p, 0x2401);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  /* read jtag id */
+  jtag_id = jtag_ir_shift(p, IR_ADDR_CAPTURE);
+  /* disable watchdog on target device */
+  jtag_write_mem(p, 16, 0x0120, 0x5A80);
+  return jtag_id;
+}
+
+/*----------------------------------------------------------------------------*/
+void jtag_release_device( struct jtdev *p, address_t address )
+/* release the target device from JTAG control  */
+/* address: 0xFFFE - perform Reset,             */
+/*                   load Reset Vector into PC  */
+/*          0xFFFF - start execution at current */
+/*                   PC position                */
+/*          other  - load Address into PC       */
+{
+    jtag_led_green_off(p);
+    switch (address) {
+    case 0xffff: /* nothing to do */
+      break;
+    case 0xfffe: /* perform reset */
+      jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+      jtag_dr_shift(p, 0x2C01);
+      jtag_dr_shift(p, 0x2401);
+      break;
+    default: /* set target CPU's PC */
+      jtag_write_reg(p, 0, address);
+      break;
+  }
+  jtag_ir_shift(p, IR_CNTRL_SIG_RELEASE);
+}
+
+/*----------------------------------------------------------------------------*/
+int jtag_verify_mem( struct jtdev *p,
+		     address_t start_address,
+		     unsigned int length,
+		     const uint16_t *data )
+/* performs a verification over the given memory range */
+/* return: 1 -  verification was successful            */
+/*         0 -  otherwise                              */
+{
+  return jtag_verify_psa( p, start_address, length, data );
+}
+
+/*----------------------------------------------------------------------------*/
+int jtag_erase_check( struct jtdev *p,
+		      address_t start_address,
+		      unsigned int length )
+/* performs an erase check over the given memory range */
+/* return: 1 - erase check was successful              */
+/*         0 - otherwise                               */
+{
+  return jtag_verify_psa (p, start_address, length, NULL);
+}
+
+/*----------------------------------------------------------------------------*/
+void jtag_write_flash( struct jtdev *p,
+		       address_t start_address,
+		       unsigned int length,
+		       const uint16_t *data )
+/* programs/verifies an array of words into a FLASH by using the */
+/* FLASH controller. The JTAG FLASH register isn't needed.       */
+/* start_address: start in FLASH                                 */
+/* length       : number of words                                */
+/* data         : pointer to data                                */
+{
+  unsigned int index;
+  unsigned int address;
+
+  jtag_led_red_on(p);
+
+  address = start_address;
+  jtag_halt_cpu(p);
+  jtag_tclk_clr(p);
+  /* set RW to write */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2408);
+  /* FCTL1 register */
+  jtag_ir_shift(p, IR_ADDR_16BIT);
+  jtag_dr_shift(p, 0x0128);
+  /* enable FLASH write */
+  jtag_ir_shift(p, IR_DATA_TO_ADDR);
+  jtag_dr_shift(p, 0xA540);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  /* FCTL2 register */
+  jtag_ir_shift(p, IR_ADDR_16BIT);
+  jtag_dr_shift(p, 0x012A);
+  /* select MCLK as source, DIV=1 */
+  jtag_ir_shift(p, IR_DATA_TO_ADDR);
+  jtag_dr_shift(p, 0xA540);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  /* FCTL3 register */
+  jtag_ir_shift(p, IR_ADDR_16BIT);
+  jtag_dr_shift(p, 0x012C);
+  /* clear FCTL3 register */
+  jtag_ir_shift(p, IR_DATA_TO_ADDR);
+  jtag_dr_shift(p, 0xA500);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  for (index = 0; index < length; index++) {
+    /* set RW to write */
+    jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+    jtag_dr_shift(p, 0x2408);
+    /* set address */
+    jtag_ir_shift(p, IR_ADDR_16BIT);
+    jtag_dr_shift(p, address);
+    /* set data */
+    jtag_ir_shift(p, IR_DATA_TO_ADDR);
+    jtag_dr_shift(p, data[index]);
+    jtag_tclk_set(p);
+    jtag_tclk_clr(p);
+    /* set RW to read */
+    jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+    jtag_dr_shift(p, 0x2409);
+    /* provide TCLKs             */
+    /* min. 33 for F149 and F449 */
+    jtdev_tclk_strobe(p, 35);
+    address += 2;
+
+    if (p->failed)
+      break;
+  }
+  /* set RW to write */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2408);
+  /* FCTL1 register */
+  jtag_ir_shift(p, IR_ADDR_16BIT);
+  jtag_dr_shift(p, 0x0128);
+  /* disable FLASH write */
+  jtag_ir_shift(p, IR_DATA_TO_ADDR);
+  jtag_dr_shift(p, 0xA500);
+  jtag_tclk_set(p);
+  jtag_release_cpu(p);
+
+  jtag_led_red_off(p);
+}
+
+/*----------------------------------------------------------------------------*/
+void jtag_erase_flash( struct jtdev *p, unsigned int erase_mode,
+		       address_t erase_address )
+/* performs a mass erase (with and w/o info memory) or a segment erase of a   */
+/* FLASH module specified by the given mode and address. Large memory devices */
+/* get additional mass erase operations to meet the spec.                     */
+/* erase_mode   : ERASE_MASS, ERASE_MAIN, ERASE_SGMT                          */
+/* erase_address: address within the selected segment                         */
+{
+  unsigned int number_of_strobes = 4820;         /* default for segment erase */
+  unsigned int loop_counter;
+  unsigned int max_loop_count = 1;    /* erase cycle repeating for mass erase */
+
+  jtag_led_red_on(p);
+
+  if ((erase_mode == JTAG_ERASE_MASS) ||
+      (erase_mode == JTAG_ERASE_MAIN)) {
+    number_of_strobes = 5300;   /* Larger Flash memories require */
+    max_loop_count    = 19;     /* additional cycles for erase.  */
+    erase_address     = 0xfffe; /* overwrite given address       */
+  }
+  for (loop_counter = max_loop_count; loop_counter > 0; loop_counter--) {
+    jtag_halt_cpu(p);
+    jtag_tclk_clr(p);
+    /* set RW to write */
+    jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+    jtag_dr_shift(p, 0x2408);
+    /* FCTL1 address */
+    jtag_ir_shift(p, IR_ADDR_16BIT);
+    jtag_dr_shift(p, 0x0128);
+    /* enable erase mode */
+    jtag_ir_shift(p, IR_DATA_TO_ADDR);
+    jtag_dr_shift(p, erase_mode);
+    jtag_tclk_set(p);
+    jtag_tclk_clr(p);
+    /* FCTL2 address */
+    jtag_ir_shift(p, IR_ADDR_16BIT);
+    jtag_dr_shift(p, 0x012A);
+    /* MCLK is source, DIV=1 */
+    jtag_ir_shift(p, IR_DATA_TO_ADDR);
+    jtag_dr_shift(p, 0xA540);
+    jtag_tclk_set(p);
+    jtag_tclk_clr(p);
+    /* FCTL3 address */
+    jtag_ir_shift(p, IR_ADDR_16BIT);
+    jtag_dr_shift(p, 0x012C);
+    /* clear FCTL3 */
+    jtag_ir_shift(p, IR_DATA_TO_ADDR);
+    jtag_dr_shift(p, 0xA500);
+    jtag_tclk_set(p);
+    jtag_tclk_clr(p);
+    /* set erase address */
+    jtag_ir_shift(p, IR_ADDR_16BIT);
+    jtag_dr_shift(p, erase_address);
+    /* dummy write to start erase */
+    jtag_ir_shift(p, IR_DATA_TO_ADDR);
+    jtag_dr_shift(p, 0x55AA);
+    jtag_tclk_set(p);
+    jtag_tclk_clr(p);
+    /* set RW to read */
+    jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+    jtag_dr_shift(p, 0x2409);
+    /* provide TCLKs */
+    jtdev_tclk_strobe(p, number_of_strobes);
+    /* set RW to write */
+    jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+    jtag_dr_shift(p, 0x2408);
+    /* FCTL1 address */
+    jtag_ir_shift(p, IR_ADDR_16BIT);
+    jtag_dr_shift(p, 0x0128);
+    /* disable erase */
+    jtag_ir_shift(p, IR_DATA_TO_ADDR);
+    jtag_dr_shift(p, 0xA500);
+    jtag_tclk_set(p);
+    jtag_release_cpu(p);
+  }
+  jtag_led_red_off(p);
+}
+
+/*----------------------------------------------------------------------------*/
+address_t jtag_read_reg( struct jtdev *p, int reg )
+/* reads a register from the target CPU */
+{
+  unsigned int value;
+
+  /* CPU controls RW & BYTE */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x3401);
+
+  /* set CPU into instruction fetch mode */
+  jtag_set_instruction_fetch(p);
+
+  jtag_ir_shift(p, IR_DATA_16BIT);
+  /* "sub #8,PC" instruction                    */
+  /* PC - 8 -> PC                               */
+  /* PC is advanced 4 bytes by this instruction */
+  /* needs 3 clock cycles                       */
+  jtag_dr_shift(p, 0x8030);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_dr_shift(p, 0x0008);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  /* "mov Rn,&0x01fe" instruction                 */
+  /* Rn -> &0x01fe                                */
+  /* PC is advanced 4 bytes by this instruction   */
+  /* needs 4 clock cycles                         */
+  /* it's a ROM address, write has no effect, but */
+  /* the registers value is placed on the databus */
+  jtag_dr_shift(p, 0x4082 | (((unsigned int)reg << 8) & 0x0f00) );
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_dr_shift(p, 0x01fe);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+
+  /* read databus which contains the registers value */
+  jtag_ir_shift(p, IR_DATA_CAPTURE);
+  value = jtag_dr_shift(p, 0x0000);
+
+  /* JTAG controls RW & BYTE */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2401);
+
+  /* return value read from register */
+  return value;
+}
+
+/*----------------------------------------------------------------------------*/
+void jtag_write_reg( struct jtdev *p, int reg, address_t value )
+/* writes a value into a register of the target CPU */
+{
+  /* CPU controls RW & BYTE */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x3401);
+
+  /* set CPU into instruction fetch mode */
+  jtag_set_instruction_fetch(p);
+
+  jtag_ir_shift(p, IR_DATA_16BIT);
+  /* "sub #8,PC" instruction                    */
+  /* PC-8 -> PC                                 */
+  /* PC is advanced 4 bytes by this instruction */
+  /* needs 3 clock cycles                       */
+  jtag_dr_shift(p, 0x8030);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_dr_shift(p, 0x0008);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  /* "mov #value,Rn" instruction                */
+  /* value -> Rn                                */
+  /* PC is advanced 4 bytes by this instruction */
+  /* needs 2 clock cycles                       */
+  jtag_dr_shift(p, 0x4030 | (reg & 0x000f) );
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+  jtag_dr_shift(p, reg==0 ? value-4 : value );
+  jtag_tclk_set(p);
+  jtag_tclk_clr(p);
+
+  /* JTAG controls RW & BYTE */
+  jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+  jtag_dr_shift(p, 0x2401);
+}
+

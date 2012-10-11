@@ -74,3 +74,6 @@ Stanimir Bonev <bonev_st@abv.bg>:
 	* Olimex chip database.
 	* Improved identification/configuration system for Olimex
 	  debuggers.
+
+Peter Bägel <peter@baegel.de>:
+	* JTAG interface library and parallel-port JTAG driver.

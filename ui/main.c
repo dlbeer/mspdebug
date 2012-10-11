@@ -53,6 +53,7 @@
 #include "goodfet.h"
 #include "input.h"
 #include "input_async.h"
+#include "pif.h"
 
 #define OPT_NO_RC		0x01
 #define OPT_EMBEDDED		0x02
@@ -75,7 +76,8 @@ static const struct device_class *const driver_table[] = {
 	&device_flash_bsl,
 	&device_gdbc,
 	&device_tilib,
-	&device_goodfet
+	&device_goodfet,
+	&device_pif
 };
 
 static const char *version_text =

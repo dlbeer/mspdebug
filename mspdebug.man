@@ -168,6 +168,10 @@ Connect to a GoodFET device. JTAG mode must be used, and only TTY access
 is supported. This device can be used for memory access (read, erase and
 program), but CPU control is limited. The CPU may be halted, run and
 reset, but register access and breakpoints aren't supported.
+.IP "\fBpif\fR"
+Connect to a parallel-port JTAG controller. Currently, this driver is only
+supported for Linux. A parallel port device must be specified via the
+\fB-d\fR option.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported

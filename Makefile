@@ -136,6 +136,9 @@ OBJ=\
     drivers/obl.o \
     drivers/devicelist.o \
     drivers/fet_olimex_db.o \
+    drivers/jtdev.o \
+    drivers/jtaglib.o \
+    drivers/pif.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \
