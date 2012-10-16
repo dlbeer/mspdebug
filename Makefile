@@ -152,6 +152,7 @@ OBJ=\
     simio/simio_wdt.o \
     simio/simio_hwmult.o \
     simio/simio_gpio.o \
+    simio/simio_console.o \
     ui/gdb.o \
     ui/rtools.o \
     ui/sym.o \
