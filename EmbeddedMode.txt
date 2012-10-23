@@ -45,6 +45,15 @@ character. These sigil characters are:
   !        Error messages
   \        Shell messages
 
+Another feature of output processing in embedded mode is that when
+colourized output is enabled (``opt color true``), colourization is
+always implemented by including ANSI escape codes in the output, even on
+Windows. Normally, colourized output on Windows is implemented by
+changing console text attributes.
+
+Shell messages
+--------------
+
 Shell messages are emitted only when in embedded mode. They provide
 additional information to the front-end and consist of a type identifier
 string immediately following the sigil, then optionally a space and
@@ -58,11 +67,18 @@ arguments. Currently, the following shell messages may be emitted:
 
   ~ The command process has accepted a command and is now executing it.
 
-Another feature of output processing in embedded mode is that when
-colourized output is enabled (``opt color true``), colourization is
-always implemented by including ANSI escape codes in the output, even on
-Windows. Normally, colourized output on Windows is implemented by
-changing console text attributes.
+\power-sample-us <period>
+
+  ~ Indicates that power profiling is enabled. The period argument is a
+    decimal number giving the sample period in microseconds.
+
+\power-samples <data>
+
+  ~ Power data captured from the running device. The data argument is a
+    Base64-encoded string. When decoded, it consists of a sequence of
+    32-bit little-endian unsigned integers. Integers with bit 31 set are
+    MAB values, and those without bit 31 set are current consumption
+    readings, in microamps.
 
 Input processing and interruption
 =================================

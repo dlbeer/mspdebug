@@ -404,6 +404,7 @@ static void power_init(struct fet_device *dev)
 
 	printc("Power profiling enabled: bufsize = %d bytes, %d us/sample\n",
 		dev->proto.argv[1], dev->proto.argv[0]);
+	printc_shell("power-sample-us %d\n", dev->proto.argv[0]);
 
 	dev->base.power_buf = powerbuf_new(POWERBUF_DEFAULT_SAMPLES,
 		dev->proto.argv[0]);
@@ -447,6 +448,23 @@ static int power_end(struct fet_device *dev)
 	return 0;
 }
 
+static void shell_power(const uint8_t *data, int len)
+{
+	while (len > 0) {
+		int plen = 128;
+		char text[256];
+
+		if (plen > len)
+			plen = len;
+
+		base64_encode(data, plen, text, sizeof(text));
+		printc_shell("power-samples %s\n", text);
+
+		len -= plen;
+		data += plen;
+	}
+}
+
 static int power_poll(struct fet_device *dev)
 {
 	address_t mab;
@@ -466,6 +484,8 @@ static int power_poll(struct fet_device *dev)
 		dev->poll_enable = 0;
 		return -1;
 	}
+
+	shell_power(dev->proto.data, dev->proto.datalen);
 
 	mab = powerbuf_last_mab(dev->base.power_buf);
 	for (i = 0; i + 3 < dev->proto.datalen; i += 4) {

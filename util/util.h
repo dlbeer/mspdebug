@@ -61,6 +61,16 @@ char *expand_tilde(const char *path);
 int delay_s(unsigned int s);
 int delay_ms(unsigned int s);
 
+/* Base64 encode a block without breaking into lines. Returns the number
+ * of source bytes encoded. The output is nul-terminated.
+ */
+static inline int base64_encoded_size(int decoded_size)
+{
+	return ((decoded_size + 2) / 3) * 4;
+}
+
+int base64_encode(const uint8_t *src, int len, char *dst, int max_len);
+
 /* printf format for long long args */
 #ifdef __MINGW32__
 #define LLFMT "I64d"

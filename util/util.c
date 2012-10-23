@@ -296,3 +296,41 @@ int delay_ms(unsigned int s)
 	return nanosleep(&ts, NULL);
 }
 #endif
+
+int base64_encode(const uint8_t *src, int len, char *dst, int max_len)
+{
+	static const char basis[] =
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	    "abcdefghijklmnopqrstuvwxyz0123456789+/";
+	int i = 0;
+	int k = 0;
+
+	while ((i < len) && (k + 4) < max_len) {
+		int a = src[i++];
+
+		dst[k++] = basis[a >> 2];
+
+		if (i < len) {
+			int b = src[i++];
+
+			dst[k++] = basis[((a & 3) << 4) | (b & 0xf0) >> 4];
+			if (i < len) {
+				int c = src[i++];
+
+				dst[k++] = basis[((b & 0xf) << 2) |
+						 ((c & 0xc0) >> 6)];
+				dst[k++] = basis[c & 0x3f];
+			} else {
+				dst[k++] = basis[(b & 0xf) << 2];
+				dst[k++] = '=';
+			}
+		} else {
+			dst[k++] = basis[(a & 3) << 4];
+			dst[k++] = '=';
+			dst[k++] = '=';
+		}
+	}
+
+	dst[k] = 0;
+	return i;
+}
