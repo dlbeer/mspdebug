@@ -62,8 +62,11 @@ else
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug
 
-    ifneq ($(filter $(UNAME_S),FreeBSD OpenBSD),)
+    ifneq ($(filter $(UNAME_S),OpenBSD),)
 	OS_LIBS =
+    else ifneq ($(filter $(UNAME_S),FreeBSD),)
+	OS_CFLAGS = -pthread
+	OS_LIBS = -lpthread
     else
 	OS_LIBS = -lpthread -ldl
     endif
