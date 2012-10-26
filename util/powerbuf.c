@@ -43,6 +43,7 @@ powerbuf_t powerbuf_new(unsigned int max_samples, unsigned int interval_us)
 	pb->mab = malloc(sizeof(pb->mab[0]) * max_samples);
 	if (!pb->mab) {
 		free(pb->current_ua);
+		free(pb);
 		return NULL;
 	}
 
@@ -50,6 +51,7 @@ powerbuf_t powerbuf_new(unsigned int max_samples, unsigned int interval_us)
 	if (!pb->sorted) {
 		free(pb->current_ua);
 		free(pb->mab);
+		free(pb);
 		return NULL;
 	}
 
