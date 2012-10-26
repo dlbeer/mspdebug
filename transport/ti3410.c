@@ -605,6 +605,7 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial)
 
 	if (open_device(tr, dev) < 0) {
 		printc_err("ti3410: failed to open TI3410 device\n");
+		free(tr);
 		return NULL;
 	}
 

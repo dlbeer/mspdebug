@@ -286,6 +286,7 @@ transport_t ftdi_open(const char *devpath,
 
 	if (open_device(tr, dev, baud_rate) < 0) {
 		printc_err("ftdi: failed to open device\n");
+		free(tr);
 		return NULL;
 	}
 

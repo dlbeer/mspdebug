@@ -250,6 +250,7 @@ transport_t rf2500_open(const char *devpath, const char *requested_serial)
 
 	if (open_device(tr, dev) < 0) {
 		printc_err("rf2500: failed to open RF2500 device\n");
+		free(tr);
 		return NULL;
 	}
 
