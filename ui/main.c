@@ -386,22 +386,24 @@ int main(int argc, char **argv)
 	args.devarg.vcc_mv = 3000;
 	args.devarg.requested_serial = NULL;
 	if (parse_cmdline_args(argc, argv, &args) < 0)
-		return -1;
+		goto fail_parse;
 
 	if (args.flags & OPT_EMBEDDED)
 		input_module = &input_async;
 	if (input_module->init() < 0)
-		return -1;
+		goto fail_input;
 
 	output_set_embedded(args.flags & OPT_EMBEDDED);
 
-	if (sockets_init() < 0)
-		return -1;
+	if (sockets_init() < 0) {
+		ret = -1;
+		goto fail_sockets;
+	}
 
 	printc_dbg("%s\n", version_text);
 	if (setup_driver(&args) < 0) {
-		sockets_exit();
-		return -1;
+		ret = -1;
+		goto fail_driver;
 	}
 
 	if (device_probe_id(device_default) < 0)
@@ -425,10 +427,21 @@ int main(int argc, char **argv)
 	}
 
 	simio_exit();
-	stab_exit();
 	device_destroy();
+	stab_exit();
+fail_driver:
 	sockets_exit();
+fail_sockets:
 	input_module->exit();
+fail_input:
+fail_parse:
 
+	/* We need to do this on Windows, because in embedded mode we
+	 * may still have a running background thread for input. If so,
+	 * returning from main() won't cause the process to terminate.
+	 */
+#if defined(__Windows__) || defined(__CYGWIN__)
+	ExitProcess(ret);
+#endif
 	return ret;
 }
