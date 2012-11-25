@@ -1,3 +1,13 @@
+Version 0.21 - 26 Nov 2012
+	* Support for flat binary files.
+	* Bug fixes and refactoring of drivers.
+	* Support for UIF BSL access via USB.
+	* Support for Olimex MSP430-JTAG-ISO-MK2, including power
+	  profiling.
+	* Support for parallel JTAG.
+	* Support for many new chips when using Olimex drivers.
+	* Add new interface mode for use with front-ends.
+
 Version 0.20 - 14 Aug 2012
 	* Support for new chips: MSP430F6736, MSP430F2252, MSP430G2403,
 	  MSP430F6435.
