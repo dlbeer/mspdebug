@@ -190,8 +190,9 @@ static void usbtr_destroy(transport_t tr_base)
 
 static int usbtr_flush(transport_t tr_base)
 {
-#ifndef __APPLE__
 	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
+
+#ifndef __APPLE__
 	char buf[64];
 
 	/* Flush out lingering data.
@@ -204,6 +205,8 @@ static int usbtr_flush(transport_t tr_base)
 			     100) > 0);
 #endif
 
+	tr->len = 0;
+	tr->offset = 0;
 	return 0;
 }
 
@@ -231,6 +234,7 @@ transport_t rf2500_open(const char *devpath, const char *requested_serial)
 		return NULL;
 	}
 
+	memset(tr, 0, sizeof(*tr));
 	tr->base.ops = &rf2500_transport;
 
 	usb_init();

@@ -283,6 +283,7 @@ transport_t cdc_acm_open(const char *devpath, const char *requested_serial,
 		return NULL;
 	}
 
+	memset(tr, 0, sizeof(*tr));
 	tr->base.ops = &cdc_acm_class;
 
 	usb_init();
