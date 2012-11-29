@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/select.h>
+#include <sys/time.h>
 
 #include "sport.h"
 #include "util.h"
