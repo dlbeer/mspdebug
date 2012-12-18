@@ -20,7 +20,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/select.h>
 #include <sys/time.h>
 
 #include "sport.h"
@@ -35,6 +34,8 @@
 #define TIMEOUT_S	30
 
 #ifndef __Windows__
+
+#include <sys/select.h>
 
 #ifndef B460800
 #define B460800 460800
