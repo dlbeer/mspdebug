@@ -100,10 +100,11 @@ static int fetch_operand(struct sim_device *dev,
 		}
 
 		addr = MEM_GETW(dev, dev->regs[MSP430_REG_PC]);
-		dev->regs[MSP430_REG_PC] += 2;
 
 		if (reg != MSP430_REG_SR)
 			addr += dev->regs[reg];
+
+		dev->regs[MSP430_REG_PC] += 2;
 		break;
 
 	case MSP430_AMODE_INDIRECT:
