@@ -172,7 +172,7 @@ static int store_operand(struct sim_device *dev,
 			 uint16_t addr, uint16_t data)
 {
 	if (amode == MSP430_AMODE_REGISTER) {
-		dev->regs[reg] = data;
+		dev->regs[reg] = is_byte ? data & 0xFF : data;
 		return 0;
 	}
 
@@ -266,7 +266,7 @@ static int step_double(struct sim_device *dev, uint16_t ins)
 		if (res_data & (msb << 1))
 			dev->regs[MSP430_REG_SR] |= MSP430_SR_C;
 		if (!((src_data ^ dst_data) & msb) &&
-		    (src_data ^ dst_data) & msb)
+		    (src_data ^ res_data) & msb)
 			dev->regs[MSP430_REG_SR] |= MSP430_SR_V;
 		break;
 
