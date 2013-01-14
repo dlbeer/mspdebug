@@ -263,8 +263,11 @@ static int decode_single(const uint8_t *code, address_t offset,
 		if (insn->dst_reg == MSP430_REG_PC) {
 			insn->dst_addr = offset + 2;
 			insn->dst_mode = MSP430_AMODE_SYMBOLIC;
-		} else if (insn->dst_reg == MSP430_REG_SR)
+		} else if (insn->dst_reg == MSP430_REG_SR) {
 			insn->dst_mode = MSP430_AMODE_ABSOLUTE;
+		} else if (insn->dst_reg == MSP430_REG_R3) {
+			need_arg = 0; /* constant generator: #1 */
+		}
 		break;
 
 	case MSP430_AMODE_INDIRECT: break;
