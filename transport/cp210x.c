@@ -45,7 +45,7 @@ struct cp210x_transport {
  * one transfer.
  */
 
-#define CP210X_CLOCK			35000000
+#define CP210X_CLOCK			3500000
 
 #define V1_INTERFACE_CLASS		255
 #define V1_IN_EP			0x81
