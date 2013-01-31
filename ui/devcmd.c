@@ -484,6 +484,12 @@ int cmd_hexout(char **arg)
 
 	if (hexout_flush(&hexout) < 0)
 		goto fail;
+
+	if (fprintf(hexout.file, ":00000001FF\n") < 0) {
+		pr_error("hexout: failed to write terminator\n");
+		goto fail;
+	}
+
 	if (fclose(hexout.file) < 0) {
 		pr_error("hexout: error on close");
 		return -1;
