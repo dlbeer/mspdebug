@@ -62,4 +62,12 @@ const char *opdb_get_string(const char *name);
 int opdb_get_boolean(const char *name);
 address_t opdb_get_numeric(const char *name);
 
+/* Check flash unlock bits, as configured by the user */
+typedef enum {
+	FPERM_LOCKED_FLASH = 0x01,
+	FPERM_BSL = 0x02
+} fperm_t;
+
+fperm_t opdb_read_fperm(void);
+
 #endif

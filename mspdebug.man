@@ -712,6 +712,13 @@ If true, MSPDebug will colorize debugging output.
 Change the size of the buffer used to transfer memory to and from the
 FET. Increasing the value from the default of 64 will improve transfer
 speed, but may cause problems with some chips.
+.IP "\fBenable_bsl_access\fR (boolean)"
+If set, some drivers will allow erase/program access to flash
+BSL memory. If in doubt, do not enable this.
+.IP "\fBenable_locked_flash_access\fR (boolean)"
+If set, some drivers will allow erase/program access to the info A
+segment. If in doubt, do not enable this. Currently, the tilib and uif
+drivers are affected by this option.
 .IP "\fBgdb_loop\fR (boolean)"
 Automatically restart the GDB server after disconnection. If this
 option is set, then the GDB server keeps running until an error occurs,

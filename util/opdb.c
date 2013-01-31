@@ -77,6 +77,23 @@ static const struct opdb_key keys[] = {
 		.defval = {
 			.numeric = 64
 		}
+	},
+	{
+		.name = "enable_locked_flash_access",
+		.type = OPDB_TYPE_BOOLEAN,
+		.help =
+"If set, some drivers will allow erase/program access to the info A\n"
+"segment. If in doubt, do not enable this.\n",
+		.defval = {
+			.boolean = 0
+		}
+	},
+	{
+		.name = "enable_bsl_access",
+		.type = OPDB_TYPE_BOOLEAN,
+		.help =
+"If set, some drivers will allow erase/program access to flash\n"
+"BSL memory. If in doubt, do not enable this.\n"
 	}
 };
 
@@ -185,4 +202,16 @@ address_t opdb_get_numeric(const char *name)
 		return 0;
 
 	return values[idx].numeric;
+}
+
+fperm_t opdb_read_fperm(void)
+{
+	fperm_t ret = 0;
+
+	if (opdb_get_boolean("enable_locked_flash_access"))
+		ret |= FPERM_LOCKED_FLASH;
+	if (opdb_get_boolean("enable_bsl_access"))
+		ret |= FPERM_BSL;
+
+	return ret;
 }

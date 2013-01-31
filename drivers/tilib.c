@@ -26,6 +26,7 @@
 #include "tilib_defs.h"
 #include "thread.h"
 #include "ctrlc.h"
+#include "opdb.h"
 
 #if defined(__Windows__) || defined(__CYGWIN__)
 static const char tilib_filename[] = "MSP430.DLL";
@@ -46,6 +47,7 @@ struct tilib_device {
 	uint16_t		bp_handles[DEVICE_MAX_BREAKPOINTS];
 
 	char			uifPath[1024];
+	fperm_t			active_fperm;
 
 	/* MSP430.h */
 	STATUS_T TIDLL (*MSP430_Initialize)(char *port, long *version);
@@ -239,6 +241,39 @@ static void report_error(struct tilib_device *dev, const char *what)
 	printc_err("tilib: %s: %s (error = %ld)\n", what, desc, err);
 }
 
+static int refresh_fperm(struct tilib_device *dev)
+{
+	fperm_t fp = opdb_read_fperm();
+	fperm_t delta = dev->active_fperm ^ fp;
+
+	if (delta & FPERM_LOCKED_FLASH) {
+		int opt = (fp & FPERM_LOCKED_FLASH) ? 1 : 0;
+
+		printc_dbg("%s locked flash access\n",
+			   opt ? "Enabling" : "Disabling");
+		if (dev->MSP430_Configure(LOCKED_FLASH_ACCESS, opt) < 0) {
+			report_error(dev, "MSP430_Configure "
+				     "(LOCKED_FLASH_ACCESS)\n");
+			return -1;
+		}
+	}
+
+	if (delta & FPERM_BSL) {
+		int opt = (fp & FPERM_BSL) ? 1 : 0;
+
+		printc_dbg("%s BSL access\n",
+			   opt ? "Enabling" : "Disabling");
+		if (dev->MSP430_Configure(UNLOCK_BSL_MODE, opt) < 0) {
+			report_error(dev, "MSP430_Configure "
+				     "(UNLOCK_BSL_MODE)\n");
+			return -1;
+		}
+	}
+
+	dev->active_fperm = fp;
+	return 0;
+}
+
 static int tilib_readmem(device_t dev_base, address_t addr,
 			 uint8_t *mem, address_t len)
 {
@@ -256,6 +291,8 @@ static int tilib_writemem(device_t dev_base, address_t addr,
 			  const uint8_t *mem, address_t len)
 {
 	struct tilib_device *dev = (struct tilib_device *)dev_base;
+
+	refresh_fperm(dev);
 
 	if (dev->MSP430_Memory(addr, (char *)mem, len, WRITE) < 0) {
 		report_error(dev, "MSP430_Memory");
@@ -283,6 +320,8 @@ static int tilib_erase(device_t dev_base, device_erase_type_t type,
 
 	if (type == DEVICE_ERASE_MAIN)
 		address = 0xfffe;
+
+	refresh_fperm(dev);
 
 	/* We need to pass a non-zero length if we've selected segment
 	 * erase.
