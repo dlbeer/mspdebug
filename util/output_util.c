@@ -51,7 +51,7 @@ static int format_addr(msp430_amode_t amode, address_t addr)
 		break;
 	}
 
-	print_address(addr, name, sizeof(name));
+	print_address(addr, name, sizeof(name), PRINT_ADDRESS_EXACT);
 	return printc("%s\x1b[1m%s\x1b[0m", prefix, name);
 }
 
@@ -178,7 +178,8 @@ void disassemble(address_t offset, const uint8_t *data, int length,
 			(!stab_nearest(offset, obname, sizeof(obname), &oboff) &&
 			 !oboff)) {
 			char buffer[MAX_SYMBOL_LENGTH];
-			print_address(offset, buffer, sizeof(buffer));
+
+			print_address(offset, buffer, sizeof(buffer), 0);
 			printc("\x1b[m%s\x1b[0m:\n", buffer);
 		}
 		first_line = 0;
@@ -284,22 +285,30 @@ void show_regs(const address_t *regs)
 	}
 }
 
-int print_address(address_t addr, char *out, int max_len)
+int print_address(address_t addr, char *out, int max_len,
+		  print_address_flags_t f)
 {
 	char name[MAX_SYMBOL_LENGTH];
 	address_t offset;
 
 	if (!stab_nearest(addr, name, sizeof(name), &offset)) {
-		int len;
-		if (offset)
-			len = snprintf(out, max_len, "%s+0x%x", name, offset);
-		else
-			len = snprintf(out, max_len, "%s", name);
-
 		char demangled[MAX_SYMBOL_LENGTH];
-		if (demangle(name, demangled, sizeof(demangled)) > 0) {
-			snprintf(out + len, max_len - len, " (%s)", demangled);
+		int len;
+
+		if (offset) {
+			if (f & PRINT_ADDRESS_EXACT) {
+				snprintf(out, max_len, "0x%04x", addr);
+				return 0;
+			}
+
+			len = snprintf(out, max_len, "%s+0x%x", name, offset);
+		} else {
+			len = snprintf(out, max_len, "%s", name);
 		}
+
+		if (demangle(name, demangled, sizeof(demangled)) > 0)
+			snprintf(out + len, max_len - len, " (%s)", demangled);
+
 		return 1;
 	}
 

@@ -674,7 +674,7 @@ int cmd_break(char **arg)
 		if (bp->flags & DEVICE_BP_ENABLED) {
 			char name[128];
 
-			print_address(bp->addr, name, sizeof(name));
+			print_address(bp->addr, name, sizeof(name), 0);
 			printc("    %d. %s", i, name);
 
 			switch (bp->type) {

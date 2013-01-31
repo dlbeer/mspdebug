@@ -37,7 +37,12 @@ void show_regs(const address_t *regs);
  *
  * Returns non-zero if the result is of the form sym+0x0offset.
  */
-int print_address(address_t addr, char *buf, int max_len);
+typedef enum {
+	PRINT_ADDRESS_EXACT	= 0x01
+} print_address_flags_t;
+
+int print_address(address_t addr, char *buf, int max_len,
+		  print_address_flags_t f);
 
 /* Name lists. This function is used for printing multi-column sorted
  * lists of constant strings. Expected is a vector of const char *.

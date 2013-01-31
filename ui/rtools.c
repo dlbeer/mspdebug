@@ -812,7 +812,7 @@ static void cgraph_summary(struct call_graph *graph)
 			k++;
 		}
 
-		print_address(n->offset, name, sizeof(name));
+		print_address(n->offset, name, sizeof(name), 0);
 		printc("0x%04x [%3d ==> %3d] %s\n",
 		       n->offset, to_count, from_count, name);
 	}
@@ -845,7 +845,7 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 	       CG_EDGE_TO(graph, k)->dst < n->offset)
 		k++;
 
-	print_address(n->offset, name, sizeof(name));
+	print_address(n->offset, name, sizeof(name), 0);
 	printc("0x%04x %s:\n", n->offset, name);
 
 	if (j < graph->edge_from.size &&
@@ -857,7 +857,7 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 			if (e->src != n->offset)
 				break;
 
-			print_address(e->dst, name, sizeof(name));
+			print_address(e->dst, name, sizeof(name), 0);
 			printc("        %s%s\n",
 			       e->is_tail_call ? "*" : "", name);
 
@@ -875,7 +875,7 @@ static void cgraph_func_info(struct call_graph *graph, address_t addr)
 			if (e->dst != n->offset)
 				break;
 
-			print_address(e->src, name, sizeof(name));
+			print_address(e->src, name, sizeof(name), 0);
 			printc("        %s%s\n",
 			       e->is_tail_call ? "*" : "", name);
 

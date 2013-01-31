@@ -70,7 +70,7 @@ static void event_print(const struct event *e)
 {
 	char name[128];
 
-	print_address(e->addr, name, sizeof(name));
+	print_address(e->addr, name, sizeof(name), 0);
 	printc("  %10" LLFMT ": ", e->when);
 
 	switch (e->what) {

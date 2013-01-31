@@ -70,7 +70,7 @@ static void dump_session_data(powerbuf_t pb, unsigned int s,
 			idx = (idx + 1) % pb->max_samples;
 		}
 
-		print_address(mab, addr, sizeof(addr));
+		print_address(mab, addr, sizeof(addr), 0);
 		printc("%15d %15.01f %s\n", i * pb->interval_us,
 			((double)ua_tot) / (double)gran, addr);
 	}

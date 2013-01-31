@@ -44,7 +44,7 @@ int cmd_eval(char **arg)
 		return -1;
 	}
 
-	print_address(addr, name, sizeof(name));
+	print_address(addr, name, sizeof(name), 0);
 	printc("0x%05x = %s\n", addr, name);
 
 	return 0;
