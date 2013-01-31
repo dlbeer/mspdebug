@@ -284,7 +284,10 @@ static int tilib_erase(device_t dev_base, device_erase_type_t type,
 	if (type == DEVICE_ERASE_MAIN)
 		address = 0xfffe;
 
-	if (dev->MSP430_Erase(ti_erase_type(type), address, 0) < 0) {
+	/* We need to pass a non-zero length if we've selected segment
+	 * erase.
+	 */
+	if (dev->MSP430_Erase(ti_erase_type(type), address, 1) < 0) {
 		report_error(dev, "MSP430_Erase");
 		return -1;
 	}
