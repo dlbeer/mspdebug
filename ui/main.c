@@ -204,20 +204,34 @@ static int list_devices(void)
 static int parse_cmdline_args(int argc, char **argv,
 			      struct cmdline_args *args)
 {
-	int opt;
+	enum {
+		LOPT_HELP = 0x100,
+		LOPT_FET_LIST,
+		LOPT_FET_FORCE_ID,
+		LOPT_USB_LIST,
+		LOPT_VERSION,
+		LOPT_LONG_PASSWORD,
+		LOPT_FORCE_RESET,
+		LOPT_ALLOW_FW_UPDATE,
+		LOPT_REQUIRE_FW_UPDATE,
+		LOPT_EMBEDDED
+	};
+
 	static const struct option longopts[] = {
-		{"help",                0, 0, 'H'},
-		{"fet-list",            0, 0, 'L'},
-		{"fet-force-id",        1, 0, 'F'},
-		{"usb-list",            0, 0, 'I'},
-		{"version",             0, 0, 'V'},
-		{"long-password",       0, 0, 'P'},
-		{"force-reset",		0, 0, 'R'},
-		{"allow-fw-update",	0, 0, 'A'},
-		{"require-fw-update",	1, 0, 'M'},
-		{"embedded",		0, 0, 'E'},
+		{"help",                0, 0, LOPT_HELP},
+		{"fet-list",            0, 0, LOPT_FET_LIST},
+		{"fet-force-id",        1, 0, LOPT_FET_FORCE_ID},
+		{"usb-list",            0, 0, LOPT_USB_LIST},
+		{"version",             0, 0, LOPT_VERSION},
+		{"long-password",       0, 0, LOPT_LONG_PASSWORD},
+		{"force-reset",		0, 0, LOPT_FORCE_RESET},
+		{"allow-fw-update",	0, 0, LOPT_ALLOW_FW_UPDATE},
+		{"require-fw-update",	1, 0, LOPT_REQUIRE_FW_UPDATE},
+		{"embedded",		0, 0, LOPT_EMBEDDED},
 		{NULL, 0, 0, 0}
 	};
+
+	int opt;
 	int want_usb = 0;
 
 	while ((opt = getopt_long(argc, argv, "d:jv:nU:s:q",
@@ -233,15 +247,15 @@ static int parse_cmdline_args(int argc, char **argv,
 			}
 			break;
 
-		case 'E':
+		case LOPT_EMBEDDED:
 			args->flags |= OPT_EMBEDDED;
 			break;
 
-		case 'A':
+		case LOPT_ALLOW_FW_UPDATE:
 			args->devarg.flags |= DEVICE_FLAG_DO_FWUPDATE;
 			break;
 
-		case 'I':
+		case LOPT_USB_LIST:
 			usb_init();
 			usb_find_busses();
 			usb_find_devices();
@@ -253,7 +267,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			args->devarg.flags |= DEVICE_FLAG_TTY;
 			break;
 
-		case 'M':
+		case LOPT_REQUIRE_FW_UPDATE:
 			args->devarg.require_fwupdate = optarg;
 			break;
 
@@ -266,18 +280,18 @@ static int parse_cmdline_args(int argc, char **argv,
 			args->devarg.requested_serial = optarg;
 			break;
 
-		case 'L':
+		case LOPT_FET_LIST:
 			exit(list_devices());
 
-		case 'F':
+		case LOPT_FET_FORCE_ID:
 			args->devarg.forced_chip_id = optarg;
 			break;
 
-		case 'H':
+		case LOPT_HELP:
 			usage(argv[0]);
 			exit(0);
 
-		case 'V':
+		case LOPT_VERSION:
 			printc("%s", version_text);
 			exit(0);
 
@@ -293,11 +307,11 @@ static int parse_cmdline_args(int argc, char **argv,
 			args->flags |= OPT_NO_RC;
 			break;
 
-		case 'P':
+		case LOPT_LONG_PASSWORD:
 			args->devarg.flags |= DEVICE_FLAG_LONG_PW;
 			break;
 
-		case 'R':
+		case LOPT_FORCE_RESET:
 			args->devarg.flags |= DEVICE_FLAG_FORCE_RESET;
 			break;
 
