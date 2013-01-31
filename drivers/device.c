@@ -144,3 +144,8 @@ int device_erase(device_erase_type_t et, address_t addr)
 
 	return device_default->type->erase(device_default, et, addr);
 }
+
+int device_needs_skip_close(device_t dev)
+{
+	return (dev->dev_id[0] == 0x51) && (dev->dev_id[1] == 0x37);
+}

@@ -709,22 +709,28 @@ void fet_destroy(device_t dev_base)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	/* The second argument to C_RESET is a boolean which specifies
-	 * whether the chip should run or not. The final argument is
-	 * also a boolean. Setting it non-zero is required to get the
-	 * RST pin working on the G2231, but it must be zero on the
-	 * FR5739, or else the value of the reset vector gets set to
-	 * 0xffff at the start of the next JTAG session.
-	 */
-	if (fet_proto_xfer(&dev->proto, C_RESET, NULL, 0, 3, FET_RESET_ALL, 1,
-			   !device_is_fram(dev_base)) < 0)
-		printc_err("fet: final reset failed\n");
+	if (device_needs_skip_close(dev_base)) {
+		printc_dbg("Skipping close procedure");
+	} else {
+		/* The second argument to C_RESET is a boolean which
+		 * specifies whether the chip should run or not. The
+		 * final argument is also a boolean. Setting it non-zero
+		 * is required to get the RST pin working on the G2231,
+		 * but it must be zero on the FR5739, or else the value
+		 * of the reset vector gets set to 0xffff at the start
+		 * of the next JTAG session.
+		 */
+		if (fet_proto_xfer(&dev->proto, C_RESET, NULL, 0, 3,
+				   FET_RESET_ALL, 1,
+				   !device_is_fram(dev_base)) < 0)
+			printc_err("fet: final reset failed\n");
 
-	if (fet_proto_xfer(&dev->proto, C_CLOSE, NULL, 0, 1, 0) < 0)
-		printc_err("fet: close command failed\n");
+		if (fet_proto_xfer(&dev->proto, C_CLOSE, NULL, 0, 1, 0) < 0)
+			printc_err("fet: close command failed\n");
 
-	if (dev->base.power_buf)
-		powerbuf_free(dev->base.power_buf);
+		if (dev->base.power_buf)
+			powerbuf_free(dev->base.power_buf);
+	}
 
 	dev->proto.transport->ops->destroy(dev->proto.transport);
 	free(dev);

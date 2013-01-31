@@ -140,6 +140,11 @@ int device_probe_id(device_t dev);
  */
 int device_is_fram(device_t dev);
 
+/* Determine, from the device ID bytes, whether this chip has problems
+ * with the FET close procedure.
+ */
+int device_needs_skip_close(device_t dev);
+
 /* Set or clear a breakpoint. The index of the modified entry is
  * returned, or -1 if no free entries were available. The modified
  * entry is flagged so that it will be reloaded on the next run.
