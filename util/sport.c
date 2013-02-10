@@ -256,6 +256,8 @@ static int xfer_wait(sport_t s, LPOVERLAPPED ovl)
 {
 	DWORD result = 0;
 
+	ResetEvent(ctrlc_win32_event());
+
 	while (!GetOverlappedResult(s, ovl, &result, FALSE)) {
 		DWORD r;
 

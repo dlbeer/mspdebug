@@ -60,6 +60,10 @@ void ctrlc_raise(void);
  * object which becomes signalled when the Ctrl+C event is raised.
  * Implementations of Windows IO operations should allow operations to
  * be interrupted by the signalling of this object.
+ *
+ * The event can be manually cleared before IO operations, but this
+ * doesn't clear the recorded Ctrl+C event. If the event is manually
+ * cleared, the Ctrl+C event status should be checked *after* doing so.
  */
 HANDLE ctrlc_win32_event(void);
 #endif

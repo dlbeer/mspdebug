@@ -37,6 +37,11 @@ static void sockets_begin(SOCKET s, DWORD event)
 
 	ioctlsocket(s, FIONBIO, &mode);
 	WSAEventSelect(s, ctrlc_win32_event(), event);
+
+	/* We explicitly check for Ctrl+C after resetting the event in
+	 * sockets_wait().
+	 */
+	ResetEvent(ctrlc_win32_event());
 }
 
 static int sockets_wait(DWORD timeout)
