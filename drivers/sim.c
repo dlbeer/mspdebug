@@ -210,6 +210,8 @@ static int step_double(struct sim_device *dev, uint16_t ins)
 	uint32_t res_data;
 	uint32_t msb = is_byte ? 0x80 : 0x8000;
 	uint32_t mask = is_byte ? 0xff : 0xffff;
+	uint32_t shiftMask = 0x000f;
+	uint32_t i = 0;
 	int cycles;
 
 	if (amode_dst == MSP430_AMODE_REGISTER && dreg == MSP430_REG_PC) {
@@ -272,17 +274,24 @@ static int step_double(struct sim_device *dev, uint16_t ins)
 		break;
 
 	case MSP430_OP_DADD:
-		res_data = src_data + dst_data;
+		res_data = 0;
 		if (dev->regs[MSP430_REG_SR] & MSP430_SR_C)
 			res_data++;
+		shiftMask = 0x000f;
+		for(i = 0; i < 4; ++i)
+		{
+			res_data += (src_data & shiftMask) + (dst_data & shiftMask);
+			if( (res_data & (0x1f << (i*4))) > (9 << (i*4)))
+				res_data += 6 << (i*4);
+			shiftMask = shiftMask << 4;
+		}
 
 		dev->regs[MSP430_REG_SR] &= ~ARITH_BITS;
 		if (!(res_data & mask))
 			dev->regs[MSP430_REG_SR] |= MSP430_SR_Z;
-		if (res_data == 1)
+		if (res_data & msb)
 			dev->regs[MSP430_REG_SR] |= MSP430_SR_N;
-		if ((is_byte && res_data > 99) ||
-		    (!is_byte && res_data > 9999))
+		if (res_data & (msb << 1))
 			dev->regs[MSP430_REG_SR] |= MSP430_SR_C;
 		break;
 
