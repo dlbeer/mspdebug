@@ -710,7 +710,7 @@ void fet_destroy(device_t dev_base)
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
 	if (device_needs_skip_close(dev_base)) {
-		printc_dbg("Skipping close procedure");
+		printc_dbg("Skipping close procedure\n");
 	} else {
 		/* The second argument to C_RESET is a boolean which
 		 * specifies whether the chip should run or not. The
