@@ -588,7 +588,7 @@ int fet_erase(device_t dev_base, device_erase_type_t type, address_t addr)
 	}
 
 	if (fet_proto_xfer(&dev->proto, C_ERASE, NULL, 0,
-			   3, fet_erase_type, addr, 0) < 0) {
+			   3, fet_erase_type, addr, 1) < 0) {
 		printc_err("fet: erase command failed\n");
 		return -1;
 	}
