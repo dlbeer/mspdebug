@@ -706,60 +706,6 @@ int cmd_break(char **arg)
 	return 0;
 }
 
-#define FCTL3		0x012c
-#define FCTL3_LOCKA	0x40
-#define FWKEY		0xa5
-#define FRKEY           0x96
-
-int cmd_locka(char **arg)
-{
-	const char *status = get_arg(arg);
-	int value = 0;
-	uint8_t regval[2];
-
-	if (status) {
-		if (!strcasecmp(status, "set")) {
-			value = FCTL3_LOCKA;
-		} else if (!strcasecmp(status, "clear")) {
-			value = 0;
-		} else {
-			printc_err("locka: unknown action: %s\n", status);
-			return -1;
-		}
-	}
-
-	if (device_readmem(FCTL3, regval, 2) < 0) {
-		printc_err("locka: can't read FCTL3 register\n");
-		return -1;
-	}
-
-	if (regval[1] != FRKEY) {
-		printc_err("warning: locka: read key invalid (got 0x%02x)\n",
-			   regval[1]);
-		return -1;
-	}
-
-	if (status && ((regval[0] & FCTL3_LOCKA) != value)) {
-		printc_dbg("Toggling LOCKA bit\n");
-
-		regval[0] |= FCTL3_LOCKA;
-		regval[1] = FWKEY;
-
-		if (device_writemem(FCTL3, regval, 2) < 0) {
-			printc_err("locka: can't write FCTL3 register\n");
-			return -1;
-		}
-
-		if (device_readmem(FCTL3, regval, 2) < 0) {
-			printc_err("locka: can't read FCTL3 register\n");
-			return -1;
-		}
-	}
-
-	printc("LOCKA is %s\n", (regval[0] & FCTL3_LOCKA) ? "set" : "clear");
-	return 0;
-}
-
 int cmd_fill(char **arg)
 {
 	char *addr_text = get_arg(arg);

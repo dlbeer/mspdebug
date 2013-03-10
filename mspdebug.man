@@ -350,17 +350,6 @@ The CPU is reset and halted before and after programming.
 Write the data contained in a raw binary file to the given memory address.
 
 The CPU is reset and halted before and after programming.
-.IP "\fBlocka\fR [\fBset\fR|\fBclear\fR]"
-Show or change the status of the LOCKA bit in the chip's memory
-controller. The LOCKA bit is set on POR and acts as a write-protect bit
-for info segment A. This segment contains factory-configured calibration
-data, and under normal circumstances, should not be changed.
-
-If the LOCKA bit is cleared, erasing the info A segment is possible.
-
-The LOCKA bit also affects the behaviour of the "erase all" command. If
-LOCKA is set (the default), only main memory is erased. If LOCKA is
-cleared, main and information memory are both erased.
 .IP "\fBmd\fR \fIaddress\fR [\fIlength\fR]"
 Read the specified section of device memory and display it as a
 canonical\-style hexdump. Both arguments may be address expressions. If

@@ -284,13 +284,6 @@ const struct cmddb_record commands[] = {
 "    of all functions if no function address is given.\n"
 	},
 	{
-		.name = "locka",
-		.func = cmd_locka,
-		.help =
-"locka [set|clear]\n"
-"    Show or change the status of the LOCKA flash write-protect bit.\n"
-	},
-	{
 		.name = "exit",
 		.func = cmd_exit,
 		.help =
