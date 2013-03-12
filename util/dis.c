@@ -413,7 +413,7 @@ static int decode_jump(const uint8_t *code, address_t offset,
 
 	insn->op = op & 0xfc00;
 	insn->itype = MSP430_ITYPE_JUMP;
-	insn->dst_addr = offset + 4 + tgtrel * 2;
+	insn->dst_addr = offset + 2 + tgtrel * 2;
 	insn->dst_mode = MSP430_AMODE_SYMBOLIC;
 	insn->dst_reg = MSP430_REG_PC;
 
