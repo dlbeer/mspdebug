@@ -237,14 +237,15 @@ translated into \fIsymbol\fR+\fIoffset\fR form.
 
 This command supports repeat execution. If repeated, it continues to
 disassemble another block of memory following that last printed.
-.IP "\fBerase\fR [\fBall\fR|\fBsegment\fR] [\fIaddress\fR]"
+.IP "\fBerase\fR [\fBall\fR|\fBsegment\fR|\fBsegrange\fR] [\fIaddress\fR] [\fIsize\fR] [\fIsegrange\fR]"
 Erase the device under test. With no arguments, all code memory is erased
 (but not information or boot memory). With the argument "all", a mass
 erase is performed (the results may depend on the state of the LOCKA
 bit in the flash memory controller).
 
 Specify "segment" and a memory address to erase an individual flash
-segment.
+segment. Specify "segrange", an address, size and segment size to erase
+an arbitrary set of contiguous segments.
 .IP "\fBexit\fR"
 Exit from MSPDebug.
 .IP "\fBfill\fR \fIaddress\fR \fIlength\fR \fIb0\fR [\fIb1\fR \fIb2\fR ...]

@@ -147,6 +147,8 @@ int cmd_erase(char **arg)
 	const char *seg_text = get_arg(arg);
 	device_erase_type_t type = DEVICE_ERASE_MAIN;
 	address_t segment = 0;
+	address_t total_size = 0;
+	address_t segment_size = 0;
 
 	if (seg_text && expr_eval(seg_text, &segment) < 0) {
 		printc_err("erase: invalid expression: %s\n", seg_text);
@@ -163,6 +165,33 @@ int cmd_erase(char **arg)
 					   "address\n");
 				return -1;
 			}
+		} else if (!strcasecmp(type_text, "segrange")) {
+			const char *total_text = get_arg(arg);
+			const char *ss_text = get_arg(arg);
+
+			if (!(total_text && ss_text)) {
+				printc_err("erase: you must specify "
+					   "total and segment sizes\n");
+				return -1;
+			}
+
+			if (expr_eval(total_text, &total_size) < 0) {
+				printc_err("erase: invalid expression: %s\n",
+					   total_text);
+				return -1;
+			}
+
+			if (expr_eval(ss_text, &segment_size) < 0) {
+				printc_err("erase: invalid expression: %s\n",
+					   ss_text);
+				return -1;
+			}
+
+			if (segment_size > 0x200 || segment_size < 0x40) {
+				printc_err("erase: invalid segment size: "
+					   "0x%x\n", segment_size);
+				return -1;
+			}
 		} else {
 			printc_err("erase: unknown erase type: %s\n",
 				    type_text);
@@ -173,8 +202,21 @@ int cmd_erase(char **arg)
 	if (device_ctl(DEVICE_CTL_HALT) < 0)
 		return -1;
 
-	printc("Erasing...\n");
-	return device_erase(type, segment);
+	if (!segment_size) {
+		printc("Erasing...\n");
+		return device_erase(type, segment);
+	} else {
+		printc("Erasing segments...\n");
+		while (total_size >= segment_size) {
+			printc_dbg("Erasing 0x%04x...\n", segment);
+			if (device_erase(DEVICE_ERASE_SEGMENT, segment) < 0)
+				return -1;
+			total_size -= segment_size;
+			segment += segment_size;
+		}
+	}
+
+	return 0;
 }
 
 int cmd_step(char **arg)
