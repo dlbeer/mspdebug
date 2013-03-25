@@ -60,6 +60,7 @@
 
 struct cmdline_args {
 	const char		*driver_name;
+	const char		*alt_config;
 	int			flags;
 	struct device_args	devarg;
 };
@@ -106,7 +107,9 @@ static void usage(const char *progname)
 "    -v voltage\n"
 "        Set the supply voltage, in millivolts.\n"
 "    -n\n"
-"        Do not read ~/.mspdebug on startup.\n"
+"        Do not read a configuration file on startup.\n"
+"    -C <file>\n"
+"        Load an alternative configuration file.\n"
 "    --long-password\n"
 "        Send 32-byte IVT as BSL password (flash-bsl only)\n"
 "    --help\n"
@@ -144,17 +147,23 @@ static void usage(const char *progname)
 	}
 }
 
-static void process_rc_file(void)
+static void process_rc_file(const char *config)
 {
-	const char *home = getenv("HOME");
 	char text[256];
 
-	if (!home)
-		return;
+	if (!config) {
+		const char *home = getenv("HOME");
 
-	snprintf(text, sizeof(text), "%s/.mspdebug", home);
-	if (!access(text, F_OK))
-		process_file(text, 0);
+		if (!home)
+			return;
+
+		snprintf(text, sizeof(text), "%s/.mspdebug", home);
+		if (!access(text, F_OK))
+			config = text;
+	}
+
+	if (config)
+		process_file(config, 0);
 }
 
 static int add_fet_device(void *user_data, const struct fet_db_record *r)
@@ -234,9 +243,13 @@ static int parse_cmdline_args(int argc, char **argv,
 	int opt;
 	int want_usb = 0;
 
-	while ((opt = getopt_long(argc, argv, "d:jv:nU:s:q",
+	while ((opt = getopt_long(argc, argv, "d:jv:nU:s:qC:",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
+		case 'C':
+			args->alt_config = optarg;
+			break;
+
 		case 'q':
 			{
 				static const union opdb_value v = {
@@ -426,7 +439,7 @@ int main(int argc, char **argv)
 	simio_init();
 
 	if (!(args.flags & OPT_NO_RC))
-		process_rc_file();
+		process_rc_file(args.alt_config);
 
 	/* Process commands */
 	if (optind < argc) {

@@ -54,6 +54,9 @@ Specify a particular USB device serial number to connect to. Use this
 option to distinguish between multiple devices of the same type.
 .IP "\-n"
 Do not process the startup file (~/.mspdebug).
+.IP "\-C \fIfile\fR"
+Specify an alternative configuration file (default is ~/.mspdebug). If -n
+is specified as well, no file will be read.
 .IP "\--long-password"
 When using the flash-bsl driver, send a 32-byte BSL password instead
 of the standard 16-byte password.
