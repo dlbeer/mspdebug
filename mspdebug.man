@@ -20,10 +20,13 @@ It supports a variety of file formats, described in the section
 \fBBINARY FORMATS\fR below. It can also be used as a remote stub
 for \fBgdb\fR(1).
 
-On startup, MSPDebug will look for a file called .mspdebug in the user's
-home directory. If it exists, commands will be read and executed from this
-file before executing any other commands or starting the interactive
-reader.
+On startup, MSPDebug will look for a file called .mspdebug first in the
+current directory, and then in the user's home directory. If either file
+exists, commands will be read and executed from this file before
+executing any other commands or starting the interactive reader.
+
+Alternatively, a configuration file can be explicitly specified with the
+\fB-C\fR option.
 .SH COMMAND-LINE OPTIONS
 Command-line options accepted by MSPDebug are described below. If
 commands are specified on the end of the command-line, then they are

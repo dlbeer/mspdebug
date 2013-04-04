@@ -152,14 +152,18 @@ static void process_rc_file(const char *config)
 	char text[256];
 
 	if (!config) {
-		const char *home = getenv("HOME");
+		if (!access(".mspdebug", F_OK)) {
+			config = ".mspdebug";
+		} else {
+			const char *home = getenv("HOME");
 
-		if (!home)
-			return;
-
-		snprintf(text, sizeof(text), "%s/.mspdebug", home);
-		if (!access(text, F_OK))
-			config = text;
+			if (home) {
+				snprintf(text, sizeof(text), "%s/.mspdebug",
+					 home);
+				if (!access(text, F_OK))
+					config = text;
+			}
+		}
 	}
 
 	if (config)
