@@ -106,6 +106,8 @@ int cmd_help(char **arg)
 		vector_destroy(&v);
 
 		printc("Type \"help <topic>\" for more information.\n");
+		printc("Use the \"opt\" command (\"help opt\") to set "
+			"options.\n");
 #if defined(__Windows__) && !defined(USE_READLINE)
 		printc("Press Ctrl+Z, Enter to quit.\n");
 #else
