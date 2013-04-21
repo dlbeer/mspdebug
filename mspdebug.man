@@ -258,7 +258,8 @@ repeated without padding as many times as necessary without exceeding the
 bounds of the specified region.
 .IP "\fBgdb\fR [\fIport\fR]"
 Start a GDB remote stub, optionally specifying a TCP port to listen on.
-If no port is given, the default port is 2000.
+If no port is given, the default port is controlled by the option
+\fBgdb_default_port\fR.
 
 MSPDebug will wait for a connection on this port, and then act as a
 GDB remote stub until GDB disconnects.
@@ -715,6 +716,9 @@ BSL memory. If in doubt, do not enable this.
 If set, some drivers will allow erase/program access to the info A
 segment. If in doubt, do not enable this. Currently, the tilib and uif
 drivers are affected by this option.
+.IP "\fBgdb_default_port\fR (numeric)"
+This option controls the default TCP port for the GDB server, if no
+argument is given to the "\fBgdb\fR" command.
 .IP "\fBgdb_loop\fR (boolean)"
 Automatically restart the GDB server after disconnection. If this
 option is set, then the GDB server keeps running until an error occurs,

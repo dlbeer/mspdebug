@@ -94,6 +94,15 @@ static const struct opdb_key keys[] = {
 		.help =
 "If set, some drivers will allow erase/program access to flash\n"
 "BSL memory. If in doubt, do not enable this.\n"
+	},
+	{
+		.name = "gdb_default_port",
+		.type = OPDB_TYPE_NUMERIC,
+		.help =
+"Default TCP port for GDB server, if no argument is given.\n",
+		.defval = {
+			.numeric = 2000
+		}
 	}
 };
 

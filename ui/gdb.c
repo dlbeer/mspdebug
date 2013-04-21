@@ -536,7 +536,7 @@ static int gdb_server(int port)
 int cmd_gdb(char **arg)
 {
 	char *port_text = get_arg(arg);
-	address_t port = 2000;
+	address_t port = opdb_get_numeric("gdb_default_port");
 
 	if (port_text && expr_eval(port_text, &port) < 0) {
 		printc_err("gdb: can't parse port: %s\n", port_text);
