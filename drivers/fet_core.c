@@ -375,18 +375,26 @@ static int is_new_olimex(const struct fet_device *dev)
 	return 0;
 }
 
+static int try_new(struct fet_device *dev, const char *force_id)
+{
+	if (!identify_new(dev, force_id))
+		return 0;
+
+	return identify_olimex(dev, force_id);
+}
+
 static int do_identify(struct fet_device *dev, const char *force_id)
 {
 	if (is_new_olimex(dev))
 		return identify_olimex(dev, force_id);
 
 	if (dev->fet_flags & FET_IDENTIFY_NEW)
-		return identify_new(dev, force_id);
+		return try_new(dev, force_id);
 
 	if (dev->version < 20300000)
 		return identify_old(dev);
 
-	return identify_new(dev, force_id);
+	return try_new(dev, force_id);
 }
 
 static void power_init(struct fet_device *dev)
