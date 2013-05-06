@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <usb.h>
+#include <time.h>
 
 #include "cp210x.h"
 #include "util.h"
@@ -67,7 +68,7 @@ struct cp210x_transport {
 #define CP210X_WRITE_DTR		0x0100
 #define CP210X_WRITE_RTS		0x0200
 
-#define TIMEOUT		                30000
+#define TIMEOUT_S	                30
 
 static int configure_port(struct cp210x_transport *tr, int baud_rate)
 {
@@ -201,7 +202,7 @@ static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 #endif
 	while (len) {
 		sent = usb_bulk_write(tr->handle, V1_OUT_EP,
-				      (char *)data, len, TIMEOUT);
+				      (char *)data, len, TIMEOUT_S * 1000);
 		if (sent <= 0) {
 			pr_error(__FILE__": can't send data");
 			return -1;
@@ -218,28 +219,35 @@ static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 {
 	struct cp210x_transport *tr = (struct cp210x_transport *)tr_base;
 	int rlen;
+	time_t deadline = time(NULL) + TIMEOUT_S;
 
 #ifdef DEBUG_CP210X
 	printc(__FILE__": %s : read max %d\n", __FUNCTION__, max_len);
 #endif
 
-	rlen = usb_bulk_read(tr->handle, V1_IN_EP, (char *)databuf,
-			     max_len, TIMEOUT);
+	while (time(NULL) < deadline) {
+		rlen = usb_bulk_read(tr->handle, V1_IN_EP, (char *)databuf,
+				     max_len, TIMEOUT_S * 1000);
 
 #ifdef DEBUG_CP210X
-	printc(__FILE__": %s : read %d\n", __FUNCTION__, rlen);
+		printc(__FILE__": %s : read %d\n", __FUNCTION__, rlen);
 #endif
 
-	if (rlen <= 0) {
-		pr_error(__FILE__": can't receive data");
-		return -1;
+		if (rlen < 0) {
+			pr_error(__FILE__": can't receive data");
+			return -1;
+		}
+
+		if (rlen > 0) {
+#ifdef DEBUG_CP210X
+			debug_hexdump(__FILE__": USB transfer in", databuf, rlen);
+#endif
+			return rlen;
+		}
 	}
 
-#ifdef DEBUG_CP210X
-	debug_hexdump(__FILE__": USB transfer in", databuf, rlen);
-#endif
-
-	return rlen;
+	pr_error(__FILE__": read operation timed out");
+	return -1;
 }
 
 static void usbtr_destroy(transport_t tr_base)
