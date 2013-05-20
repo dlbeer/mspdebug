@@ -92,7 +92,7 @@ static void usage(const char *progname)
 {
 	int i;
 
-	printc_err("Usage: %s [options] <driver> [command ...]\n"
+	printc("Usage: %s [options] <driver> [command ...]\n"
 "\n"
 "    -q\n"
 "        Start in quiet mode.\n"
