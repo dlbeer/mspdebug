@@ -118,6 +118,8 @@ static void usage(const char *progname)
 "        Show a list of devices supported by the FET driver.\n"
 "    --fet-force-id string\n"
 "        Override the device ID returned by the FET.\n"
+"    --fet-skip-close\n"
+"        Skip the JTAG close procedure when using the FET driver.\n"
 "    --usb-list\n"
 "        Show a list of available USB devices.\n"
 "    --force-reset\n"
@@ -221,6 +223,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		LOPT_HELP = 0x100,
 		LOPT_FET_LIST,
 		LOPT_FET_FORCE_ID,
+		LOPT_FET_SKIP_CLOSE,
 		LOPT_USB_LIST,
 		LOPT_VERSION,
 		LOPT_LONG_PASSWORD,
@@ -234,6 +237,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"help",                0, 0, LOPT_HELP},
 		{"fet-list",            0, 0, LOPT_FET_LIST},
 		{"fet-force-id",        1, 0, LOPT_FET_FORCE_ID},
+		{"fet-skip-close",      0, 0, LOPT_FET_SKIP_CLOSE},
 		{"usb-list",            0, 0, LOPT_USB_LIST},
 		{"version",             0, 0, LOPT_VERSION},
 		{"long-password",       0, 0, LOPT_LONG_PASSWORD},
@@ -302,6 +306,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case LOPT_FET_FORCE_ID:
 			args->devarg.forced_chip_id = optarg;
+			break;
+
+		case LOPT_FET_SKIP_CLOSE:
+			args->devarg.flags |= DEVICE_FLAG_SKIP_CLOSE;
 			break;
 
 		case LOPT_HELP:

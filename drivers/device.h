@@ -70,6 +70,7 @@ struct device_breakpoint {
 #define DEVICE_FLAG_TTY		0x04 /* default is USB */
 #define DEVICE_FLAG_FORCE_RESET	0x08
 #define DEVICE_FLAG_DO_FWUPDATE 0x10
+#define DEVICE_FLAG_SKIP_CLOSE	0x20
 
 struct device_args {
 	int			flags;
@@ -139,11 +140,6 @@ int device_probe_id(device_t dev);
  * flash-based device.
  */
 int device_is_fram(device_t dev);
-
-/* Determine, from the device ID bytes, whether this chip has problems
- * with the FET close procedure.
- */
-int device_needs_skip_close(device_t dev);
 
 /* Set or clear a breakpoint. The index of the modified entry is
  * returned, or -1 if no free entries were available. The modified

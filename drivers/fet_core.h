@@ -22,6 +22,9 @@
 #include "device.h"
 #include "transport.h"
 
+/* Don't attempt to close JTAG on exit */
+#define FET_SKIP_CLOSE			0x04
+
 /* The new identify method should always be used */
 #define FET_IDENTIFY_NEW		0x08
 

@@ -717,7 +717,7 @@ void fet_destroy(device_t dev_base)
 {
 	struct fet_device *dev = (struct fet_device *)dev_base;
 
-	if (device_needs_skip_close(dev_base)) {
+	if (dev->fet_flags & FET_SKIP_CLOSE) {
 		printc_dbg("Skipping close procedure\n");
 	} else {
 		/* The second argument to C_RESET is a boolean which
@@ -1019,6 +1019,9 @@ device_t fet_open(const struct device_args *args,
 {
 	struct fet_device *dev = malloc(sizeof(*dev));
 	int i;
+
+	if (args->flags & DEVICE_FLAG_SKIP_CLOSE)
+		fet_flags |= FET_SKIP_CLOSE;
 
 	if (!dev) {
 		pr_error("fet: failed to allocate memory");

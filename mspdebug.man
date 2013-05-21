@@ -73,6 +73,9 @@ When using a FET device, force the connected chip to be recognised by
 MSPDebug as one of the given type during initialization. This overrides
 the device ID returned by the FET. The given string should be a chip
 name in long form, for example "MSP430F2274".
+.IP "\-\-fet\-skip\-close"
+When using a FET device, skip the JTAG close procedure when disconnecting.
+With some boards, this removes the need to replug the debugger after use.
 .IP "\-\-usb\-list"
 List available USB devices and exit.
 .IP "\-\-force-reset"
