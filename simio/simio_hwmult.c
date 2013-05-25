@@ -70,6 +70,7 @@ static void hwmult_destroy(struct simio_device *dev)
 static void do_multiply(struct hwmult *h)
 {
 	uint32_t im;
+	uint64_t temp = 0;
 
 	/* Multiply */
 	if (h->mode & 2)
@@ -79,16 +80,19 @@ static void do_multiply(struct hwmult *h)
 
 	/* Accumulate or store */
 	if (h->mode & 4)
-		h->result += im;
+	{
+		temp = (uint64_t)h->result + im;
+		h->result = temp;
+	}
 	else
 		h->result = im;
 
 	/* Set SUMEXT */
-	if (h->mode & 2)
+	if (h->mode & 2) /* MPYS and MACS */
 		h->sumext = (h->result & 0x80000000) ? 0xffff : 0;
-	else if (h->mode == MPY)
-		h->sumext = (h->result < im) ? 1 : 0;
-	else
+	else if(h->mode == MAC)
+		h->sumext = temp >> 32;
+	else /* MPY */
 		h->sumext = 0;
 }
 
