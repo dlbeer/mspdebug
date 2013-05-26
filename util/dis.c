@@ -338,7 +338,7 @@ static int decode_double(const uint8_t *code, address_t offset,
 
 		if (insn->src_reg == MSP430_REG_PC) {
 			insn->src_mode = MSP430_AMODE_SYMBOLIC;
-			insn->dst_addr = offset;
+			insn->src_addr = offset;
 		} else if (insn->src_reg == MSP430_REG_SR)
 			insn->src_mode = MSP430_AMODE_ABSOLUTE;
 		else if (insn->src_reg == MSP430_REG_R3)
