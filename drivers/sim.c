@@ -352,7 +352,7 @@ static int step_single(struct sim_device *dev, uint16_t ins)
 	else if (amode == MSP430_AMODE_REGISTER)
 		cycles = 1;
 	else
-		cycles = 5;
+		cycles = 3;
 
 	switch (opcode) {
 	case MSP430_OP_RRC:
