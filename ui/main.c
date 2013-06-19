@@ -55,6 +55,10 @@
 #include "input_async.h"
 #include "pif.h"
 
+#ifdef __CYGWIN__
+#include <sys/cygwin.h>
+#endif
+
 #define OPT_NO_RC		0x01
 #define OPT_EMBEDDED		0x02
 
@@ -479,7 +483,10 @@ fail_parse:
 	 * may still have a running background thread for input. If so,
 	 * returning from main() won't cause the process to terminate.
 	 */
-#if defined(__Windows__) || defined(__CYGWIN__)
+#if defined(__CYGWIN__)
+	cygwin_internal(CW_EXIT_PROCESS,
+		(ret == 0) ? EXIT_SUCCESS : EXIT_FAILURE, 1);
+#elif defined(__Windows__)
 	ExitProcess(ret);
 #endif
 	return ret;
