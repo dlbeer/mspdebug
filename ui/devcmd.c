@@ -371,6 +371,15 @@ int cmd_dis(char **arg)
 	return 0;
 }
 
+
+#define IHEX_REC_DATA 0x00
+#define IHEX_REC_EOF  0x01
+#define IHEX_REC_ESAR 0x02
+#define IHEX_REC_SSAR 0x03
+#define IHEX_REC_ELAR 0x04
+#define IHEX_REC_SLAR 0x05
+#define IHEX_SEG(addr) (((addr) >> 16) & 0xFFFF)
+
 struct hexout_data {
 	FILE            *file;
 	address_t       addr;
@@ -403,17 +412,18 @@ static int hexout_start(struct hexout_data *hexout, const char *filename)
 	return 0;
 }
 
-static int hexout_write(FILE *out, int len, uint16_t addr,
+static int hexout_write(FILE *out, uint8_t type, int len, uint16_t addr,
 			const uint8_t *payload)
 {
 	int i;
 	int cksum = 0;
 
-	if (fprintf(out, ":%02X%04X00", len, addr) < 0)
+	if (fprintf(out, ":%02X%04X%02X", len, addr, type) < 0)
 		goto fail;
 	cksum += len;
 	cksum += addr & 0xff;
 	cksum += addr >> 8;
+	cksum += type;
 
 	for (i = 0; i < len; i++) {
 		if (fprintf(out, "%02X", payload[i]) < 0)
@@ -433,29 +443,43 @@ fail:
 
 static int hexout_flush(struct hexout_data *hexout)
 {
-        address_t addr_low = hexout->addr & 0xffff;
-	address_t segoff = hexout->addr >> 16;
+	while (hexout->len) {
+		address_t addr_low = hexout->addr & 0xffff;
+		address_t segoff = IHEX_SEG(hexout->addr);
 
-	if (!hexout->len)
-		return 0;
+		if (segoff != hexout->segoff) {
+			uint8_t offset_data[] = {segoff >> 8, segoff & 0xff};
 
-	if (segoff != hexout->segoff) {
-		uint8_t offset_data[] = {segoff >> 8, segoff & 0xff};
+			if (hexout_write(hexout->file, IHEX_REC_ELAR,
+				2, 0, offset_data) < 0)
+				return -1;
+			hexout->segoff = segoff;
+		}
 
-		if (hexout_write(hexout->file, 2, 0, offset_data) < 0)
+		uint32_t writesize = hexout->len;
+
+		/* If the hexout buffer will wrap past the end of segment;
+		 * only write until the end of the segment to allow
+		 * emitting an ELAR record */
+		if (IHEX_SEG(hexout->addr + writesize) != segoff)
+			writesize = 0x10000 - addr_low;
+
+		if (hexout_write(hexout->file, IHEX_REC_DATA, writesize, addr_low,
+				hexout->buf) < 0)
 			return -1;
-		hexout->segoff = segoff;
+
+		hexout->len -= writesize;
+		hexout->addr += writesize;
+
+		memmove(hexout->buf, hexout->buf + writesize,
+			sizeof(hexout->buf) - writesize);
 	}
 
-	if (hexout_write(hexout->file, hexout->len, addr_low,
-			 hexout->buf) < 0)
-		return -1;
-	hexout->len = 0;
 	return 0;
 }
 
 static int hexout_feed(struct hexout_data *hexout,
-		       uint16_t addr, const uint8_t *buf, int len)
+		       uint32_t addr, const uint8_t *buf, int len)
 {
 	while (len) {
 		int count;
@@ -527,7 +551,7 @@ int cmd_hexout(char **arg)
 	if (hexout_flush(&hexout) < 0)
 		goto fail;
 
-	if (fprintf(hexout.file, ":00000001FF\n") < 0) {
+	if (hexout_write(hexout.file, IHEX_REC_EOF, 0, 0, NULL) < 0) {
 		pr_error("hexout: failed to write terminator\n");
 		goto fail;
 	}
