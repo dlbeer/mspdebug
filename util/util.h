@@ -31,6 +31,8 @@
 /* This type fits an MSP430X register value */
 typedef uint32_t address_t;
 
+#define ADDRESS_NONE ((address_t)0xffffffff)
+
 /* Retrive a string describing the last system error */
 const char *last_error(void);
 
