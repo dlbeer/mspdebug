@@ -1,4 +1,4 @@
-.TH mspdebug 1 "26 Nov 2012" "Version 0.21"
+.TH mspdebug 1 "18 Jul 2013" "Version 0.22"
 .SH NAME
 MSPDebug - debugging tool for MSP430 MCUs
 .SH SYNOPSIS
@@ -67,7 +67,7 @@ of the standard 16-byte password.
 Display a brief help message and exit.
 .IP "\-\-fet\-list"
 Display a list of chips supported by the FET driver (the driver used
-for UIF, RF2500 and Olimex devices)>
+for UIF, RF2500 and Olimex devices).
 .IP "\-\-fet\-force\-id \fIstring\fR"
 When using a FET device, force the connected chip to be recognised by
 MSPDebug as one of the given type during initialization. This overrides
@@ -757,7 +757,7 @@ dlbeer@gmail.com. It would help if you could include a transcript
 of an MSPDebug session illustrating the program, as well as any
 relevant binaries or other files.
 .SH COPYRIGHT
-Copyright (C) 2009-2012 Daniel Beer <dlbeer@gmail.com>
+Copyright (C) 2009-2013 Daniel Beer <dlbeer@gmail.com>
 
 MSPDebug is free software, distributed under the terms of the GNU
 General Public license (version 2 or later). See the file COPYING
