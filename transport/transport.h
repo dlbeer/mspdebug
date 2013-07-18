@@ -55,6 +55,16 @@ struct transport_class {
 	 * error occurs.
 	 */
 	int (*set_modem)(transport_t tr, transport_modem_t state);
+
+	/* This pair of optional methods allows a transport to survive a
+	 * USB device reset. Before an impending reset, suspend() should
+	 * be called to release references to the bus. After the reset
+	 * is completed, resume() should be called to reattach.
+	 *
+	 * It is an error to invoke IO methods on a suspended device.
+	 */
+	int (*suspend)(transport_t tr);
+	int (*resume)(transport_t tr);
 };
 
 struct transport {
