@@ -54,6 +54,7 @@
 #include "input.h"
 #include "input_async.h"
 #include "pif.h"
+#include "loadbsl.h"
 
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
@@ -82,7 +83,8 @@ static const struct device_class *const driver_table[] = {
 	&device_gdbc,
 	&device_tilib,
 	&device_goodfet,
-	&device_pif
+	&device_pif,
+	&device_loadbsl
 };
 
 static const char *version_text =

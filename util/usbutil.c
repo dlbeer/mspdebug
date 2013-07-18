@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009, 2010 Daniel Beer
+ * Copyright (C) 2009-2013 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,8 @@ static const char *device_help(const struct usb_device *dev)
 		{0x15ba, 0x0002, "Olimex MSP430-JTAG-TINY (v1)"},
 		{0x15ba, 0x0008, "Olimex MSP430-JTAG-ISO"},
 		{0x15ba, 0x0031, "Olimex MSP430-JTAG-TINY (v2)"},
-		{0x15ba, 0x0100, "Olimex MSP430-JTAG-ISO-MK2 (v2)"}
+		{0x15ba, 0x0100, "Olimex MSP430-JTAG-ISO-MK2 (v2)"},
+		{0x2047, 0x0200, "USB bootstrap loader"}
 	};
 	int i;
 

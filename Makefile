@@ -124,6 +124,7 @@ OBJ=\
     transport/rf2500.o \
     transport/ti3410.o \
     transport/comport.o \
+    transport/bslhid.o \
     drivers/device.o \
     drivers/bsl.o \
     drivers/fet.o \
@@ -142,6 +143,8 @@ OBJ=\
     drivers/jtdev.o \
     drivers/jtaglib.o \
     drivers/pif.o \
+    drivers/loadbsl.o \
+    drivers/loadbsl_fw.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \
