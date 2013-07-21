@@ -432,9 +432,13 @@ static device_t loadbsl_open(const struct device_args *args)
 	}
 
 	if (rx_password(dev->trans) < 0) {
-		dev->trans->ops->destroy(dev->trans);
-		free(dev);
-		return NULL;
+		printc_dbg("loadbsl: retrying password...\n");
+
+		if (rx_password(dev->trans) < 0) {
+			dev->trans->ops->destroy(dev->trans);
+			free(dev);
+			return NULL;
+		}
 	}
 
 	if (check_and_load(dev->trans) < 0) {
