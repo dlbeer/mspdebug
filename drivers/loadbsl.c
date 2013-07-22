@@ -281,6 +281,12 @@ static int check_and_load(transport_t trans)
 static void loadbsl_destroy(device_t base)
 {
 	struct loadbsl_device *dev = (struct loadbsl_device *)base;
+	static const uint8_t puc_word[] = {0, 0};
+
+	/* Write 0x0000 to WDTCTL, triggering a PUC */
+	if (send_command(dev->trans, BSL_CMD_RX_BLOCK_FAST,
+			 0x15c, puc_word, sizeof(puc_word)) < 0)
+		printc_err("warning: loadbsl: failed to trigger PUC\n");
 
 	dev->trans->ops->destroy(dev->trans);
 	free(dev);
