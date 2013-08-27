@@ -118,6 +118,7 @@ OBJ=\
     util/demangle.o \
     util/powerbuf.o \
     util/ctrlc.o \
+    util/chipinfo.o \
     transport/cp210x.o \
     transport/cdc_acm.o \
     transport/ftdi.o \
