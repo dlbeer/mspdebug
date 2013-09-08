@@ -146,6 +146,9 @@ OBJ=\
     drivers/pif.o \
     drivers/loadbsl.o \
     drivers/loadbsl_fw.o \
+    drivers/hal_proto.o \
+    drivers/v3hil.o \
+    drivers/fet3.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \

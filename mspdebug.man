@@ -184,6 +184,9 @@ supported for Linux. A parallel port device must be specified via the
 .IP "\fBload-bsl\fR"
 Connect to a USB bootloader. The stub bootloader will be used to load a
 fuller-featured bootloader into RAM for execution.
+.IP "\fBezfet\fR"
+This driver is for Texas Instruments' eZ-FET devices. It supports USB
+and TTY access. It does not support breakpoint control.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
