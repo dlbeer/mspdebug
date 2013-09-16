@@ -548,49 +548,62 @@ static int flash_bsl_writemem(device_t dev_base,
 }
 
 
-static void entry_delay(void)
-{
-	delay_ms(1);
-}
-
 static int enter_via_dtr_rts(struct flash_bsl_device *dev)
 {
-	/*
-	 * Implement the sequence shown on page 8 of TI document SLAU319A,
-	 * via serial-port control lines.
-	 */
 	sport_t fd = dev->serial_fd;
+	int status;
 
-	/* drive RST# line low */
-	if (sport_set_modem(fd, SPORT_MC_RTS | SPORT_MC_DTR) != 0) {
-		return -1;
+	if (ioctl(fd, TIOCMGET, &status) == -1)
+	{
+	    perror("Read Port Error\n");
+	    return -1;
 	}
-	entry_delay( );
 
-	/* drive TEST line high then low again */
-	if (sport_set_modem(fd, SPORT_MC_DTR) != 0) {
-		return -1;
+	status &= ~SPORT_MC_DTR;
+	status |= SPORT_MC_RTS;
+	if (sport_set_modem(fd, status) != 0)
+	{
+	    return -1;
 	}
-	entry_delay( );
-	if (sport_set_modem(fd, SPORT_MC_RTS | SPORT_MC_DTR) != 0) {
-		return -1;
-	}
-	entry_delay( );
+	delay_ms(250);
 
-	/* drive TEST line high followed by RST# line */
-	if (sport_set_modem(fd, SPORT_MC_DTR) != 0) {
-		return -1;
+	status &= ~SPORT_MC_RTS;
+	if (sport_set_modem(fd, status) != 0)
+	{
+	    return -1;
 	}
-	entry_delay( );
-	if (sport_set_modem(fd, 0) != 0) {
-		return -1;
-	}
-	entry_delay( );
-	if (sport_set_modem(fd, SPORT_MC_RTS) != 0) {
-		return -1;
-	}
-	entry_delay( );
+	delay_ms(10);
 
+	status |= SPORT_MC_RTS;
+	if (sport_set_modem(fd, status) != 0)
+	{
+	    return -1;
+	}
+	delay_ms(10);
+
+	status &= ~SPORT_MC_RTS;
+	if (sport_set_modem(fd, status) != 0)
+	{
+	    return -1;
+	}
+	delay_ms(10);
+
+	status |= SPORT_MC_RTS;
+	if (sport_set_modem(fd, status) != 0)
+	{
+	    return -1;
+	}
+	delay_ms(10);
+
+	status |= SPORT_MC_DTR;
+	if (sport_set_modem(fd, status) != 0)
+	{
+	    return -1;
+	}
+	delay_ms(10);
+
+	sport_flush(fd);
+	delay_ms(10);
 
 	/* BSL should now be running! */
 	return 0;
@@ -600,14 +613,14 @@ static void exit_via_dtr_rts(struct flash_bsl_device *dev)
 {
 	sport_t fd = dev->serial_fd;
 
-	/* RST# and TEST LOW */
-        sport_set_modem(fd, SPORT_MC_RTS | SPORT_MC_DTR);
+	/* Pulse RST# low */
+	sport_set_modem(fd, SPORT_MC_RTS);
 
 	/* wait a brief period */
-	entry_delay( );
+	delay_ms(10);
 
 	/* RST# HIGH */
-	sport_set_modem(fd, SPORT_MC_DTR);
+	sport_set_modem(fd, SPORT_MC_DTR | SPORT_MC_RTS);
 }
 
 static void flash_bsl_destroy(device_t dev_base)
