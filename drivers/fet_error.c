@@ -100,6 +100,28 @@ static const char *error_strings[] =
 	/*  66 */ "CDC-USB-FET driver was not installed, please install the driver",
 	/*  67 */ "Manual reboot of USB-FET needed! PLEASE unplug and reconnect your USB-FET!",
 	/*  68 */ "Internal error",
+	/*  69 */ "One of the connected eZ-FET debuggers needs recovery", /* Yes, this is actually repeated */
+
+	/*  70 */ "One of the connected eZ-FET debuggers needs recovery", /* twice in SLAC060f MSP430.h */
+	/*  71 */ "Feature not supported",
+	/*  72 */ "Only one eZ-FET must be connected during recovery",
+	/*  73 */ "eZ-FET recovery failed",
+	/*  74 */ "eZ-FET core(communication layer) update failed",
+	/*  75 */ "eZ-FET legacy module update failed",
+	/*  76 */ "Energy Trace is not supported by the selected hardware",
+	/*  77 */ "Hardware State is unknown",
+	/*  78 */ "Device configuration data inconsistent. "
+		  "Please discontinue using/replace target device.",
+	/*  79 */ "EEM module not accessible while running in Ultra Low Power Debug Mode - "
+		  "Deactivate Ultra Low Power Debug mode to enable this feature",
+
+	/*  80 */ "Failed to remove software breakpoints, please reprogram target device",
+	/*  81 */ "Trigger configuration conflicts with existing triggers",
+	/*  82 */ "Operation not possible while device is running",
+	/*  83 */ "This function can not be used when software breakpoints are enabled",
+
+	/*  84 */ "JTAG/SBW speed configuration failed",
+
 	/*  69 */ "Invalid error number",
 };
 
