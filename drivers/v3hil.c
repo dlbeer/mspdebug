@@ -1017,8 +1017,7 @@ int v3hil_identify(struct v3hil *fet)
 	    set_param(fet, HAL_PROTO_CONFIG_POWER_TESTREG_MASK, 0) < 0 ||
 	    set_param(fet, HAL_PROTO_CONFIG_POWER_TESTREG3V_MASK, 0) < 0 ||
 	    set_param(fet, HAL_PROTO_CONFIG_NO_BSL, 0) < 0 ||
-	    set_param(fet, HAL_PROTO_CONFIG_ALT_ROM_ADDR_FOR_CPU_READ, 0) < 0 ||
-	    set_param(fet, HAL_PROTO_CONFIG_ASSERT_BSL_VALID_BIT, 0) < 0)
+	    set_param(fet, HAL_PROTO_CONFIG_ALT_ROM_ADDR_FOR_CPU_READ, 0) < 0)
 		return -1;
 
 	printc_dbg("Check JTAG fuse...\n");
