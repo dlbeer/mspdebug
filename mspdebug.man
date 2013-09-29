@@ -95,6 +95,13 @@ Show program version and copyright information.
 Start mspdebug as an embedded subprocess. See the documentation
 accompanying the source release for more information on embedded mode.
 .SH DRIVERS
+For drivers supporting both USB and TTY access, USB is the default,
+unless specified otherwise (see \fB-d\fR above).
+
+On Linux, if USB access is used, the kernel driver (if any) is
+detached from the TTY device. If further access to the TTY device is
+needed, unloading and re-loading of the driver (e.g. cdc-acm.ko) is required.
+
 A driver name must be specified on the command line for MSPDebug to
 connect to. Valid driver names are listed here.
 .IP "\fBrf2500\fR"
