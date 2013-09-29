@@ -102,7 +102,7 @@ static const char *error_strings[] =
 	/*  68 */ "Internal error",
 	/*  69 */ "One of the connected eZ-FET debuggers needs recovery", /* Yes, this is actually repeated */
 
-	/*  70 */ "One of the connected eZ-FET debuggers needs recovery", /* twice in SLAC060f MSP430.h */
+	/*  70 */ "One of the connected eZ-FET debuggers needs recovery", /* twice in SLAC460f MSP430.h */
 	/*  71 */ "Feature not supported",
 	/*  72 */ "Only one eZ-FET must be connected during recovery",
 	/*  73 */ "eZ-FET recovery failed",
@@ -122,7 +122,7 @@ static const char *error_strings[] =
 
 	/*  84 */ "JTAG/SBW speed configuration failed",
 
-	/*  69 */ "Invalid error number",
+	/*  85 */ "Invalid error number",
 };
 
 const char *fet_error(int code)
