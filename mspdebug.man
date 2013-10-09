@@ -95,11 +95,11 @@ Show program version and copyright information.
 Start mspdebug as an embedded subprocess. See the documentation
 accompanying the source release for more information on embedded mode.
 .SH DRIVERS
-For drivers supporting both USB and TTY access, USB is the default,
+For drivers supporting both USB and tty access, USB is the default,
 unless specified otherwise (see \fB-d\fR above).
 
 On Linux, if USB access is used, the kernel driver (if any) is
-detached from the TTY device. If further access to the TTY device is
+detached from the tty device. If further access to the tty device is
 needed, unloading and re-loading of the driver (e.g. cdc-acm.ko) is required.
 
 A driver name must be specified on the command line for MSPDebug to
@@ -180,7 +180,7 @@ argument straight through to the library's \fBMSP430_Initialize\fR
 function. Any special argument supported by that function is therefore
 accessible via the \fB-d\fR option.
 .IP "\fBgoodfet\fR"
-Connect to a GoodFET device. JTAG mode must be used, and only TTY access
+Connect to a GoodFET device. JTAG mode must be used, and only tty access
 is supported. This device can be used for memory access (read, erase and
 program), but CPU control is limited. The CPU may be halted, run and
 reset, but register access and breakpoints aren't supported.
@@ -193,7 +193,7 @@ Connect to a USB bootloader. The stub bootloader will be used to load a
 fuller-featured bootloader into RAM for execution.
 .IP "\fBezfet\fR"
 This driver is for Texas Instruments' eZ-FET devices. It supports USB
-and TTY access. It does not support breakpoint control.
+and tty access. It does not support breakpoint control.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
