@@ -125,7 +125,7 @@ transport_t comport_open(const char *device, int baud_rate)
 
 	tr->base.ops = &comport_transport;
 
-	printc("Trying to open %s at %d bps...\n", device, baud_rate);
+	printc_dbg("Trying to open %s at %d bps...\n", device, baud_rate);
 	tr->serial_fd = sport_open(device, baud_rate, 0);
 	if (SPORT_ISERR(tr->serial_fd)) {
 		printc_err("comport: can't open serial device: %s: %s\n",

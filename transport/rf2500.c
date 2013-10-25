@@ -58,7 +58,7 @@ struct rf2500_transport {
 static int open_interface(struct rf2500_transport *tr,
 			  struct usb_device *dev, int ino)
 {
-	printc("Trying to open interface %d on %s\n", ino, dev->filename);
+	printc_dbg("Trying to open interface %d on %s\n", ino, dev->filename);
 
 	tr->int_number = ino;
 

@@ -127,7 +127,7 @@ static int open_interface(struct cp210x_transport *tr,
 	char drName[256];
 #endif
 
-	printc(__FILE__": Trying to open interface %d on %s\n",
+	printc_dbg(__FILE__": Trying to open interface %d on %s\n",
 	       ino, dev->filename);
 
 	tr->int_number = ino;
