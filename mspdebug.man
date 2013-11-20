@@ -179,6 +179,9 @@ watchpoints. Note that the \fB-d\fR option for this driver passes its
 argument straight through to the library's \fBMSP430_Initialize\fR
 function. Any special argument supported by that function is therefore
 accessible via the \fB-d\fR option.
+
+Automatic device discovery works only on Linux and Windows. On other
+systems, the appropriate ACM serial node must be explicitly specified.
 .IP "\fBgoodfet\fR"
 Connect to a GoodFET device. JTAG mode must be used, and only tty access
 is supported. This device can be used for memory access (read, erase and
