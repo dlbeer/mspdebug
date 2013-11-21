@@ -181,5 +181,7 @@ OBJ=\
 $(BINARY): $(OBJ)
 	$(MSPDEBUG_CC) $(MSPDEBUG_LDFLAGS) -o $@ $^ $(MSPDEBUG_LIBS)
 
+util/chipinfo.o:	chipinfo.db
+
 .c.o:
 	$(MSPDEBUG_CC) $(MSPDEBUG_CFLAGS) -o $@ -c $*.c
