@@ -170,6 +170,10 @@ static int fet3_ctl(device_t dev_base, device_ctl_t type)
 		if (v3hil_single_step(&fet->hil) < 0)
 			return -1;
 		return v3hil_update_regs(&fet->hil);
+
+	default:
+		printc_err("fet3: unsupported operation\n");
+		return -1;
 	}
 
 	return 0;

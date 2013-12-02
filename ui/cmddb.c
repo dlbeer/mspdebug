@@ -177,6 +177,15 @@ const struct cmddb_record commands[] = {
  "    Reset (and halt) the CPU.\n"
 	},
 	{
+		.name = "blow_jtag_fuse",
+		.func = cmd_blow_jtag_fuse,
+		.help =
+"blow-jtag-fuse\n"
+"    Blow the device's JTAG fuse.\n"
+"\n"
+"    \x1b[1mWARNING: this is an irreversible operation!\x1b[0m\n"
+	},
+	{
 		.name = "erase",
 		.func = cmd_erase,
 		.help =

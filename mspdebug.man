@@ -230,6 +230,10 @@ Define a command alias. The text \fIcommand\fR will be substituted for
 a command plus arguments, if the entire text is wrapped in quotes when
 defining the alias. To avoid alias substitution when interpreting
 commands, prefix the command with \\ (a backslash character).
+.IP "\fBblow_jtag_fuse\fR"
+Blow the device's JTAG fuse.
+
+.B WARNING: this is an irreversible operation!
 .IP "\fBbreak\fR"
 Show a list of active breakpoints. Breakpoints can be added and removed
 with the \fBsetbreak\fR and \fBdelbreak\fR commands. Each breakpoint is
@@ -735,6 +739,12 @@ BSL memory. If in doubt, do not enable this.
 If set, some drivers will allow erase/program access to the info A
 segment. If in doubt, do not enable this. Currently, the tilib and uif
 drivers are affected by this option.
+.IP "\fBenable_fuse_blow\fR"
+If set, some drivers will allow the JTAG security fuse to be blown.
+
+.B WARNING: this is an irreversible operation!
+
+If in doubt, do not enable this option.
 .IP "\fBgdb_default_port\fR (numeric)"
 This option controls the default TCP port for the GDB server, if no
 argument is given to the "\fBgdb\fR" command.

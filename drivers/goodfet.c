@@ -566,8 +566,8 @@ static int goodfet_ctl(device_t dev_base, device_ctl_t type)
 	case DEVICE_CTL_HALT:
 		return goodfet_halt(gc);
 
-	case DEVICE_CTL_STEP:
-		printc_err("goodfet: single-stepping not implemented\n");
+	default:
+		printc_err("goodfet: unsupported operation\n");
 		return -1;
 	}
 

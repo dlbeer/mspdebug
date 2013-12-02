@@ -290,8 +290,8 @@ static int pif_ctl(device_t dev_base, device_ctl_t type)
       jtag_get_device(&dev->jtag);
       break;
 
-    case DEVICE_CTL_STEP:
-      printc_err("pif: single-stepping not implemented\n");
+    default:
+      printc_err("pif: unsupported operation\n");
       return -1;
   }
 

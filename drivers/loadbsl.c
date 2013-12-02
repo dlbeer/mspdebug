@@ -403,6 +403,7 @@ static int loadbsl_ctl(device_t base, device_ctl_t type)
 
 	default:
 		printc_err("loadbsl: CPU control is not possible\n");
+		return -1;
 	}
 
 	return 0;

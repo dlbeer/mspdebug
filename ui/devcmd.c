@@ -31,6 +31,7 @@
 #include "util.h"
 #include "prog.h"
 #include "dis.h"
+#include "opdb.h"
 
 int cmd_regs(char **arg)
 {
@@ -831,4 +832,22 @@ int cmd_fill(char **arg)
 	}
 
 	return 0;
+}
+
+int cmd_blow_jtag_fuse(char **arg)
+{
+	(void)arg;
+
+	if (!opdb_get_boolean("enable_fuse_blow")) {
+		printc_err(
+"blow_jtag_fuse: fuse blow has not been enabled.\n"
+"\n"
+"If you really want to blow the JTAG fuse, you need to set the option\n"
+"\"enable_fuse_blow\" first. If in doubt, do not do this.\n"
+"\n"
+"\x1b[1mWARNING: this is in irreversible operation!\x1b[0m\n");
+		return -1;
+	}
+
+	return device_ctl(DEVICE_CTL_SECURE);
 }

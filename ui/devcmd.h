@@ -39,5 +39,6 @@ int cmd_setwatch_w(char **arg);
 int cmd_delbreak(char **arg);
 int cmd_break(char **arg);
 int cmd_fill(char **arg);
+int cmd_blow_jtag_fuse(char **arg);
 
 #endif

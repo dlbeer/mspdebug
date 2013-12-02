@@ -30,7 +30,8 @@ typedef enum {
 	DEVICE_CTL_RESET,
 	DEVICE_CTL_RUN,
 	DEVICE_CTL_HALT,
-	DEVICE_CTL_STEP
+	DEVICE_CTL_STEP,
+	DEVICE_CTL_SECURE
 } device_ctl_t;
 
 typedef enum {

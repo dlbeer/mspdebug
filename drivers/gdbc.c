@@ -308,6 +308,10 @@ static int gdbc_ctl(device_t dev_base, device_ctl_t op)
 
 	case DEVICE_CTL_RESET:
 		return do_reset(dev);
+
+	default:
+		printc_err("gdbc: unsupported operation\n");
+		return -1;
 	}
 
 	return 0;

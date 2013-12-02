@@ -708,6 +708,13 @@ int fet_ctl(device_t dev_base, device_ctl_t action)
 				break;
 		}
 		break;
+
+	case DEVICE_CTL_SECURE:
+		if (fet_proto_xfer(&dev->proto, C_SECURE, NULL, 0, 0) < 0) {
+			printc_err("fet: failed to secure device\n");
+			return -1;
+		}
+		break;
 	}
 
 	return 0;

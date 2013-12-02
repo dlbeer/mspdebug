@@ -696,6 +696,10 @@ static int sim_ctl(device_t dev_base, device_ctl_t op)
 	case DEVICE_CTL_RUN:
 		dev->running = 1;
 		return 0;
+
+	default:
+		printc_err("sim: unsupported operation\n");
+		return -1;
 	}
 
 	return 0;

@@ -103,6 +103,16 @@ static const struct opdb_key keys[] = {
 		.defval = {
 			.numeric = 2000
 		}
+	},
+	{
+		.name = "enable_fuse_blow",
+		.type = OPDB_TYPE_BOOLEAN,
+		.help =
+"If set, some drivers will allow the JTAG security fuse to be blown.\n"
+"\n"
+"\x1b[1mWARNING: this is an irreversible operation!\x1b[0m\n"
+"\n"
+"If in doubt, do not enable this option.\n"
 	}
 };
 
