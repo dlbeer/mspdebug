@@ -311,6 +311,7 @@ static int bsl_readmem(device_t dev_base,
 		memcpy(mem, dev->reply_buf + 4, count);
 		mem += count;
 		len -= count;
+		addr += count;
 	}
 
 	return 0;
