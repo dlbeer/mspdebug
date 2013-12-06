@@ -184,8 +184,7 @@ static device_status_t fet3_poll(device_t dev_base)
 	/* We don't support breakpoints yet, so there's nothing to poll
 	 * for.
 	 */
-	delay_ms(500);
-	if (ctrlc_check())
+	if(delay_ms(500) < 0)
 		return DEVICE_STATUS_INTR;
 
 	return DEVICE_STATUS_RUNNING;

@@ -578,7 +578,7 @@ static device_status_t goodfet_poll(device_t dev_base)
 {
 	(void)dev_base;
 
-	if (delay_ms(100) < 0 || ctrlc_check())
+	if (delay_ms(100) < 0)
 		return DEVICE_STATUS_INTR;
 
 	return DEVICE_STATUS_RUNNING;

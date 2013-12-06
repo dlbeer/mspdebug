@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>
 #include <assert.h>
 #include <time.h>
 
@@ -29,6 +28,7 @@
 #include <windows.h>
 #endif
 
+#include "ctrlc.h"
 #include "util.h"
 #include "output.h"
 
@@ -283,17 +283,28 @@ int delay_ms(unsigned int s)
 #else
 int delay_s(unsigned int s)
 {
-	return sleep(s);
+	return delay_ms(1000 * s);
 }
 
 int delay_ms(unsigned int s)
 {
-	struct timespec ts;
+	struct timespec rq, rm;
+	int ret;
 
-	ts.tv_sec = s / 1000;
-	ts.tv_nsec = (s % 1000) * 1000000;
+	rm.tv_sec = s / 1000;
+	rm.tv_nsec = (s % 1000) * 1000000;
 
-	return nanosleep(&ts, NULL);
+	do {
+		if (ctrlc_check()) {
+			ret = -1;
+			break;
+		}
+		rq.tv_sec = rm.tv_sec;
+		rq.tv_nsec = rm.tv_nsec;
+		ret = nanosleep(&rq, &rm);
+	} while(ret == -1 && errno == EINTR);
+
+	return ret;
 }
 #endif
 

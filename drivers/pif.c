@@ -301,7 +301,7 @@ static int pif_ctl(device_t dev_base, device_ctl_t type)
 /*----------------------------------------------------------------------------*/
 static device_status_t pif_poll(device_t dev_base)
 {
-  if (delay_ms(100) < 0 || ctrlc_check())
+  if (delay_ms(100) < 0)
     return DEVICE_STATUS_INTR;
 
   return DEVICE_STATUS_RUNNING;
