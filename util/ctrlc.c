@@ -85,7 +85,7 @@ HANDLE ctrlc_win32_event(void)
 #include <pthread.h>
 #include <signal.h>
 
-static volatile int ctrlc_flag;
+static volatile sig_atomic_t ctrlc_flag;
 static pthread_t ctrlc_thread;
 
 static void sigint_handler(int signum)
