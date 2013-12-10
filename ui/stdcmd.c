@@ -16,6 +16,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifndef NO_SHELLCMD
+#include <sys/types.h>
+#include <sys/wait.h>
+
+#include <libgen.h>
+#include <unistd.h>
+#include "ctrlc.h"
+#endif /* !NO_SHELLCMD */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -215,3 +224,65 @@ int cmd_exit(char **arg)
 	reader_exit();
 	return 0;
 }
+
+#ifndef NO_SHELLCMD
+int cmd_shellcmd(char **arg)
+{
+	int fd;
+	pid_t pid;
+	char *sh, *p;
+	static char *shell = NULL;
+	static char shell_name[16];
+
+	if (shell == NULL) {
+		sh = getenv("SHELL");
+		if (sh == NULL) {
+			sh = "/bin/sh";
+		}
+
+		shell = strdup(sh);
+		p = strdup(sh);
+		if (shell == NULL || p == NULL) {
+			pr_error("!: error: strdup");
+			return -1;
+		}
+
+		memset(shell_name, 0, sizeof(shell_name));
+		*shell_name = '-';
+		strncpy(shell_name + 1, basename(p), sizeof(shell_name) - 2);
+		shell_name[sizeof(shell_name) - 1] = '\0';
+		free(p);
+	}
+
+	pid = fork();
+
+	if (pid == -1) {
+		pr_error("!: error: fork");
+		return -1;
+	}
+
+	if (pid == 0) {
+		ctrlc_exit();
+
+		for (fd = 3; fd < 1024; fd++) {
+			(void)close(fd);
+		}
+
+		if (arg && *arg[0]) {
+			execl(shell, shell_name, "-c", *arg, NULL);
+		} else {
+			execl(shell, shell_name, NULL);
+		}
+
+		printc_err("!: error: execl(\"%s\")", shell);
+		pr_error("");
+		_exit(1);
+	}
+
+	while (waitpid(-1, NULL, 0) != pid) {
+		;
+	}
+
+	return 0;
+}
+#endif /* !NO_SHELLCMD */

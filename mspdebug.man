@@ -211,6 +211,12 @@ Commands can be specified by giving the first few characters of the
 command name, provided that the prefix is unambiguous. Some commands
 support automatic repeat. For these commands, pressing enter at the
 reader prompt without typing anything will cause repeat execution.
+.IP "\fB!\fR [\fIcommand\fR [\fIargs ...\fR]]"
+Invoke an interactive operating system shell. If any arguments
+are specified, the first one is taken as a command to execute, with the
+rest of the arguments as the arguments to the command.
+
+This command is not yet available on non-POSIX systems.
 .IP "\fB=\fR \fIexpression\fR"
 Evaluate an address expression and show both its value, and the result
 when the value is looked up in reverse in the current symbol

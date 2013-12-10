@@ -354,7 +354,16 @@ const struct cmddb_record commands[] = {
 "    Write session data for the given session to a CSV file.\n"
 "power profile\n"
 "    List power profile data by symbol.\n"
-	}
+	},
+#ifndef NO_SHELLCMD
+	{
+		.name = "!",
+		.func = cmd_shellcmd,
+		.help =
+"! [command [args ...]]\n"
+"    Invoke an interactive shell, optionally execute command.\n"
+	},
+#endif /* !NO_SHELLCMD */
 };
 
 int cmddb_get(const char *name, struct cmddb_record *ret)

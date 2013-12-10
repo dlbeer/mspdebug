@@ -56,7 +56,7 @@ ifeq ($(OS),Windows_NT)
 
     ifneq ($(UNAME_O),Cygwin)
 	OS_LIBS = -lws2_32 -lregex
-	OS_CFLAGS = -D__Windows__
+	OS_CFLAGS = -D__Windows__ -DNO_SHELLCMD
     endif
 else
     MSPDEBUG_CC = $(CC)
