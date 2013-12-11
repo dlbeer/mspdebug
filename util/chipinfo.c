@@ -96,3 +96,9 @@ const struct chipinfo_memory *chipinfo_find_mem_by_addr
 
 	return best;
 }
+
+const char *chipinfo_copyright(void)
+{
+	return "Chip info database from MSP430.dll v"
+		CI_DLL430_VERSION_STRING " Copyright (C) 2013 TI, Inc.\n";
+}

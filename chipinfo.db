@@ -1,6 +1,6 @@
 /* MSP430 chip database
  *
- * THIS FILE WAS GENERATED FROM MSP430.DLL v03.03.01.04
+ * THIS FILE WAS GENERATED FROM MSP430.DLL v3.3.1.4
  *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -32,6 +32,12 @@
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#define CI_DLL430_VERSION_MAJOR 3
+#define CI_DLL430_VERSION_MINOR 3
+#define CI_DLL430_VERSION_PATCH 1
+#define CI_DLL430_VERSION_BUILD 4
+#define CI_DLL430_VERSION_STRING "3.3.1.4"
 
 static const struct chipinfo_funclet erase_fll = {
 	.code_size	= 48,

@@ -56,6 +56,7 @@
 #include "pif.h"
 #include "loadbsl.h"
 #include "fet3.h"
+#include "chipinfo.h"
 
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
@@ -326,6 +327,7 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case LOPT_VERSION:
 			printc("%s", version_text);
+			printc("%s", chipinfo_copyright());
 			exit(0);
 
 		case 'v':
@@ -447,7 +449,8 @@ int main(int argc, char **argv)
 		goto fail_sockets;
 	}
 
-	printc_dbg("%s\n", version_text);
+	printc_dbg("%s", version_text);
+	printc_dbg("%s\n", chipinfo_copyright());
 	if (setup_driver(&args) < 0) {
 		ret = -1;
 		goto fail_driver;

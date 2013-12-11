@@ -166,4 +166,6 @@ const struct chipinfo_memory *chipinfo_find_mem_by_addr
 const struct chipinfo_memory *chipinfo_find_mem_by_name
 	(const struct chipinfo *info, const char *name);
 
+const char *chipinfo_copyright(void);
+
 #endif
