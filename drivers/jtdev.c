@@ -2,6 +2,10 @@
  * Copyright (C) 2009-2012 Daniel Beer
  * Copyright (C) 2012 Peter Bägel
  *
+ * ppdev/ppi abstraction inspired by uisp src/DARPA.C
+ *   originally written by Sergey Larin;
+ *   corrected by Denis Chertykov, Uros Platise and Marek Michalkiewicz.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -21,12 +25,35 @@
 #include "jtdev.h"
 #include "output.h"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__)
 /*===== includes =============================================================*/
 
 #include <fcntl.h>
 #include <unistd.h>
+
+#if defined(__linux__)
+
 #include <linux/ppdev.h>
+
+#define par_claim(fd)			ioctl(fd, PPCLAIM, NULL)
+#define par_write_data(fd, ptr)		ioctl(fd, PPWDATA, ptr)
+#define par_write_control(fd, ptr)	ioctl(fd, PPWCONTROL, ptr)
+#define par_release(fd)			ioctl(fd, PPRELEASE, NULL)
+#define par_read_status(fd, ptr)	ioctl(fd, PPRSTATUS, ptr)
+
+#elif defined(__FreeBSD__)
+
+#include <dev/ppbus/ppi.h>
+#include <dev/ppbus/ppbconf.h>
+
+#define par_claim(fd)			(0)
+#define par_write_data(fd, ptr)		ioctl(fd, PPISDATA, ptr)
+#define par_write_control(fd, ptr)	ioctl(fd, PPISCTRL, ptr)
+#define par_release(fd)			(0)
+#define par_read_status(fd, ptr)	ioctl(fd, PPIGSTATUS, ptr)
+
+#endif /* __linux__ || __FreeBSD__ */
+
 #include <sys/ioctl.h>
 
 #include "util.h"
@@ -51,10 +78,18 @@
 #define BUSY ((unsigned char)0x80)
 
 /*--- port control (out) ---*/
+#ifndef STROBE
 #define STROBE   ((unsigned char)0x01) /* inverted by PC-hardware */
+#endif
+#ifndef AUTOFEED
 #define AUTOFEED ((unsigned char)0x02)
+#endif
+#ifndef INIT
 #define INIT     ((unsigned char)0x04)
+#endif
+#ifndef SELECTIN
 #define SELECTIN ((unsigned char)0x08)
+#endif
 #define IRQEN    ((unsigned char)0x10)
 
 /*--- JTAG signal mapping ---*/
@@ -76,7 +111,7 @@
 
 static void do_ppwdata(struct jtdev *p)
 {
-	if (ioctl(p->port, PPWDATA, &p->data_register) < 0) {
+	if (par_write_data(p->port, &p->data_register) < 0) {
 		pr_error("ioctl: PPWDATA");
 		p->failed = 1;
 	}
@@ -84,7 +119,7 @@ static void do_ppwdata(struct jtdev *p)
 
 static void do_ppwcontrol(struct jtdev *p)
 {
-	if (ioctl(p->port, PPWCONTROL, &p->control_register) < 0) {
+	if (par_write_control(p->port, &p->control_register) < 0) {
 		pr_error("ioctl: PPWCONTROL");
 		p->failed = 1;
 	}
@@ -99,7 +134,7 @@ int jtdev_open(struct jtdev *p, const char *device)
 		return -1;
 	}
 
-	if (ioctl(p->port, PPCLAIM, NULL) < 0) {
+	if (par_claim(p->port) < 0) {
 		printc_err("jtdev: PPCLAIM: %s: %s\n",
 			   device, last_error());
 		close(p->port);
@@ -118,7 +153,7 @@ int jtdev_open(struct jtdev *p, const char *device)
 
 void jtdev_close(struct jtdev *p)
 {
-	if (ioctl(p->port, PPRELEASE, NULL) < 0)
+	if (par_release(p->port) < 0)
 		pr_error("warning: jtdev: failed to release port");
 
 	close(p->port);
@@ -210,7 +245,7 @@ int jtdev_tdo_get(struct jtdev *p)
 {
 	uint8_t input;
 
-	if (ioctl(p->port, PPRSTATUS, &input) < 0) {
+	if (par_read_status(p->port, &input) < 0) {
 		pr_error("ioctl: PPRSTATUS");
 		p->failed = 1;
 		return 0;

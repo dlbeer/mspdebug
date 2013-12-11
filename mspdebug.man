@@ -188,9 +188,10 @@ is supported. This device can be used for memory access (read, erase and
 program), but CPU control is limited. The CPU may be halted, run and
 reset, but register access and breakpoints aren't supported.
 .IP "\fBpif\fR"
-Connect to a parallel-port JTAG controller. Currently, this driver is only
-supported for Linux. A parallel port device must be specified via the
-\fB-d\fR option.
+Connect to a parallel-port JTAG controller. JTAG mode must be used, and
+only tty access is supported. Currently, this driver is only supported
+on Linux and FreeBSD. A parallel port device (ppdev on Linux, ppi on
+FreeBSD) must be specified via the \fB-d\fR option.
 .IP "\fBload-bsl\fR"
 Connect to a USB bootloader. The stub bootloader will be used to load a
 fuller-featured bootloader into RAM for execution.
