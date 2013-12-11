@@ -25,7 +25,8 @@
 #include "jtdev.h"
 #include "output.h"
 
-#if defined(__linux__) || defined(__FreeBSD__)
+#if defined(__linux__) || \
+    ( defined(__FreeBSD__) || defined(__DragonFly__) )
 /*===== includes =============================================================*/
 
 #include <fcntl.h>
@@ -41,7 +42,7 @@
 #define par_release(fd)			ioctl(fd, PPRELEASE, NULL)
 #define par_read_status(fd, ptr)	ioctl(fd, PPRSTATUS, ptr)
 
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
 
 #include <dev/ppbus/ppi.h>
 #include <dev/ppbus/ppbconf.h>
@@ -52,7 +53,7 @@
 #define par_release(fd)			(0)
 #define par_read_status(fd, ptr)	ioctl(fd, PPIGSTATUS, ptr)
 
-#endif /* __linux__ || __FreeBSD__ */
+#endif /* __linux__ || (__FreeBSD__ || __DragonFly__) */
 
 #include <sys/ioctl.h>
 
@@ -112,7 +113,7 @@
 static void do_ppwdata(struct jtdev *p)
 {
 	if (par_write_data(p->port, &p->data_register) < 0) {
-		pr_error("ioctl: PPWDATA");
+		pr_error("jtdev: par_write_data");
 		p->failed = 1;
 	}
 }
@@ -120,7 +121,7 @@ static void do_ppwdata(struct jtdev *p)
 static void do_ppwcontrol(struct jtdev *p)
 {
 	if (par_write_control(p->port, &p->control_register) < 0) {
-		pr_error("ioctl: PPWCONTROL");
+		pr_error("jtdev: par_write_control");
 		p->failed = 1;
 	}
 }
@@ -135,7 +136,7 @@ int jtdev_open(struct jtdev *p, const char *device)
 	}
 
 	if (par_claim(p->port) < 0) {
-		printc_err("jtdev: PPCLAIM: %s: %s\n",
+		printc_err("jtdev: par_claim: %s: %s\n",
 			   device, last_error());
 		close(p->port);
 		return -1;
@@ -246,7 +247,7 @@ int jtdev_tdo_get(struct jtdev *p)
 	uint8_t input;
 
 	if (par_read_status(p->port, &input) < 0) {
-		pr_error("ioctl: PPRSTATUS");
+		pr_error("jtdev: par_read_status:");
 		p->failed = 1;
 		return 0;
 	}
@@ -304,7 +305,7 @@ void jtdev_led_red(struct jtdev *p, int out)
 #else /* __linux__ */
 int jtdev_open(struct jtdev *p, const char *device)
 {
-	printc_err("jtdev: driver is only supported for Linux\n");
+	printc_err("jtdev: driver is not supported on this platform\n");
 	p->failed = 1;
 	return -1;
 }
