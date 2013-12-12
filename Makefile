@@ -41,7 +41,7 @@ ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
 	PORTS_CFLAGS := -I/opt/local/include
 	PORTS_LDFLAGS := -L/opt/local/lib
 else
-  ifeq ($(UNAME_S),OpenBSD) # OpenBSD Ports stuff
+  ifneq ($(filter $(UNAME_S),OpenBSD NetBSD),)
 	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
 	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
   else
@@ -62,7 +62,7 @@ else
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug
 
-    ifneq ($(filter $(UNAME_S),OpenBSD),)
+    ifneq ($(filter $(UNAME_S),OpenBSD NetBSD),)
 	OS_LIBS =
     else ifneq ($(filter $(UNAME_S),FreeBSD),)
 	OS_CFLAGS = -pthread
