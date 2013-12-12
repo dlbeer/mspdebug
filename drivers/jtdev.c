@@ -44,8 +44,13 @@
 
 #elif defined(__FreeBSD__) || defined(__DragonFly__)
 
+#if defined(__FreeBSD__)
 #include <dev/ppbus/ppi.h>
 #include <dev/ppbus/ppbconf.h>
+#else /* __DragonFly__ */
+#include <dev/misc/ppi/ppi.h>
+#include <bus/ppbus/ppbconf.h>
+#endif
 
 #define par_claim(fd)			(0)
 #define par_write_data(fd, ptr)		ioctl(fd, PPISDATA, ptr)
