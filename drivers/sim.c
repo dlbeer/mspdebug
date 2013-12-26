@@ -134,7 +134,8 @@ static int fetch_operand(struct sim_device *dev,
 			return 0;
 		}
 		addr = dev->regs[reg];
-		dev->regs[reg] += (is_byte && reg != MSP430_REG_PC) ? 1 : 2;
+		dev->regs[reg] += (is_byte && reg != MSP430_REG_PC &&
+					      reg != MSP430_REG_SP) ? 1 : 2;
 		break;
 	}
 
