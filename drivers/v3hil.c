@@ -355,7 +355,7 @@ fail:
 static int calibrate_dco(struct v3hil *h, uint8_t max_bcs)
 {
 	const struct chipinfo_memory *ram = find_ram(h->chip);
-	uint8_t data[4];
+	uint8_t data[6];
 	uint8_t mem_write[16];
 
 	if (!ram)
@@ -368,7 +368,7 @@ static int calibrate_dco(struct v3hil *h, uint8_t max_bcs)
 
 	if (hal_proto_execute(&h->hal,
 		map_fid(h, HAL_PROTO_FID_GET_DCO_FREQUENCY),
-		data, 4) < 0)
+		data, 6) < 0)
 		goto fail;
 	if (h->hal.length < 6) {
 		printc_err("v3hil: short reply: %d\n", h->hal.length);
@@ -386,7 +386,7 @@ static int calibrate_dco(struct v3hil *h, uint8_t max_bcs)
 	mem_write[11] = 0; /* pad */
 	if (hal_proto_execute(&h->hal,
 		    map_fid(h, HAL_PROTO_FID_WRITE_MEM_BYTES),
-		    data, 12) < 0) {
+		    mem_write, 12) < 0) {
 		printc_err("v3hil: failed to load DCO settings\n");
 		goto fail;
 	}
@@ -401,7 +401,7 @@ fail:
 static int calibrate_fll(struct v3hil *h)
 {
 	const struct chipinfo_memory *ram = find_ram(h->chip);
-	uint8_t data[4];
+	uint8_t data[10];
 	uint8_t mem_write[16];
 
 	if (!ram)
@@ -414,7 +414,7 @@ static int calibrate_fll(struct v3hil *h)
 
 	if (hal_proto_execute(&h->hal,
 		map_fid(h, HAL_PROTO_FID_GET_DCO_FREQUENCY),
-		data, 4) < 0)
+		data, 10) < 0)
 		goto fail;
 	if (h->hal.length < 10) {
 		printc_err("v3hil: short reply: %d\n", h->hal.length);
@@ -435,7 +435,7 @@ static int calibrate_fll(struct v3hil *h)
 
 	if (hal_proto_execute(&h->hal,
 		    map_fid(h, HAL_PROTO_FID_WRITE_MEM_BYTES),
-		    data, 14) < 0) {
+		    mem_write, 14) < 0) {
 		printc_err("v3hil: failed to load FLL settings\n");
 		goto fail;
 	}
