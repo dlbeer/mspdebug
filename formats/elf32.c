@@ -260,7 +260,7 @@ static int feed_section(struct elf32_info *info,
 
 static int read_all(struct elf32_info *info, FILE *in)
 {
-	memset(info, 0, sizeof(info));
+	memset(info, 0, sizeof(*info));
 
 	if (read_ehdr(info, in) < 0)
 		return -1;
