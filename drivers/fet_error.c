@@ -119,10 +119,12 @@ static const char *error_strings[] =
 	/*  81 */ "Trigger configuration conflicts with existing triggers",
 	/*  82 */ "Operation not possible while device is running",
 	/*  83 */ "This function can not be used when software breakpoints are enabled",
-
 	/*  84 */ "JTAG/SBW speed configuration failed",
+	/*  85 */ "Software breakpoint can't be set (followed by critical value)",
+	/*  86 */ "EnergyTrace is not supported by selected MSP430 device",
+	/*  87 */ "EnergyTrace requires Ultra-Low Power debug / LPMx.5 enabled",
 
-	/*  85 */ "Invalid error number",
+	/*  88 */ "Invalid error number",
 };
 
 const char *fet_error(int code)
