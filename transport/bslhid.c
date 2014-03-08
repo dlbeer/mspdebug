@@ -19,6 +19,7 @@
 #include <usb.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include "usbutil.h"
 #include "output.h"
 #include "output_util.h"

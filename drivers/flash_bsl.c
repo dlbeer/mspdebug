@@ -551,16 +551,8 @@ static int flash_bsl_writemem(device_t dev_base,
 static int enter_via_dtr_rts(struct flash_bsl_device *dev)
 {
 	sport_t fd = dev->serial_fd;
-	int status;
+	int status = SPORT_MC_RTS;
 
-	if (ioctl(fd, TIOCMGET, &status) == -1)
-	{
-	    perror("Read Port Error\n");
-	    return -1;
-	}
-
-	status &= ~SPORT_MC_DTR;
-	status |= SPORT_MC_RTS;
 	if (sport_set_modem(fd, status) != 0)
 	{
 	    return -1;
