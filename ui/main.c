@@ -142,6 +142,10 @@ static void usage(const char *progname)
 "        Show copyright and version information.\n"
 "    --embedded\n"
 "        Run in embedded mode.\n"
+"    --bsl-entry-sequence <seq>\n"
+"        Specify a BSL entry sequence. Each character specifies a modem\n"
+"        control line transition (R: RTS on, r: RTS off, D: DTR on, \n"
+"        d: DTR off).\n"
 "\n"
 "Most drivers connect by default via USB, unless told otherwise via the\n"
 "-d option. By default, the first USB device found is opened.\n"
@@ -239,7 +243,8 @@ static int parse_cmdline_args(int argc, char **argv,
 		LOPT_FORCE_RESET,
 		LOPT_ALLOW_FW_UPDATE,
 		LOPT_REQUIRE_FW_UPDATE,
-		LOPT_EMBEDDED
+		LOPT_EMBEDDED,
+		LOPT_BSL_ENTRY_SEQUENCE,
 	};
 
 	static const struct option longopts[] = {
@@ -254,6 +259,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"allow-fw-update",	0, 0, LOPT_ALLOW_FW_UPDATE},
 		{"require-fw-update",	1, 0, LOPT_REQUIRE_FW_UPDATE},
 		{"embedded",		0, 0, LOPT_EMBEDDED},
+		{"bsl-entry-sequence",	1, 0, LOPT_BSL_ENTRY_SEQUENCE},
 		{NULL, 0, 0, 0}
 	};
 
@@ -275,6 +281,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 				opdb_set("quiet", &v);
 			}
+			break;
+
+		case LOPT_BSL_ENTRY_SEQUENCE:
+			args->devarg.bsl_entry_seq = optarg;
 			break;
 
 		case LOPT_EMBEDDED:

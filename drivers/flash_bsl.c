@@ -35,6 +35,8 @@ struct flash_bsl_device {
 
 	sport_t		serial_fd;
 	int		long_password;
+
+	const char	*seq;
 };
 
 #define MAX_BLOCK	256
@@ -547,72 +549,56 @@ static int flash_bsl_writemem(device_t dev_base,
 	return 0;
 }
 
-
-static int enter_via_dtr_rts(struct flash_bsl_device *dev)
+static int do_pattern(sport_t fd, const char *seq)
 {
-	sport_t fd = dev->serial_fd;
-	int status = SPORT_MC_RTS;
+	int state = 0;
 
-	if (sport_set_modem(fd, status) != 0)
-	{
-	    return -1;
+	while (*seq && *seq != ':') {
+		const char c = *(seq++);
+
+		switch (c) {
+		case 'R':
+			state |= SPORT_MC_RTS;
+			break;
+
+		case 'r':
+			state &= ~SPORT_MC_RTS;
+			break;
+
+		case 'D':
+			state |= SPORT_MC_DTR;
+			break;
+
+		case 'd':
+			state &= ~SPORT_MC_DTR;
+			break;
+
+		case ',':
+			if (sport_set_modem(fd, state) < 0)
+				return -1;
+			delay_ms(50);
+			break;
+		}
 	}
-	delay_ms(250);
 
-	status &= ~SPORT_MC_RTS;
-	if (sport_set_modem(fd, status) != 0)
-	{
-	    return -1;
-	}
-	delay_ms(10);
+	if (sport_set_modem(fd, state) < 0)
+		return -1;
+	delay_ms(50);
 
-	status |= SPORT_MC_RTS;
-	if (sport_set_modem(fd, status) != 0)
-	{
-	    return -1;
-	}
-	delay_ms(10);
-
-	status &= ~SPORT_MC_RTS;
-	if (sport_set_modem(fd, status) != 0)
-	{
-	    return -1;
-	}
-	delay_ms(10);
-
-	status |= SPORT_MC_RTS;
-	if (sport_set_modem(fd, status) != 0)
-	{
-	    return -1;
-	}
-	delay_ms(10);
-
-	status |= SPORT_MC_DTR;
-	if (sport_set_modem(fd, status) != 0)
-	{
-	    return -1;
-	}
-	delay_ms(10);
-
-	sport_flush(fd);
-	delay_ms(10);
-
-	/* BSL should now be running! */
 	return 0;
 }
 
 static void exit_via_dtr_rts(struct flash_bsl_device *dev)
 {
-	sport_t fd = dev->serial_fd;
+	const char *seq = dev->seq;
 
-	/* Pulse RST# low */
-	sport_set_modem(fd, SPORT_MC_RTS);
+	while (*seq && *seq != ':')
+		seq++;
 
-	/* wait a brief period */
-	delay_ms(10);
+	if (*seq == ':')
+		seq++;
 
-	/* RST# HIGH */
-	sport_set_modem(fd, SPORT_MC_DTR | SPORT_MC_RTS);
+	do_pattern(dev->serial_fd, seq);
 }
 
 static void flash_bsl_destroy(device_t dev_base)
@@ -656,11 +642,17 @@ static device_t flash_bsl_open(const struct device_args *args)
 		return NULL;
 	}
 
+	dev->seq = args->bsl_entry_seq;
+	if (!dev->seq)
+		dev->seq = "dR,r,R,r,R,D:dR,DR";
+
 	dev->long_password = args->flags & DEVICE_FLAG_LONG_PW;
 
 	/* enter bootloader */
-	if (enter_via_dtr_rts(dev) < 0)
+	if (do_pattern(dev->serial_fd, dev->seq) < 0) {
+		printc_err("BSL entry sequence failed\n");
 		goto fail;
+	}
 
 	delay_ms(500);
 

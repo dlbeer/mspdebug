@@ -94,6 +94,11 @@ Show program version and copyright information.
 .IP "\-\-embedded"
 Start mspdebug as an embedded subprocess. See the documentation
 accompanying the source release for more information on embedded mode.
+.IP "\-\-bsl\-entry\-sequence \fIseq\fR"
+Specify a BSL entry sequence. Each character specifies a modem control
+line transition (R: RTS on, r: RTS off, D: DTR on, d: DTR off). A comma
+indicates a delay. The entry and exit sequences are separated by a
+colon. The default value is \fBdR,r,R,r,R,D:dR,DR\fR.
 .SH DRIVERS
 For drivers supporting both USB and tty access, USB is the default,
 unless specified otherwise (see \fB-d\fR above).

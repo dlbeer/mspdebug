@@ -80,6 +80,7 @@ struct device_args {
 	const char		*forced_chip_id;
 	const char		*requested_serial;
 	const char		*require_fwupdate;
+	const char		*bsl_entry_seq;
 };
 
 struct device_class {
