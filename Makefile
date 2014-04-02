@@ -149,6 +149,7 @@ OBJ=\
     drivers/hal_proto.o \
     drivers/v3hil.o \
     drivers/fet3.o \
+    drivers/bsllib.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \
