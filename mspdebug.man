@@ -98,7 +98,8 @@ accompanying the source release for more information on embedded mode.
 Specify a BSL entry sequence. Each character specifies a modem control
 line transition (R: RTS on, r: RTS off, D: DTR on, d: DTR off). A comma
 indicates a delay. The entry and exit sequences are separated by a
-colon. The default value is \fBdR,r,R,r,R,D:dR,DR\fR.
+colon. The default value is \fBdR,r,R,r,R,D:dR,DR\fR, for the
+\fBflash-bsl\fR driver.
 .SH DRIVERS
 For drivers supporting both USB and tty access, USB is the default,
 unless specified otherwise (see \fB-d\fR above).
@@ -204,6 +205,15 @@ fuller-featured bootloader into RAM for execution.
 .IP "\fBezfet\fR"
 This driver is for Texas Instruments' eZ-FET devices. It supports USB
 and tty access. It does not support breakpoint control.
+.IP "\fBrom-bsl\fR"
+This driver is for the old-style (ROM) bootstrap loader. It supports tty
+access only. Entry is attempted via the RTS/DTR signals. The default
+sequence is \fBDR,r,R,r,d,R:DR,r\fR, but you can override this with the
+\fB\-\-bsl\-entry\-sequence\fR option.
+
+\fBWARNING:\fR this driver unlocks the BSL by performing a mass erase.
+There are reports of this operation causing an erase of info A in some
+devices. Use at your own risk.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported

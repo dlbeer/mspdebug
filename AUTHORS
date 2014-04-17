@@ -80,3 +80,6 @@ Peter Bägel <peter@baegel.de>:
 
 Jose Angel Caso Sanchez <altomaltes@gmail.com>:
 	* FET v2 database from MSP430.DLL.
+
+Paolo Zebelloni <p.zebelloni@c-labs.it>:
+	* Testing, debugging and research for the ROM BSL driver.

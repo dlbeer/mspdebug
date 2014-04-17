@@ -150,6 +150,7 @@ OBJ=\
     drivers/v3hil.o \
     drivers/fet3.o \
     drivers/bsllib.o \
+    drivers/rom_bsl.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \
