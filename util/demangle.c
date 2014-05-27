@@ -26,14 +26,14 @@
 /* Buffer in which the demangler result will be constructed. */
 struct dmbuf {
 	char		*out;
-	int		max_len;
-	int		len;
+	size_t		max_len;
+	size_t		len;
 };
 
 /* Add a chunk of text to the buffer */
-static int dm_append(struct dmbuf *d, const char *text, int len)
+static int dm_append(struct dmbuf *d, const char *text, size_t len)
 {
-	int i;
+	size_t i;
 
 	if (d->len + len + 1 > d->max_len)
 		return -1;
@@ -68,7 +68,7 @@ static int dm_component(struct dmbuf *d, const char *text, const char **out)
 }
 
 /* Demangler interface */
-int demangle(const char *raw, char *out, int max_len)
+int demangle(const char *raw, char *out, size_t max_len)
 {
 	struct dmbuf d;
 
