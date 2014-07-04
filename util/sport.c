@@ -122,7 +122,17 @@ sport_t sport_open(const char *device, int rate, int flags)
 		return -1;
 
 	tcgetattr(fd, &attr);
+
+#ifdef __sun__
+	attr.c_iflag &= ~(IMAXBEL | IGNBRK | BRKINT | PARMRK | ISTRIP |
+			  INLCR | IGNCR | ICRNL | IXON);
+	attr.c_oflag &= ~OPOST;
+	attr.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+	attr.c_cflag &= ~(CSIZE | PARENB);
+	attr.c_cflag |= CS8;
+#else
 	cfmakeraw(&attr);
+#endif
 
 	if (rate_code >= 0) {
 		cfsetispeed(&attr, rate_code);

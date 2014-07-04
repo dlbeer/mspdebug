@@ -67,6 +67,8 @@ else
     else ifneq ($(filter $(UNAME_S),FreeBSD DragonFly),)
 	OS_CFLAGS = -pthread
 	OS_LIBS = -lpthread
+    else ifneq ($(filter $(UNAME_S),SunOS),)
+	OS_LIBS = -lpthread -ldl -lresolv -lsocket -lnsl
     else
 	OS_LIBS = -lpthread -ldl
     endif
