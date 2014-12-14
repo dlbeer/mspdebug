@@ -425,9 +425,19 @@ static device_t rom_bsl_open(const struct device_args *args)
 	if (!dev->seq)
 		dev->seq = "DR,r,R,r,d,R:DR,r";
 
-	if (bsllib_seq_do(dev->fd, dev->seq) < 0) {
-		pr_error("rom_bsl: entry sequence failed");
-		goto fail;
+	if ( args->bsl_gpio_used )
+	{
+		if (bsllib_seq_do_gpio(args->bsl_gpio_rts, args->bsl_gpio_dtr, dev->seq) < 0) {
+			pr_error("rom_bsl: entry sequence failed");
+			goto fail;
+		}
+	}
+	else
+	{
+		if (bsllib_seq_do(dev->fd, dev->seq) < 0) {
+			pr_error("rom_bsl: entry sequence failed");
+			goto fail;
+		}
 	}
 
 	delay_ms(500);

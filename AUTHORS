@@ -83,3 +83,4 @@ Jose Angel Caso Sanchez <altomaltes@gmail.com>:
 
 Paolo Zebelloni <p.zebelloni@c-labs.it>:
 	* Testing, debugging and research for the ROM BSL driver.
+	* BSL entry via GPIOs.

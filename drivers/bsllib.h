@@ -23,6 +23,7 @@
 
 /* Execute the given sequence specifier with the modem control lines */
 int bsllib_seq_do(sport_t sport, const char *seq);
+int bsllib_seq_do_gpio(int rts, int dtr, const char *seq);
 
 /* Skip to the next part of a sequence specified */
 const char *bsllib_seq_next(const char *seq);

@@ -18,6 +18,7 @@
 
 #include "util/util.h"
 #include "bsllib.h"
+#include "gpio.h"
 
 int bsllib_seq_do(sport_t fd, const char *seq)
 {
@@ -53,6 +54,48 @@ int bsllib_seq_do(sport_t fd, const char *seq)
 
 	if (sport_set_modem(fd, state) < 0)
 		return -1;
+	delay_ms(50);
+
+	return 0;
+}
+
+int bsllib_seq_do_gpio(int rts, int dtr, const char *seq)
+{
+	gpio_export ( rts );
+	gpio_set_dir ( rts, 1 );
+	gpio_export ( dtr );
+	gpio_set_dir ( dtr, 1 );
+
+	while (*seq && *seq != ':') {
+		const char c = *(seq++);
+
+		// Logic is reversed!
+		switch (c) {
+			case 'R':
+				gpio_set_value ( rts, 0 );
+				break;
+
+			case 'r':
+				gpio_set_value ( rts, 1 );
+				break;
+
+			case 'D':
+				gpio_set_value ( dtr, 0 );
+				break;
+
+			case 'd':
+				gpio_set_value ( dtr, 1 );
+				break;
+
+			case ',':
+				delay_ms(50);
+				break;
+		}
+	}
+
+	gpio_unexport ( rts );
+	gpio_unexport ( dtr );
+
 	delay_ms(50);
 
 	return 0;

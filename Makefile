@@ -121,6 +121,7 @@ OBJ=\
     util/powerbuf.o \
     util/ctrlc.o \
     util/chipinfo.o \
+    util/gpio.o \
     transport/cp210x.o \
     transport/cdc_acm.o \
     transport/ftdi.o \

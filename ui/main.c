@@ -148,6 +148,10 @@ static void usage(const char *progname)
 "        Specify a BSL entry sequence. Each character specifies a modem\n"
 "        control line transition (R: RTS on, r: RTS off, D: DTR on, \n"
 "        d: DTR off).\n"
+"    --bsl-gpio-rts\n"
+"        On some host (say RaspberryPi) defines a GPIO pin# to be used as RTS\n"
+"    --bsl-gpio-dtr\n"
+"        On some host (say RaspberryPi) defines a GPIO pin# to be used as DTR\n"
 "\n"
 "Most drivers connect by default via USB, unless told otherwise via the\n"
 "-d option. By default, the first USB device found is opened.\n"
@@ -247,6 +251,8 @@ static int parse_cmdline_args(int argc, char **argv,
 		LOPT_REQUIRE_FW_UPDATE,
 		LOPT_EMBEDDED,
 		LOPT_BSL_ENTRY_SEQUENCE,
+		LOPT_BSL_GPIO_RTS,
+		LOPT_BSL_GPIO_DTR,
 	};
 
 	static const struct option longopts[] = {
@@ -262,6 +268,8 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"require-fw-update",	1, 0, LOPT_REQUIRE_FW_UPDATE},
 		{"embedded",		0, 0, LOPT_EMBEDDED},
 		{"bsl-entry-sequence",	1, 0, LOPT_BSL_ENTRY_SEQUENCE},
+		{"bsl-gpio-rts",	1, 0, LOPT_BSL_GPIO_RTS},
+		{"bsl-gpio-dtr",	1, 0, LOPT_BSL_GPIO_DTR},
 		{NULL, 0, 0, 0}
 	};
 
@@ -287,6 +295,15 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case LOPT_BSL_ENTRY_SEQUENCE:
 			args->devarg.bsl_entry_seq = optarg;
+			break;
+
+		case LOPT_BSL_GPIO_RTS:
+			args->devarg.bsl_gpio_used = 1;
+			args->devarg.bsl_gpio_rts = atoi ( optarg );
+			break;
+		case LOPT_BSL_GPIO_DTR:
+			args->devarg.bsl_gpio_used = 1;
+			args->devarg.bsl_gpio_dtr = atoi ( optarg );
 			break;
 
 		case LOPT_EMBEDDED:
