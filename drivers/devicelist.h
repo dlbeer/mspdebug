@@ -310,10 +310,9 @@ typedef enum {
 	DT_MSP430F5213,
 	DT_MSP430F5212,
 	DT_MSP430G2955,
-	DT_END
 } devicetype_t;
 
 /* Mapping between device types and identification bytes. */
-extern const struct device_table sdeviceID[290];
+extern const struct device_table sdeviceID[];
 
 #endif

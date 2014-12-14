@@ -17,9 +17,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stddef.h>
 #include "devicelist.h"
 
-const struct device_table sdeviceID[290] =
+const struct device_table sdeviceID[] =
 {
 	/* Fuse parameter is set without lock bit
 	 * 0x0   0x1   0x2   0x3   0x8   0x9   0xD   Fuse   Fuse    DeviceTypeID          Device String
@@ -315,5 +316,5 @@ const struct device_table sdeviceID[290] =
 	{{0x40, 0x81,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, DT_MSP430F5229,	"MSP430F5212"},  // MSP430F5529
 	{{0x29, 0x55,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, DT_MSP430G2955,	"MSP430G2955"},
 	// end of device table default return value	
-	{{ 0  ,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, DT_END,	"End_of_devices"}, //End of devices
+	{{ 0  ,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, -1,	NULL}
 };
