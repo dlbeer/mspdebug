@@ -221,6 +221,11 @@ static int step_double(struct sim_device *dev, uint16_t ins)
 			cycles = 2;
 		else
 			cycles = 3;
+	} else if (sreg == MSP430_REG_SR || sreg == MSP430_REG_R3) {
+		if (amode_dst == MSP430_AMODE_REGISTER)
+			cycles = 1;
+		else
+			cycles = 4;
 	} else {
 		if (amode_src == MSP430_AMODE_INDIRECT ||
 		    amode_src == MSP430_AMODE_INDIRECT_INC)
