@@ -123,8 +123,13 @@ static const char *error_strings[] =
 	/*  85 */ "Software breakpoint can't be set (followed by critical value)",
 	/*  86 */ "EnergyTrace is not supported by selected MSP430 device",
 	/*  87 */ "EnergyTrace requires Ultra-Low Power debug / LPMx.5 enabled",
+	/*  88 */ "Legacy version of silicon used, which is no longer supported. "
+		  "Please contact TI to obtain a newer version.",
+	/*  89 */ "Secure device via the IDE is not supported. See Device User Guide "
+		  "for further information.",
+	/*  90 */ "Cycle counter is in basic mode. Set to advanced mode to use this function.",
 
-	/*  88 */ "Invalid error number",
+	/*  91 */ "Invalid error number",
 };
 
 const char *fet_error(int code)
