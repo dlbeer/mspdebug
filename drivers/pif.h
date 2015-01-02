@@ -28,6 +28,8 @@
 
 #include "device.h"
 
+#define ADDR_IN_FLASH(a)        ( (a) >= 0x1000 )
+
 /* pif implementation */
 extern const struct device_class device_pif;
 

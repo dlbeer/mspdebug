@@ -106,9 +106,7 @@ static int write_byte( struct jtdev *p,
   read_words(p, aligned, 2, data);
   data[addr & 1] = value;
 
-  if ( (addr >= 0x1000 && addr <= 0x10ff)
-       ||
-       addr >= 0x4000) {
+  if ( ADDR_IN_FLASH(addr) ) {
     /* program in FLASH */
     write_flash_block(p, aligned, 2, data);
   } else {
@@ -212,9 +210,7 @@ static int pif_writemem( device_t       dev_base,
 
     /* Write aligned blocks */
     while (len >= 2) {
-      if ( (addr >= 0x1000 && addr <= 0x10ff)
-	   ||
-	   addr >= 0x4000) {
+      if ( ADDR_IN_FLASH(addr) ) {
 	if (write_flash_block(&dev->jtag, addr, len & ~1, mem) < 0)
 	  return -1;
 	addr += len & ~1;
