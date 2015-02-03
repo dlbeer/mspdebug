@@ -52,23 +52,23 @@
 /* Bypass instruction */
 #define IR_BYPASS		0xFF	/* 0xFF */
 
-#define jtag_tms_set(p)		jtdev_tms(p, 1)
-#define jtag_tms_clr(p)		jtdev_tms(p, 0)
-#define jtag_tck_set(p)		jtdev_tck(p, 1)
-#define jtag_tck_clr(p)		jtdev_tck(p, 0)
-#define jtag_tdi_set(p)		jtdev_tdi(p, 1)
-#define jtag_tdi_clr(p)		jtdev_tdi(p, 0)
-#define jtag_tclk_set(p)	jtdev_tclk(p, 1)
-#define jtag_tclk_clr(p)	jtdev_tclk(p, 0)
-#define jtag_rst_set(p)		jtdev_rst(p, 1)
-#define jtag_rst_clr(p)		jtdev_rst(p, 0)
-#define jtag_tst_set(p)		jtdev_tst(p, 1)
-#define jtag_tst_clr(p)		jtdev_tst(p, 0)
+#define jtag_tms_set(p)		p->f->jtdev_tms(p, 1)
+#define jtag_tms_clr(p)		p->f->jtdev_tms(p, 0)
+#define jtag_tck_set(p)		p->f->jtdev_tck(p, 1)
+#define jtag_tck_clr(p)		p->f->jtdev_tck(p, 0)
+#define jtag_tdi_set(p)		p->f->jtdev_tdi(p, 1)
+#define jtag_tdi_clr(p)		p->f->jtdev_tdi(p, 0)
+#define jtag_tclk_set(p)	p->f->jtdev_tclk(p, 1)
+#define jtag_tclk_clr(p)	p->f->jtdev_tclk(p, 0)
+#define jtag_rst_set(p)		p->f->jtdev_rst(p, 1)
+#define jtag_rst_clr(p)		p->f->jtdev_rst(p, 0)
+#define jtag_tst_set(p)		p->f->jtdev_tst(p, 1)
+#define jtag_tst_clr(p)		p->f->jtdev_tst(p, 0)
 
-#define jtag_led_green_on(p)	jtdev_led_green(p, 1)
-#define jtag_led_green_off(p)	jtdev_led_green(p, 0)
-#define jtag_led_red_on(p)	jtdev_led_red(p, 1)
-#define jtag_led_red_off(p)	jtdev_led_red(p, 0)
+#define jtag_led_green_on(p)	p->f->jtdev_led_green(p, 1)
+#define jtag_led_green_off(p)	p->f->jtdev_led_green(p, 0)
+#define jtag_led_red_on(p)	p->f->jtdev_led_red(p, 1)
+#define jtag_led_red_off(p)	p->f->jtdev_led_red(p, 0)
 
 /* Reset target JTAG interface and perform fuse-HW check */
 static void jtag_reset_tap(struct jtdev *p)
@@ -130,7 +130,7 @@ static unsigned int jtag_shift( struct jtdev *p,
 	unsigned int mask;
 	unsigned int tclk_save;
 
-	tclk_save = jtdev_tclk_get(p);
+	tclk_save = p->f->jtdev_tclk_get(p);
 
 	data_in = 0;
 	for (mask = 0x0001U << (num_bits - 1); mask != 0; mask >>= 1) {
@@ -145,11 +145,11 @@ static unsigned int jtag_shift( struct jtdev *p,
 		jtag_tck_clr(p);
 		jtag_tck_set(p);
 
-		if (jtdev_tdo_get(p) == 1)
+		if (p->f->jtdev_tdo_get(p) == 1)
 			data_in |= mask;
 	}
 
-	jtdev_tclk(p, tclk_save);
+	p->f->jtdev_tclk(p, tclk_save);
 
 	/* Set JTAG state back to Run-Test/Idle */
 	jtag_tclk_prep(p);
@@ -370,14 +370,14 @@ unsigned int jtag_init(struct jtdev *p)
 	unsigned int jtag_id;
 
 	jtag_rst_clr(p);
-	jtdev_power_on(p);
+	p->f->jtdev_power_on(p);
 	jtag_tst_set(p);
 	jtag_tdi_set(p);
 	jtag_tms_set(p);
 	jtag_tck_set(p);
 	jtag_tclk_set(p);
 	jtag_rst_clr(p);
-	jtdev_connect(p);
+	p->f->jtdev_connect(p);
 	jtag_rst_set(p);
 	jtag_reset_tap(p);
 
@@ -763,7 +763,7 @@ void jtag_write_flash(struct jtdev *p,
 		/* provide TCLKs
 		 * min. 33 for F149 and F449
 		 */
-		jtdev_tclk_strobe(p, 35);
+		p->f->jtdev_tclk_strobe(p, 35);
 		address += 2;
 
 		if (p->failed)
@@ -863,7 +863,7 @@ void jtag_erase_flash(struct jtdev *p,
 		jtag_dr_shift(p, 0x2409);
 
 		/* provide TCLKs */
-		jtdev_tclk_strobe(p, number_of_strobes);
+		p->f->jtdev_tclk_strobe(p, number_of_strobes);
 
 		/* Set RW to write */
 		jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);

@@ -353,8 +353,9 @@ static device_t pif_open(const struct device_args *args)
   memset(dev, 0, sizeof(*dev));
   dev->base.type = &device_pif;
   dev->base.max_breakpoints = 0;
+  (&dev->jtag)->f = &jtdev_func_pif;
 
-  if (jtdev_open(&dev->jtag, args->path) < 0) {
+  if ((&dev->jtag)->f->jtdev_open(&dev->jtag, args->path) < 0) {
     printc_err("pif: can't open port\n");
     free(dev);
     return NULL;
@@ -377,7 +378,7 @@ static void pif_destroy(device_t dev_base)
   dev->jtag.failed = 0;
 
   jtag_release_device(&dev->jtag, 0xfffe);
-  jtdev_close(&dev->jtag);
+  (&dev->jtag)->f->jtdev_close(&dev->jtag);
   free(dev);
 }
 

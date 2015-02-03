@@ -131,7 +131,7 @@ static void do_ppwcontrol(struct jtdev *p)
 	}
 }
 
-int jtdev_open(struct jtdev *p, const char *device)
+static int jtpif_open(struct jtdev *p, const char *device)
 {
 	p->port = open(device, O_RDWR);
 	if (p->port < 0) {
@@ -157,7 +157,7 @@ int jtdev_open(struct jtdev *p, const char *device)
 	return 0;
 }
 
-void jtdev_close(struct jtdev *p)
+static void jtpif_close(struct jtdev *p)
 {
 	if (par_release(p->port) < 0)
 		pr_error("warning: jtdev: failed to release port");
@@ -165,14 +165,14 @@ void jtdev_close(struct jtdev *p)
 	close(p->port);
 }
 
-void jtdev_power_on(struct jtdev *p)
+static void jtpif_power_on(struct jtdev *p)
 {
 	/* power supply on */
 	p->data_register |= POWER;
 	do_ppwdata(p);
 }
 
-void jtdev_power_off(struct jtdev *p)
+static void jtpif_power_off(struct jtdev *p)
 {
 	/* power supply off */
 	p->data_register &= ~POWER;
@@ -184,19 +184,19 @@ void jtdev_power_off(struct jtdev *p)
 	do_ppwcontrol(p);
 }
 
-void jtdev_connect(struct jtdev *p)
+static void jtpif_connect(struct jtdev *p)
 {
 	p->control_register |= (TEST | ENABLE);
 	do_ppwcontrol(p);
 }
 
-void jtdev_release(struct jtdev *p)
+static void jtpif_release(struct jtdev *p)
 {
 	p->control_register &= ~(TEST | ENABLE);
 	do_ppwcontrol(p);
 }
 
-void jtdev_tck(struct jtdev *p, int out)
+static void jtpif_tck(struct jtdev *p, int out)
 {
 	if (out)
 		p->data_register |= TCK;
@@ -206,7 +206,7 @@ void jtdev_tck(struct jtdev *p, int out)
 	do_ppwdata(p);
 }
 
-void jtdev_tms(struct jtdev *p, int out)
+static void jtpif_tms(struct jtdev *p, int out)
 {
 	if (out)
 		p->data_register |= TMS;
@@ -216,7 +216,7 @@ void jtdev_tms(struct jtdev *p, int out)
 	do_ppwdata(p);
 }
 
-void jtdev_tdi(struct jtdev *p, int out)
+static void jtpif_tdi(struct jtdev *p, int out)
 {
 	if (out)
 		p->data_register |= TDI;
@@ -226,7 +226,7 @@ void jtdev_tdi(struct jtdev *p, int out)
 	do_ppwdata(p);
 }
 
-void jtdev_rst(struct jtdev *p, int out)
+static void jtpif_rst(struct jtdev *p, int out)
 {
 	/* reset pin is inverted by PC hardware */
 	if (out)
@@ -237,7 +237,7 @@ void jtdev_rst(struct jtdev *p, int out)
 	do_ppwcontrol(p);
 }
 
-void jtdev_tst(struct jtdev *p, int out)
+static void jtpif_tst(struct jtdev *p, int out)
 {
 	if (out)
 		p->control_register |= TEST;
@@ -247,7 +247,7 @@ void jtdev_tst(struct jtdev *p, int out)
 	do_ppwcontrol(p);
 }
 
-int jtdev_tdo_get(struct jtdev *p)
+static int jtpif_tdo_get(struct jtdev *p)
 {
 	uint8_t input;
 
@@ -260,7 +260,7 @@ int jtdev_tdo_get(struct jtdev *p)
 	return (input & TDO) ? 1 : 0;
 }
 
-void jtdev_tclk(struct jtdev *p, int out)
+static void jtpif_tclk(struct jtdev *p, int out)
 {
 	if (out)
 		p->data_register |= TCLK;
@@ -270,25 +270,25 @@ void jtdev_tclk(struct jtdev *p, int out)
 	do_ppwdata(p);
 }
 
-int jtdev_tclk_get(struct jtdev *p)
+static int jtpif_tclk_get(struct jtdev *p)
 {
 	return (p->data_register & TCLK) ? 1 : 0;
 }
 
-void jtdev_tclk_strobe(struct jtdev *p, unsigned int count)
+static void jtpif_tclk_strobe(struct jtdev *p, unsigned int count)
 {
 	int i;
 
 	for (i = 0; i < count; i++) {
-		jtdev_tclk(p, 1);
-		jtdev_tclk(p, 0);
+		jtpif_tclk(p, 1);
+		jtpif_tclk(p, 0);
 
 		if (p->failed)
 			return;
 	}
 }
 
-void jtdev_led_green(struct jtdev *p, int out)
+static void jtpif_led_green(struct jtdev *p, int out)
 {
 	if (out)
 		p->data_register |= LED_GREEN;
@@ -298,7 +298,7 @@ void jtdev_led_green(struct jtdev *p, int out)
 	do_ppwdata(p);
 }
 
-void jtdev_led_red(struct jtdev *p, int out)
+static void jtpif_led_red(struct jtdev *p, int out)
 {
 	if (out)
 		p->data_register |= LED_RED;
@@ -308,31 +308,52 @@ void jtdev_led_red(struct jtdev *p, int out)
 	do_ppwdata(p);
 }
 #else /* __linux__ */
-int jtdev_open(struct jtdev *p, const char *device)
+static int jtpif_open(struct jtdev *p, const char *device)
 {
 	printc_err("jtdev: driver is not supported on this platform\n");
 	p->failed = 1;
 	return -1;
 }
 
-void jtdev_close(struct jtdev *p) { }
+static void jtpif_close(struct jtdev *p) { }
 
-void jtdev_power_on(struct jtdev *p) { }
-void jtdev_power_off(struct jtdev *p) { }
-void jtdev_connect(struct jtdev *p) { }
-void jtdev_release(struct jtdev *p) { }
+static void jtpif_power_on(struct jtdev *p) { }
+static void jtpif_power_off(struct jtdev *p) { }
+static void jtpif_connect(struct jtdev *p) { }
+static void jtpif_release(struct jtdev *p) { }
 
-void jtdev_tck(struct jtdev *p, int out) { }
-void jtdev_tms(struct jtdev *p, int out) { }
-void jtdev_tdi(struct jtdev *p, int out) { }
-void jtdev_rst(struct jtdev *p, int out) { }
-void jtdev_tst(struct jtdev *p, int out) { }
-int jtdev_tdo_get(struct jtdev *p) { return 0; }
+static void jtpif_tck(struct jtdev *p, int out) { }
+static void jtpif_tms(struct jtdev *p, int out) { }
+static void jtpif_tdi(struct jtdev *p, int out) { }
+static void jtpif_rst(struct jtdev *p, int out) { }
+static void jtpif_tst(struct jtdev *p, int out) { }
+static int jtpif_tdo_get(struct jtdev *p) { return 0; }
 
-void jtdev_tclk(struct jtdev *p, int out) { }
-int jtdev_tclk_get(struct jtdev *p) { return 0; }
-void jtdev_tclk_strobe(struct jtdev *p, unsigned int count) { }
+static void jtpif_tclk(struct jtdev *p, int out) { }
+static int jtpif_tclk_get(struct jtdev *p) { return 0; }
+static void jtpif_tclk_strobe(struct jtdev *p, unsigned int count) { }
 
-void jtdev_led_green(struct jtdev *p, int out) { }
-void jtdev_led_red(struct jtdev *p, int out) { }
+static void jtpif_led_green(struct jtdev *p, int out) { }
+static void jtpif_led_red(struct jtdev *p, int out) { }
 #endif
+
+const struct jtdev_func jtdev_func_pif = {
+  .jtdev_open        = jtpif_open,
+  .jtdev_close       = jtpif_close,
+  .jtdev_power_on    = jtpif_power_on,
+  .jtdev_power_off   = jtpif_power_off,
+  .jtdev_connect     = jtpif_connect,
+  .jtdev_release     = jtpif_release,
+  .jtdev_tck	     = jtpif_tck,
+  .jtdev_tms	     = jtpif_tms,
+  .jtdev_tdi	     = jtpif_tdi,
+  .jtdev_rst	     = jtpif_rst,
+  .jtdev_tst	     = jtpif_tst,
+  .jtdev_tdo_get     = jtpif_tdo_get,
+  .jtdev_tclk	     = jtpif_tclk,
+  .jtdev_tclk_get    = jtpif_tclk_get,
+  .jtdev_tclk_strobe = jtpif_tclk_strobe,
+  .jtdev_led_green   = jtpif_led_green,
+  .jtdev_led_red     = jtpif_led_red
+};
+
