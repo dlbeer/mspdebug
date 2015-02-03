@@ -87,6 +87,7 @@ static const struct device_class *const driver_table[] = {
 	&device_tilib,
 	&device_goodfet,
 	&device_pif,
+	&device_gpio,
 	&device_loadbsl,
 	&device_ezfet,
 	&device_rom_bsl

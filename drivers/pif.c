@@ -330,6 +330,8 @@ static int pif_erase( device_t dev_base,
 }
 
 /*----------------------------------------------------------------------------*/
+
+
 static device_t pif_open(const struct device_args *args)
 {
   struct pif_device *dev;
@@ -371,6 +373,49 @@ static device_t pif_open(const struct device_args *args)
 }
 
 /*----------------------------------------------------------------------------*/
+
+
+static device_t gpio_open(const struct device_args *args)
+{
+  struct pif_device *dev;
+
+  if (!(args->flags & DEVICE_FLAG_TTY)) {
+    printc_err("gpio: this driver does not support raw USB access\n");
+    return NULL;
+  }
+
+  if (!(args->flags & DEVICE_FLAG_JTAG)) {
+    printc_err("gpio: this driver does not support Spy-Bi-Wire\n");
+    return NULL;
+  }
+
+  dev = malloc(sizeof(*dev));
+  if (!dev) {
+    printc_err("gpio: malloc: %s\n", last_error());
+    return NULL;
+  }
+
+  memset(dev, 0, sizeof(*dev));
+  dev->base.type = &device_pif;
+  dev->base.max_breakpoints = 0;
+  (&dev->jtag)->f = &jtdev_func_gpio;
+
+  if ((&dev->jtag)->f->jtdev_open(&dev->jtag, args->path) < 0) {
+    printc_err("gpio: can't open port\n");
+    free(dev);
+    return NULL;
+  }
+
+  if (init_device(&dev->jtag) < 0) {
+    printc_err("gpio: initialization failed\n");
+    free(dev);
+    return NULL;
+  }
+
+  return &dev->base;
+}
+
+/*----------------------------------------------------------------------------*/
 static void pif_destroy(device_t dev_base)
 {
   struct pif_device *dev = (struct pif_device *)dev_base;
@@ -387,6 +432,20 @@ const struct device_class device_pif = {
   .name     = "pif",
   .help     = "Parallel Port JTAG",
   .open     = pif_open,
+  .destroy  = pif_destroy,
+  .readmem  = pif_readmem,
+  .writemem = pif_writemem,
+  .getregs  = pif_getregs,
+  .setregs  = pif_setregs,
+  .ctl      = pif_ctl,
+  .poll     = pif_poll,
+  .erase    = pif_erase
+};
+
+const struct device_class device_gpio = {
+  .name     = "gpio",
+  .help     = "/sys/class/gpio direct connect",
+  .open     = gpio_open,
   .destroy  = pif_destroy,
   .readmem  = pif_readmem,
   .writemem = pif_writemem,

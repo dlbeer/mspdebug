@@ -199,6 +199,13 @@ only tty access is supported. Currently, this driver is only supported
 on Linux, FreeBSD and DragonFly BSD. A parallel port device (ppdev on
 Linux, ppi on FreeBSD and DragonFly BSD) must be specified via the
 \fB-d\fR option.
+.IP "\fBgpio\fR"
+Connect to system gpios. JTAG mode must be used, and
+only tty access is supported. Currently, this driver is only supported
+on Linux, FreeBSD and DragonFly BSD. The gpios to used must defined using
+a string like "tdi=7 tdo=8 tms=9 tck=4" via the
+\fB-d\fR option. (dont forget the quotes)
+
 .IP "\fBload-bsl\fR"
 Connect to a USB bootloader. The stub bootloader will be used to load a
 fuller-featured bootloader into RAM for execution.

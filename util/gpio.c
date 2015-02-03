@@ -158,4 +158,67 @@ int gpio_get_value ( unsigned int gpio )
 
 	return ( ch != '0' );
 }
+/**
+ * Opens GPIO (input/output) pin file descriptor
+ * @param gpio GPIO number
+ * @return file descriptor, -1 if fails
+ */
+
+int gpio_open_fd ( unsigned int gpio ) {
+	int fd;
+	char buf[MAX_BUF];
+
+	snprintf ( buf, MAX_BUF, SYSFS_GPIO_DIR "/gpio%d/value", gpio );
+
+	fd = open ( buf, O_RDWR );
+	if ( fd < 0 )
+	{
+		perror ( "gpio/get-value" );
+		return -1;
+	}
+	return fd;
+}
+/**
+ * Sets GPIO (output) value with given file descriptor
+ * @param file descriptor
+ * @param gpio GPIO number
+ * @return 0 if OK, -1 if fails
+ */
+
+int gpio_set_value_fd (int fd, int value)
+{
+    ssize_t ret;
+    char gpio_value = value + '0';
+
+    ret = write (fd, &gpio_value, 1);
+    if (ret != 1)
+    {
+      printf("Error setting value gpio\n");
+        return -1;
+    }
+
+    return 0;
+}
+/**
+ * Read state of GPIO (input) pin, with file descriptor
+ * @param file descriptor
+ * @param gpio GPIO number
+ * @return 0 if LO, 1 if HI, -1 if fails
+ */
+
+int gpio_get_value_fd (int fd, unsigned int gpio)
+{
+    ssize_t ret;
+    char value;
+
+    ret = pread (fd, &value, 1, 0);
+
+    if (ret != 1)
+    {
+        printf("Error getting value of gpio %u\n", gpio);
+        return -1;
+    }
+
+    return value == '1';
+}
 

@@ -145,6 +145,7 @@ OBJ=\
     drivers/devicelist.o \
     drivers/fet_olimex_db.o \
     drivers/jtdev.o \
+    drivers/jtdev_gpio.o \
     drivers/jtaglib.o \
     drivers/pif.o \
     drivers/loadbsl.o \

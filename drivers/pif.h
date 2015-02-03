@@ -32,5 +32,7 @@
 
 /* pif implementation */
 extern const struct device_class device_pif;
+/* share wiht gpio implementation */
+extern const struct device_class device_gpio;
 
 #endif
