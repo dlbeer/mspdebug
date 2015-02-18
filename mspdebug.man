@@ -428,9 +428,6 @@ print another block of memory following that last printed.
 Write a sequence of bytes at the given memory address. The address given
 may be an address expression. Bytes values are two-digit hexadecimal
 numbers separated by spaces.
-
-Unless used in the simulation mode, this command can only be used for
-programming flash memory.
 .IP "\fBopt\fR [\fIname\fR] [\fIvalue\fR]"
 Query, set or list option variables. MSPDebug's behaviour can be configured
 using option variables, described below in the section \fBOPTIONS\fR.
