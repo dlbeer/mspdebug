@@ -1,6 +1,6 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009-2012 Daniel Beer
- * Copyright (C) 2012-2014 Peter Bägel
+ * Copyright (C) 2012-2015 Peter Bägel
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,9 @@
 /* Driver for parallel port interface like the Olimex MSP430-JTAG
  * Starting point was the goodfet driver
  *
- * 2012-10-03 Peter Bägel (DF5EQ)
+ * 2012-10-03 initial release		Peter Bägel (DF5EQ)
  * 2014-12-26 single step implemented   Peter Bägel (DF5EQ)
+ * 2015-02-21 breakpoints implemented   Peter Bägel (DF5EQ)
  */
 
 #include <stdlib.h>
@@ -146,6 +147,43 @@ struct pif_device {
   struct device		base;
   struct jtdev		jtag;
 };
+
+/*----------------------------------------------------------------------------*/
+static int refresh_bps(struct pif_device *dev)
+{
+	int i;
+	int ret;
+	struct device_breakpoint *bp;
+	address_t addr;
+	ret = 0;
+
+	for (i = 0; i < dev->base.max_breakpoints; i++) {
+		bp = &dev->base.breakpoints[i];
+
+		printc_dbg("refresh breakpoint %d: type=%d "
+			   "addr=%04x flags=%04x\n",
+			   i, bp->type, bp->addr, bp->flags);
+
+		if ( (bp->flags &  DEVICE_BP_DIRTY) &&
+		     (bp->type  == DEVICE_BPTYPE_BREAK) ) {
+			addr = bp->addr;
+
+			if ( !(bp->flags & DEVICE_BP_ENABLED) ) {
+				addr = 0;
+			}
+
+			if ( jtag_set_breakpoint (&dev->jtag, i, addr) == 0) {
+				printc_err("pif: failed to refresh "
+					   "breakpoint #%d\n", i);
+				ret = -1;
+			} else {
+				bp->flags &= ~DEVICE_BP_DIRTY;
+			}
+		}
+	}
+
+	return ret;
+}
 
 /*----------------------------------------------------------------------------*/
 static int pif_readmem( device_t  dev_base,
@@ -278,6 +316,10 @@ static int pif_ctl(device_t dev_base, device_ctl_t type)
       break;
 
     case DEVICE_CTL_RUN:
+      /* transfer changed breakpoints to device */
+      if (refresh_bps(dev) < 0) {
+	return -1;
+      }
       /* start program execution at current PC */
       jtag_release_device(&dev->jtag, 0xffff);
       break;
@@ -303,8 +345,14 @@ static int pif_ctl(device_t dev_base, device_ctl_t type)
 /*----------------------------------------------------------------------------*/
 static device_status_t pif_poll(device_t dev_base)
 {
-  if (delay_ms(100) < 0)
+  struct pif_device *dev = (struct pif_device *)dev_base;
+
+  if (delay_ms(100) < 0 || ctrlc_check())
     return DEVICE_STATUS_INTR;
+
+  if (jtag_cpu_state(&dev->jtag) == 1) {
+    return DEVICE_STATUS_HALTED;
+  }
 
   return DEVICE_STATUS_RUNNING;
 }
@@ -360,7 +408,7 @@ static device_t pif_open(const struct device_args *args)
 
   memset(dev, 0, sizeof(*dev));
   dev->base.type = &device_pif;
-  dev->base.max_breakpoints = 0;
+  dev->base.max_breakpoints = 2; //supported by all devices
   (&dev->jtag)->f = &jtdev_func_pif;
 
   if ((&dev->jtag)->f->jtdev_open(&dev->jtag, args->path) < 0) {

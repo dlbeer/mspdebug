@@ -1,6 +1,6 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009-2012 Daniel Beer
- * Copyright (C) 2012-2014 Peter Bägel
+ * Copyright (C) 2012-2015 Peter Bägel
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,17 +18,24 @@
  */
 
 /* jtag functions are taken from TIs SLAA149–September 2002
+  *
+ * breakpoint implementation influenced by a posting of Ruisheng Lin
+ * to Travis Goodspeed at 2012-09-20 found at:
+ * http://sourceforge.net/p/goodfet/mailman/message/29860790/
  *
  * 2012-10-03 Peter Bägel (DF5EQ)
  * 2012-10-03   initial release              Peter Bägel (DF5EQ)
  * 2014-12-26   jtag_single_step added       Peter Bägel (DF5EQ)
  *              jtag_read_reg    corrected
  *              jtag_write_reg   corrected
+ * 2015-02-21   jtag_set_breakpoint added    Peter Bägel (DF5EQ)
+ *              jtag_cpu_state      added
  */
 
 #include <stdlib.h>
 #include "jtaglib.h"
 #include "output.h"
+#include "eem_defs.h"
 
 /* JTAG identification value for all existing Flash-based MSP430 devices
  */
@@ -55,6 +62,10 @@
 #define IR_EX_BLOW		0x24	/* 0x24 */
 /* Bypass instruction */
 #define IR_BYPASS		0xFF	/* 0xFF */
+/* Instructions for the EEM */
+#define IR_EMEX_DATA_EXCHANGE	0x90 /* 0x09 */
+#define IR_EMEX_WRITE_CONTROL	0x30 /* 0x0C */
+#define IR_EMEX_READ_CONTROL	0xD0 /* 0x0B */
 
 #define jtag_tms_set(p)		p->f->jtdev_tms(p, 1)
 #define jtag_tms_clr(p)		p->f->jtdev_tms(p, 0)
@@ -658,6 +669,9 @@ void jtag_release_device(struct jtdev *p, address_t address)
 		case 0xffff: /* Nothing to do */
 			break;
 		case 0xfffe: /* Perform reset */
+			/* delete all breakpoints */
+			jtag_set_breakpoint(p,-1,0);
+			/* issue reset */
 			jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 			jtag_dr_shift(p, 0x2C01);
 			jtag_dr_shift(p, 0x2401);
@@ -666,6 +680,15 @@ void jtag_release_device(struct jtdev *p, address_t address)
 			jtag_write_reg(p, 0, address);
 			break;
 	}
+
+	jtag_set_instruction_fetch(p);
+
+	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE);
+	jtag_dr_shift(p, BREAKREACT + READ);
+	jtag_dr_shift(p, 0x0000);
+
+	jtag_ir_shift(p, IR_EMEX_WRITE_CONTROL);
+	jtag_dr_shift(p, 0x000f);
 
 	jtag_ir_shift(p, IR_CNTRL_SIG_RELEASE);
 }
@@ -1013,5 +1036,80 @@ void jtag_single_step( struct jtdev *p )
 		/* timeout reached */
 		printc_err("pif: single step failed\n");
 		p->failed = 1;
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+unsigned int jtag_set_breakpoint( struct jtdev *p,int bp_num, address_t bp_addr )
+{
+	/* The breakpoint logic is explained in 'SLAU414c EEM.pdf' */
+	/* A good overview is given with Figure 1-1                */
+	/* MBx           is TBx         in EEM_defs.h              */
+	/* CPU Stop      is BREAKREACT  in EEM_defs.h              */
+	/* State Storage is STOR_REACT  in EEM_defs.h              */
+	/* Cycle Counter is EVENT_REACT in EEM_defs.h              */
+
+	unsigned int breakreact;
+
+	if (bp_num >= 8) {
+		/* there are no more than 8 breakpoints in EEM */
+		printc_err("jtag_set_breakpoint: failed setting "
+			   "breakpoint %d at %04x\n", bp_num, bp_addr);
+		p->failed = 1;
+		return 0;
+	}
+
+	if (bp_num < 0) {
+		/* disable all breakpoints by deleting the BREAKREACT
+		 * register */
+		jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE);
+		jtag_dr_shift(p, BREAKREACT + WRITE);
+		jtag_dr_shift(p, 0x0000);
+		return 1;
+	}
+
+	/* set breakpoint */
+	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE);
+	jtag_dr_shift(p, GENCTRL + WRITE);
+	jtag_dr_shift(p, EEM_EN + CLEAR_STOP + EMU_CLK_EN + EMU_FEAT_EN);
+
+	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
+	jtag_dr_shift(p, 8*bp_num + MBTRIGxVAL + WRITE);
+	jtag_dr_shift(p, bp_addr);
+
+	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
+	jtag_dr_shift(p, 8*bp_num + MBTRIGxCTL + WRITE);
+	jtag_dr_shift(p, MAB + TRIG_0 + CMP_EQUAL);
+
+	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
+	jtag_dr_shift(p, 8*bp_num + MBTRIGxMSK + WRITE);
+	jtag_dr_shift(p, NO_MASK);
+
+	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
+	jtag_dr_shift(p, 8*bp_num + MBTRIGxCMB + WRITE);
+	jtag_dr_shift(p, 1<<bp_num);
+
+	/* read the actual setting of the BREAKREACT register         */
+	/* while reading a 1 is automatically shifted into LSB        */
+	/* this will be undone and the bit for the new breakpoint set */
+	/* then the updated value is stored back                      */
+	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
+	breakreact  = jtag_dr_shift(p, BREAKREACT + READ);
+	breakreact += jtag_dr_shift(p, 0x000);
+	breakreact  = (breakreact >> 1) | (1 << bp_num);
+	jtag_dr_shift(p, BREAKREACT + WRITE);
+	jtag_dr_shift(p, breakreact);
+	return 1;
+}
+
+/*----------------------------------------------------------------------------*/
+unsigned int jtag_cpu_state( struct jtdev *p )
+{
+	jtag_ir_shift(p, IR_EMEX_READ_CONTROL);
+
+	if ((jtag_dr_shift(p, 0x0000) & 0x0080) == 0x0080) {
+		return 1; /* halted */
+	} else {
+		return 0; /* running */
 	}
 }
