@@ -1,6 +1,6 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009-2012 Daniel Beer
- * Copyright (C) 2012 Peter Bägel
+ * Copyright (C) 2012-2014 Peter Bägel
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 /* jtag functions are taken from TIs SLAA149–September 2002
  *
  * 2012-10-03 Peter Bägel (DF5EQ)
+ * 2012-10-03   initial release          Peter Bägel (DF5EQ)
+ * 2014-12-26   jtag_single_step added   Peter Bägel (DF5EQ)
  */
 
 #ifndef JTAGLIB_H_
@@ -102,5 +104,6 @@ address_t jtag_read_reg(struct jtdev *p, int reg);
 
 /* Writes a value into a register of the target CPU */
 void jtag_write_reg(struct jtdev *p, int reg, address_t value);
+void jtag_single_step(struct jtdev *p);
 
 #endif

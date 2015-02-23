@@ -1,6 +1,6 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009-2012 Daniel Beer
- * Copyright (C) 2012 Peter Bägel
+ * Copyright (C) 2012-2014 Peter Bägel
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,10 @@
 /* jtag functions are taken from TIs SLAA149–September 2002
  *
  * 2012-10-03 Peter Bägel (DF5EQ)
+ * 2012-10-03   initial release              Peter Bägel (DF5EQ)
+ * 2014-12-26   jtag_single_step added       Peter Bägel (DF5EQ)
+ *              jtag_read_reg    corrected
+ *              jtag_write_reg   corrected
  */
 
 #include <stdlib.h>
@@ -419,9 +423,11 @@ unsigned int jtag_get_device(struct jtdev *p)
 	 * timeout after a limited number of attempts
 	 */
 	jtag_id = jtag_ir_shift(p, IR_CNTRL_SIG_CAPTURE);
-	for (loop_counter = 50;
-			loop_counter > 0  && ((jtag_dr_shift(p, 0x0000) & 0x0200) != 0x0200);
-			loop_counter--);
+	for ( loop_counter = 50; loop_counter > 0; loop_counter--) {
+		if ( (jtag_dr_shift(p, 0x0000) & 0x0200) == 0x0200 ) {
+			break;
+		}
+	}
 
 	if (loop_counter == 0) {
 		printc_err("jtag_get_device: timed out\n");
@@ -896,15 +902,11 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 	jtag_set_instruction_fetch(p);
 
 	jtag_ir_shift(p, IR_DATA_16BIT);
-	/* "sub #8,PC" instruction
-	 * PC - 8 -> PC
-	 * PC is advanced 4 bytes by this instruction
-	 * needs 3 clock cycles
-	 */
-	jtag_dr_shift(p, 0x8030);
-	jtag_tclk_set(p);
-	jtag_tclk_clr(p);
-	jtag_dr_shift(p, 0x0008);
+
+	/* "jmp $-4" instruction */
+	/* PC - 4 -> PC          */
+	/* needs 2 clock cycles  */
+	jtag_dr_shift(p, 0x3ffd);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
@@ -936,6 +938,8 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 	jtag_dr_shift(p, 0x2401);
 
+	jtag_tclk_set(p);
+
 	/* Return value read from register */
 	return value;
 }
@@ -951,15 +955,11 @@ void jtag_write_reg(struct jtdev *p, int reg, address_t value)
 	jtag_set_instruction_fetch(p);
 
 	jtag_ir_shift(p, IR_DATA_16BIT);
-	/* "sub #8,PC" instruction
-	 * PC-8 -> PC
-	 * PC is advanced 4 bytes by this instruction
-	 * needs 3 clock cycles
-	 */
-	jtag_dr_shift(p, 0x8030);
-	jtag_tclk_set(p);
-	jtag_tclk_clr(p);
-	jtag_dr_shift(p, 0x0008);
+
+	/* "jmp $-4" instruction */
+	/* PC - 4 -> PC          */
+	/* needs 4 clock cycles  */
+	jtag_dr_shift(p, 0x3ffd);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
@@ -973,11 +973,45 @@ void jtag_write_reg(struct jtdev *p, int reg, address_t value)
 	jtag_dr_shift(p, 0x4030 | (reg & 0x000f) );
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
-	jtag_dr_shift(p, reg==0 ? value-4 : value );
+	jtag_dr_shift(p, value);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 
 	/* JTAG controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 	jtag_dr_shift(p, 0x2401);
+
+	jtag_tclk_set(p);
+}
+
+/*----------------------------------------------------------------------------*/
+void jtag_single_step( struct jtdev *p )
+{
+	unsigned int loop_counter;
+
+	/* CPU controls RW & BYTE */
+	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+	jtag_dr_shift(p, 0x3401);
+
+	/* clock CPU until next instruction fetch cycle  */
+	/* failure after 10 clock cycles                 */
+	/* this is more than for the longest instruction */
+	jtag_ir_shift(p, IR_CNTRL_SIG_CAPTURE);
+	for (loop_counter = 10; loop_counter > 0; loop_counter--) {
+		jtag_tclk_clr(p);
+		jtag_tclk_set(p);
+		if ((jtag_dr_shift(p, 0x0000) & 0x0080) == 0x0080) {
+			break;
+		}
+	}
+
+	/* JTAG controls RW & BYTE */
+	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
+	jtag_dr_shift(p, 0x2401);
+
+	if (loop_counter == 0) {
+		/* timeout reached */
+		printc_err("pif: single step failed\n");
+		p->failed = 1;
+	}
 }

@@ -1,6 +1,6 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009-2012 Daniel Beer
- * Copyright (C) 2012 Peter Bägel
+ * Copyright (C) 2012-2014 Peter Bägel
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
  * Starting point was the goodfet driver
  *
  * 2012-10-03 Peter Bägel (DF5EQ)
+ * 2014-12-26 single step implemented   Peter Bägel (DF5EQ)
  */
 
 #include <stdlib.h>
@@ -284,6 +285,11 @@ static int pif_ctl(device_t dev_base, device_ctl_t type)
     case DEVICE_CTL_HALT:
       /* take device under JTAG control */
       jtag_get_device(&dev->jtag);
+      break;
+
+    case DEVICE_CTL_STEP:
+      /* execute next instruction at current PC */
+      jtag_single_step(&dev->jtag);
       break;
 
     default:
