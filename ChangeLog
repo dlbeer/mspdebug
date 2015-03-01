@@ -1,3 +1,15 @@
+Version 0.23 - 2 Mar 2015
+	* Support for raw JTAG via GPIOs.
+	* Raw JTAG drivers now support single stepping and breakpoints.
+	* Support for MSP430F5xx USB bootloader.
+	* Added experimental fet3/eZ-FET driver.
+	* Added "blow_jtag_fuse" command.
+	* Added "!" command for dropping to a shell.
+	* flash_bsl now allows custom entry/exit sequences.
+	* Added ROM BSL driver.
+	* Add support for BSL entry via GPIO toggling.
+	* Many bug and portability fixes.
+
 Version 0.22 - 18 Jul 2013
 	* Support for erasing/programming information and bootloader
 	  flash memories.
