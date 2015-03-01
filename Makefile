@@ -1,5 +1,5 @@
 # MSPDebug - debugging tool for the eZ430
-# Copyright (C) 2009, 2010 Daniel Beer
+# Copyright (C) 2009-2015 Daniel Beer
 # Copyright (C) 2010 Andrew Armenia
 #
 # This program is free software; you can redistribute it and/or modify
@@ -25,29 +25,12 @@ BINDIR = ${PREFIX}/bin/
 MANDIR = ${PREFIX}/share/man/man1
 LIBDIR = ${PREFIX}/lib/
 
-
 ifdef WITHOUT_READLINE
 	READLINE_CFLAGS =
 	READLINE_LIBS =
 else
 	READLINE_CFLAGS = -DUSE_READLINE
 	READLINE_LIBS = -lreadline
-endif
-
-UNAME_S := $(shell sh -c 'uname -s')
-UNAME_O := $(shell sh -c 'uname -o 2> /dev/null')
-
-ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
-	PORTS_CFLAGS := -I/opt/local/include
-	PORTS_LDFLAGS := -L/opt/local/lib
-else
-  ifneq ($(filter $(UNAME_S),OpenBSD NetBSD DragonFly),)
-	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
-  else
-	PORTS_CFLAGS :=
-	PORTS_LDFLAGS :=
-  endif
 endif
 
 ifeq ($(OS),Windows_NT)
@@ -62,6 +45,9 @@ else
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug
 
+    UNAME_S := $(shell sh -c 'uname -s')
+    UNAME_O := $(shell sh -c 'uname -o 2> /dev/null')
+
     ifneq ($(filter $(UNAME_S),OpenBSD NetBSD),)
 	OS_LIBS =
     else ifneq ($(filter $(UNAME_S),FreeBSD DragonFly),)
@@ -71,6 +57,19 @@ else
 	OS_LIBS = -lpthread -ldl -lresolv -lsocket -lnsl
     else
 	OS_LIBS = -lpthread -ldl
+    endif
+
+    ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
+	    PORTS_CFLAGS := -I/opt/local/include
+	    PORTS_LDFLAGS := -L/opt/local/lib
+    else
+      ifneq ($(filter $(UNAME_S),OpenBSD NetBSD DragonFly),)
+	    PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
+	    PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
+      else
+	    PORTS_CFLAGS :=
+	    PORTS_LDFLAGS :=
+      endif
     endif
 endif
 
@@ -85,9 +84,21 @@ MSPDEBUG_CFLAGS = $(CFLAGS) $(READLINE_CFLAGS) $(PORTS_CFLAGS)\
 
 all: $(BINARY)
 
+
+ifeq ($(OS),Windows_NT)
+clean:
+	del drivers\*.o
+	del formats\*.o
+	del simio\*.o
+	del transport\*.o
+	del ui\*.o
+	del util\*.o
+	del $(BINARY)
+else
 clean:
 	rm -f */*.o
 	rm -f $(BINARY)
+endif
 
 install: $(BINARY) mspdebug.man
 	mkdir -p $(DESTDIR)$(BINDIR)
