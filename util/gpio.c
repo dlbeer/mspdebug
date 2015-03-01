@@ -10,6 +10,61 @@
 *
 */
 
+#include "gpio.h"
+#include "output.h"
+
+#ifdef __Windows__
+/* Added for building on Windows
+ *
+ * Daniel Beer <dlbeer@gmail.com>, 3 Mar 2015
+ */
+int gpio_export ( unsigned int gpio )
+{
+	printc_err("gpio: GPIO interface not supported on Windows\n");
+	return -1;
+}
+
+int gpio_unexport ( unsigned int gpio )
+{
+	printc_err("gpio: GPIO interface not supported on Windows\n");
+	return -1;
+}
+
+int gpio_set_dir ( unsigned int gpio, unsigned int out_flag )
+{
+	printc_err("gpio: GPIO interface not supported on Windows\n");
+	return -1;
+}
+
+int gpio_set_value ( unsigned int gpio, unsigned int value )
+{
+	printc_err("gpio: GPIO interface not supported on Windows\n");
+	return -1;
+}
+
+int gpio_set_value_fd (int fd, int value)
+{
+	printc_err("gpio: GPIO interface not supported on Windows\n");
+	return -1;
+}
+
+int gpio_get_value ( unsigned int gpio )
+{
+	return 0;
+}
+
+int gpio_get_value_fd (int fd, unsigned int gpio)
+{
+	return 0;
+}
+
+int gpio_open_fd (unsigned int gpio)
+{
+	printc_err("gpio: GPIO interface not supported on Windows\n");
+	return -1;
+}
+
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +74,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "gpio.h"
 
 #define SYSFS_GPIO_DIR		"/sys/class/gpio"
 #define MAX_BUF 64
@@ -39,7 +93,7 @@ int gpio_export ( unsigned int gpio )
 	fd = open ( SYSFS_GPIO_DIR "/export", O_WRONLY );
 	if ( fd < 0 )
 	{
-		perror ( "gpio/export" );
+		pr_error ( "gpio/export" );
 		return -1;
 	}
 
@@ -63,7 +117,7 @@ int gpio_unexport ( unsigned int gpio )
 	fd = open ( SYSFS_GPIO_DIR "/unexport", O_WRONLY );
 	if ( fd < 0 )
 	{
-		perror ( "gpio/unexport" );
+		pr_error ( "gpio/unexport" );
 		return -1;
 	}
 
@@ -91,7 +145,7 @@ int gpio_set_dir ( unsigned int gpio, unsigned int out_flag )
 	fd = open ( buf, O_WRONLY );
 	if ( fd < 0 )
 	{
-		perror ( "gpio/direction" );
+		pr_error ( "gpio/direction" );
 		return -1;
 	}
 
@@ -121,7 +175,7 @@ int gpio_set_value ( unsigned int gpio, unsigned int value )
 	fd = open ( buf, O_WRONLY );
 	if ( fd < 0 )
 	{
-		perror ( "gpio/set-value" );
+		pr_error ( "gpio/set-value" );
 		return -1;
 	}
 
@@ -148,7 +202,7 @@ int gpio_get_value ( unsigned int gpio )
 	fd = open ( buf, O_RDONLY );
 	if ( fd < 0 )
 	{
-		perror ( "gpio/get-value" );
+		pr_error ( "gpio/get-value" );
 		return -1;
 	}
 
@@ -173,7 +227,7 @@ int gpio_open_fd ( unsigned int gpio ) {
 	fd = open ( buf, O_RDWR );
 	if ( fd < 0 )
 	{
-		perror ( "gpio/get-value" );
+		pr_error ( "gpio/get-value" );
 		return -1;
 	}
 	return fd;
@@ -221,4 +275,4 @@ int gpio_get_value_fd (int fd, unsigned int gpio)
 
     return value == '1';
 }
-
+#endif
