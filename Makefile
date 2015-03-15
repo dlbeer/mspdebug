@@ -60,16 +60,19 @@ else
     endif
 
     ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
-	    PORTS_CFLAGS := -I/opt/local/include
-	    PORTS_LDFLAGS := -L/opt/local/lib
-    else
-      ifneq ($(filter $(UNAME_S),OpenBSD NetBSD DragonFly),)
-	    PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
-	    PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
+      ifeq ($(shell fink -V > /dev/null 2>&1 && echo ok),ok)
+	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
+	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
       else
-	    PORTS_CFLAGS :=
-	    PORTS_LDFLAGS :=
+	PORTS_CFLAGS := -I/opt/local/include
+	PORTS_LDFLAGS := -L/opt/local/lib
       endif
+    else ifneq ($(filter $(UNAME_S),OpenBSD NetBSD DragonFly),)
+	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
+	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
+    else
+	PORTS_CFLAGS :=
+	PORTS_LDFLAGS :=
     endif
 endif
 
