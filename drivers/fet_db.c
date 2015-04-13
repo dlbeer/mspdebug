@@ -72,7 +72,7 @@
 #define ETWPID_ADC12_A 0xD8
 
 
-static const struct fet_db_record fet_db[] ={{        .name= "Prototype_MSP430F11x1"    /* database IDX 1*/
+static const struct fet_db_record fet_db[] = {{        .name= "Prototype_MSP430F11x1"    /* database IDX 1*/
 ,  .msg28_data= { 0xF1, 0x12   /* ID     (off:  0)*/
 		, 0x00         /* REV    (off:  2)*/
 		, 0x43         /* FAB    (off:  3)*/
@@ -37094,7 +37094,137 @@ static const struct fet_db_record fet_db[] ={{        .name= "Prototype_MSP430F
 
 #endif
 
- } };
+ },
+{        .name= "MSP430F5255"    /* database IDX 8F*/
+,  .msg28_data= { 0x03, 0x82   /* ID     (off:  0)*/
+		, 0xFF         /* REV    (off:  2)*/
+		, 0xFF         /* FAB    (off:  3)*/
+		, 0x00, 0x00, 0x00, 0x00
+		, 0xFF         /* SELF0  (off:  8)*/
+		, 0xFF         /* SELF1  (off:  9)*/
+		, 0x00, 0x00, 0x00
+		, 0xFF         /* CONF   (off: 13)*/
+		, 0x00, 0x00
+		, 0xFF         /* FUSES  (off: 16)*/
+		, 0xFF }       /* F PATT (off: 17)*/
+
+, .msg29_params={ 0x00, 0x8F, 0x87 /*, 0x4A */ }  /* copied from MSP430F5437A - could not find this in datasheet */
+,   .msg29_data={ 0x00, 0xA4,   0xFF, 0xA3, 0x02, 0x00  /* off: 0 ROM  */ /* values entered according to MSP430F5255 datasheet*/
+		, 0x00, 0x18,   0xFF, 0x19, 0x80, 0x00  /* off: 6 INFO */
+		, 0x00, 0x24,   0xFF, 0xA3              /* off: 12 RAM  */
+		, 0x00, 0x00,   0x08, 0x00              /* off: 16 RAM2 */
+
+		, 0x03, 0x00              /* off: 20  Breakpoints */
+		, 0x05, 0x00              /* off: 22  Emulation */
+		, 0x02, 0x00              /* off: 24  GCC (0200 -> extended )*/
+		, 0x0F, 0x04              /* off: 26  Id devices */
+		, 0x00, 0x00, 0x00, 0x00  /* off: 28 LCD MEM */
+
+		, 0x08, 0x07              /* off: 32 Vcc 0 : 1800 */
+		, 0x10, 0x0E              /* off: 34 Vcc 1 : 3600 */
+		, 0xC4, 0x09              /* off: 36 Vcc 2 : 2500 */
+		, 0x70, 0x17              /* off: 38 Vcc 3 : 6000 */
+		, 0x58, 0x1B              /* off: 40 Vcc 4 : 7000 */
+
+		, 0x01, 0x00              /* off: 42  Has test Vpp*/
+		, 0x03, 0x00              /* off: 44 3-> Default clock control */
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x01, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0xFF, 0x00  /* SET */
+		, 0xFF, 0x00  /* SET */
+		, 0xFF, 0x00  /* SET */}
+
+,   .msg2b_len=  0x4A
+,  .msg2b_data= { 0x00, 0x10, 0xFF, 0x17, 0x00  /* off: 0 info org, len, banks */ /* msg2b copied from MSP430F5437A - unmodified - probably wrong */
+		, 0x02, 0x02, 0x00, 0x0A, 0x00  /* off: 5 ram  org, len, banks */
+
+		, 0x40, 0x00  /* off: 10 BYTE FLAGS ?? */
+
+		, ETWPID_WDT_A  , ETWPID_TMR0_A5
+		, ETWPID_TA3_0  , ETWPID_TMR0_B7
+		, ETWPID_EMPTY  , ETWPID_EMPTY
+		, ETWPID_USCI0  , ETWPID_USCI1
+		, ETWPID_USCI2  , ETWPID_USCI3
+		, ETWPID_RTC    , ETWPID_ADC12_A
+		, ETWPID_EMPTY  , ETWPID_EMPTY
+		, ETWPID_EMPTY  , ETWPID_EMPTY
+
+		, 0x01, 0x01, 0x00, 0x00  /* off: 28 BYTE FLAGS ?? */
+
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x01, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x02, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x01, 0x00  /* SET */
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00
+		, 0x00, 0x00 }
+
+
+#ifdef MSP430_STORED_INFO
+
+, .endian     = 0xAA55                    /* The value 0xaa55. */
+, .id         = 0x200                    /* Identification number.*/
+, .string     = "MSP430F5255"
+, .cpuArch    = 0x0000                    /* The MSP430 architecture (non-X, X or Xv2).*/
+, .coreIpId   = 0x0000                    /* The CoreIP ID.*/
+, .deviceIdPtr= 0x24263F                    /* The Device-ID Pointer.*/
+
+, .mainStart  = 0xA400, .mainEnd = 0x2A3FF /* MAIN Memory range */
+, .infoStart  = 0x1800, .infoEnd = 0x19FF /* INFO Memory range */
+, .ramStart   = 0x2400, .ramEnd  = 0xA3FF /*  RAM Memory range.*/
+, .ram2Start  = 0x0000, .ram2End = 0x0000 /*  RAM Memory range.*/
+, .lcdStart   = 0x0000, .lcdEnd  = 0x0000 /*  LCD Memory range.*/
+, .bslStart   = 0x1000, .bslEnd  = 0x17FF /*  BSL Memory range.*/
+, .vccMinOp   = 0x0708, .vccMaxOp= 0x0E10 /* Vcc range during operation [mVolts].*/
+
+, .hasFramMemory = 0             /*  FRAM Memory type */
+, .hasTestVpp    = 1             /* Device has TEST/VPP.*/
+
+, .nBreakpoints  = 3             /* Number of breakpoints.*/
+, .nRegTrigger   = 1             /* Number of CPU Register Trigger.*/
+, .nCombinations = 4             /* Number of EEM Trigger Combinations.*/
+, .nBreakOps     = 1             /*  Breakpoint Modes*/
+, .nBreakRdWr    = 1
+, .nBreakRdDma   = 1
+, .TrigerMask    = 1             /* Trigger Mask for Breakpoint */
+, .nRegTriggerMod= 1             /* Register Trigger modes*/
+, .nStateStorage = 1             /* MSP430 has Stage Storage*/
+, .nCycleCount   = 1             /* Number of cycle counters of MSP430*/
+, .nCycleCountOps= 1             /* Cycle couter modes*/
+, .nSequencer    = 1             /* Msp430 has Sequencer*/
+, .clockControl  = 2             /* Clock control level.*/
+
+, .emulation     = 0x0005        /* Emulation level.*/
+, .jtagId        = 0x0000        /* The JTAG ID - value returned on an instruction shift.*/
+, .eemVersion    = 0x2800        /* The EEM Version Number.*/
+
+#endif
+
+},
+};
 
  const struct fet_db_record *fet_db_find_by_msg28(uint8_t *data, int len )
 {	int i;
