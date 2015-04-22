@@ -579,12 +579,19 @@ static int do_cmd_prog(char **arg, int prog_flags)
 {
 	FILE *in;
 	struct prog_data prog;
+	const char *path_arg;
 	char * path;
+
+	path_arg = get_arg(arg);
+	if (!path_arg) {
+		printc_err("prog: you need to specify a filename\n");
+		return -1;
+	}
 
 	if (prompt_abort(MODIFY_SYMS))
 		return 0;
 
-	path = expand_tilde(*arg);
+	path = expand_tilde(path_arg);
 	if (!path)
 		return -1;
 
