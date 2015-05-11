@@ -204,13 +204,27 @@ too_short:
 	return -1;
 }
 
+static void do_chomp_ff(struct fet_proto *dev)
+{
+	int chomp_len = 0;
+
+	while ((chomp_len < dev->fet_len) && dev->fet_buf[chomp_len] == 0xff)
+	       chomp_len++;
+
+	if (chomp_len)
+		memmove(dev->fet_buf, dev->fet_buf + chomp_len,
+			dev->fet_len - chomp_len);
+
+	dev->fet_len -= chomp_len;
+}
+
 /* Receive a packet from the FET. The usual format is:
  *     <length (2 bytes)> <data> <checksum>
  *
  * The length is that of the data + checksum. Olimex JTAG adapters follow
  * all packets with a trailing 0x7e byte, which must be discarded.
  */
-static int recv_packet(struct fet_proto *dev)
+static int recv_packet(struct fet_proto *dev, int chomp_ff)
 {
 	int pkt_extra = (dev->proto_flags & FET_PROTO_EXTRA_RECV) ? 3 : 2;
 	int plen = LE_WORD(dev->fet_buf, 0);
@@ -237,6 +251,9 @@ static int recv_packet(struct fet_proto *dev)
 		if (len < 0)
 			return -1;
 		dev->fet_len += len;
+
+		if (chomp_ff)
+			do_chomp_ff(dev);
 	}
 
 	return -1;
@@ -358,7 +375,10 @@ int fet_proto_xfer(struct fet_proto *dev,
 				data, datalen) < 0)
 		return -1;
 
-	if (recv_packet(dev) < 0)
+	/* Olimex devices sometimes return a spurious 0xff before their
+	 * response to C_INITIALIZE.
+	 */
+	if (recv_packet(dev, (command_code == 0x01)) < 0)
 		return -1;
 
 	if (dev->command_code != command_code) {
