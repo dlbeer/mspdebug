@@ -39,6 +39,8 @@ struct tilib_device {
 	fperm_t			active_fperm;
 };
 
+static struct tilib_device *client_handle;
+
 #define MID_SINGLE_STEP		0x01
 #define MID_BREAKPOINT		0x02
 #define MID_STORAGE		0x04
@@ -58,16 +60,15 @@ static const MessageID_t my_message_ids = {
 };
 
 static void event_notify(unsigned int msg_id, unsigned int w_param,
-			 long l_param, long client_handle)
+			 long l_param, long client_handle_unused)
 {
-	struct tilib_device *dev = (struct tilib_device *)client_handle;
-
 	(void)w_param;
 	(void)l_param;
+	(void)client_handle_unused;
 
-	thread_lock_acquire(&dev->mb_lock);
-	dev->mailbox |= msg_id;
-	thread_lock_release(&dev->mb_lock);
+	thread_lock_acquire(&client_handle->mb_lock);
+	client_handle->mailbox |= msg_id;
+	thread_lock_release(&client_handle->mb_lock);
 }
 
 static uint32_t event_fetch(struct tilib_device *dev)
@@ -404,11 +405,10 @@ static void tilib_destroy(device_t dev_base)
 }
 
 static void fw_progress(unsigned int msg_id, unsigned long w_param,
-			unsigned long l_param, long client_handle)
+			unsigned long l_param, long client_handle_unused)
 {
-	struct tilib_device *dev = (struct tilib_device *)client_handle;
-
 	(void)l_param;
+	(void)client_handle_unused;
 
 	switch (msg_id) {
 	case BL_DATA_BLOCK_PROGRAMMED:
@@ -419,7 +419,7 @@ static void fw_progress(unsigned int msg_id, unsigned long w_param,
 		break;
 
 	case BL_UPDATE_ERROR:
-		report_error(dev, "BL_UPDATE_ERROR");
+		report_error(client_handle, "BL_UPDATE_ERROR");
 		break;
 
 	case BL_WAIT_FOR_TIMEOUT:
@@ -601,6 +601,7 @@ static device_t tilib_open(const struct device_args *args)
 		free(dev);
 		return NULL;
 	}
+	client_handle = dev;
 
 	/* Copy the args->path to the dev->uifPath buffer
 	 * we may need to change it for automatic detection, and
