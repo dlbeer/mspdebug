@@ -21,25 +21,14 @@
 #include <unistd.h>
 
 #include "output.h"
-#include "dynload.h"
 #include "tilib.h"
-#include "tilib_defs.h"
+#include "tilib_api.h"
 #include "thread.h"
 #include "ctrlc.h"
 #include "opdb.h"
 
-#if defined(__Windows__) || defined(__CYGWIN__)
-static const char tilib_filename[] = "MSP430.DLL";
-#define TIDLL __stdcall
-#else
-static const char tilib_filename[] = "libmsp430.so";
-#define TIDLL
-#endif
-
 struct tilib_device {
 	struct device		base;
-
-	dynload_handle_t	hnd;
 
 	thread_lock_t		mb_lock;
 	uint32_t		mailbox;
@@ -48,49 +37,6 @@ struct tilib_device {
 
 	char			uifPath[1024];
 	fperm_t			active_fperm;
-
-	/* MSP430.h */
-	STATUS_T TIDLL (*MSP430_Initialize)(char *port, long *version);
-	STATUS_T TIDLL (*MSP430_VCC)(long voltage);
-	STATUS_T TIDLL (*MSP430_Configure)(long mode, long value);
-	STATUS_T TIDLL (*MSP430_OpenDevice)(char *Device, char *Password,
-					     long PwLength, long DeviceCode,
-					     long setId);
-	STATUS_T TIDLL (*MSP430_GetFoundDevice)(char *FoundDevice,
-						 long count);
-	STATUS_T TIDLL (*MSP430_Close)(long vccOff);
-	STATUS_T TIDLL (*MSP430_Memory)(long address, char *buffer,
-					 long count, long rw);
-	STATUS_T TIDLL (*MSP430_Reset)(long method, long execute,
-					long releaseJTAG);
-	STATUS_T TIDLL (*MSP430_Erase)(long type, long address, long length);
-	STATUS_T TIDLL (*MSP430_Secure)(void);
-	STATUS_T TIDLL (*MSP430_Error_Number)(void);
-	const char *TIDLL (*MSP430_Error_String)(long errNumber);
-
-	STATUS_T TIDLL (*MSP430_GetNumberOfUsbIfs)(long* number);
-	STATUS_T TIDLL (*MSP430_GetNameOfUsbIf)(long idx, char **name,
-						 long *status);
-
-	/* MSP430_Debug.h */
-	STATUS_T TIDLL (*MSP430_Registers)(long *registers, long mask,
-					    long rw);
-	STATUS_T TIDLL (*MSP430_Run)(long mode, long releaseJTAG);
-	STATUS_T TIDLL (*MSP430_State)(long *state, long stop,
-					long *pCPUCycles);
-
-	/* MSP430_EEM.h */
-	STATUS_T TIDLL (*MSP430_EEM_Init)(DLL430_EVENTNOTIFY_FUNC callback,
-					   long clientHandle,
-					   MessageID_t *pMsgIdBuffer);
-	STATUS_T TIDLL (*MSP430_EEM_SetBreakpoint)(uint16_t *pwBpHandle,
-						    BpParameter_t *pBpBuffer);
-
-	/* MSP430_FET.h */
-	STATUS_T TIDLL (*MSP430_FET_FwUpdate)(char* lpszFileName,
-					   DLL430_FET_NOTIFY_FUNC callback,
-					   long clientHandle);
-
 };
 
 #define MID_SINGLE_STEP		0x01
@@ -136,112 +82,10 @@ static uint32_t event_fetch(struct tilib_device *dev)
 	return ret;
 }
 
-static void *get_func(dynload_handle_t hnd, const char *name)
-{
-	void *ret = dynload_sym(hnd, name);
-
-	if (!ret) {
-		printc_err("tilib: can't find symbol \"%s\": %s\n",
-			   name, dynload_error());
-		return NULL;
-	}
-
-	return ret;
-}
-
-static int get_all_funcs(struct tilib_device *dev)
-{
-	dev->MSP430_Initialize = get_func(dev->hnd, "MSP430_Initialize");
-	if (!dev->MSP430_Initialize)
-		return -1;
-
-	dev->MSP430_VCC = get_func(dev->hnd, "MSP430_VCC");
-	if (!dev->MSP430_VCC)
-		return -1;
-
-	dev->MSP430_Configure = get_func(dev->hnd, "MSP430_Configure");
-	if (!dev->MSP430_Configure)
-		return -1;
-
-	dev->MSP430_OpenDevice = get_func(dev->hnd, "MSP430_OpenDevice");
-	if (!dev->MSP430_OpenDevice)
-		return -1;
-
-	dev->MSP430_GetFoundDevice = get_func(dev->hnd,
-		"MSP430_GetFoundDevice");
-	if (!dev->MSP430_GetFoundDevice)
-		return -1;
-
-	dev->MSP430_Close = get_func(dev->hnd, "MSP430_Close");
-	if (!dev->MSP430_Close)
-		return -1;
-
-	dev->MSP430_Memory = get_func(dev->hnd, "MSP430_Memory");
-	if (!dev->MSP430_Memory)
-		return -1;
-
-	dev->MSP430_Reset = get_func(dev->hnd, "MSP430_Reset");
-	if (!dev->MSP430_Reset)
-		return -1;
-
-	dev->MSP430_Erase = get_func(dev->hnd, "MSP430_Erase");
-	if (!dev->MSP430_Erase)
-		return -1;
-
-	dev->MSP430_Secure = get_func(dev->hnd, "MSP430_Secure");
-	if (!dev->MSP430_Secure)
-		return -1;
-
-	dev->MSP430_Error_Number = get_func(dev->hnd, "MSP430_Error_Number");
-	if (!dev->MSP430_Error_Number)
-		return -1;
-
-	dev->MSP430_Error_String = get_func(dev->hnd, "MSP430_Error_String");
-	if (!dev->MSP430_Error_String)
-		return -1;
-
-	dev->MSP430_GetNumberOfUsbIfs =
-		get_func(dev->hnd, "MSP430_GetNumberOfUsbIfs");
-	if (!dev->MSP430_GetNumberOfUsbIfs)
-		return -1;
-
-	dev->MSP430_GetNameOfUsbIf =
-		get_func(dev->hnd, "MSP430_GetNameOfUsbIf");
-	if (!dev->MSP430_GetNameOfUsbIf)
-		return -1;
-
-	dev->MSP430_Registers = get_func(dev->hnd, "MSP430_Registers");
-	if (!dev->MSP430_Registers)
-		return -1;
-
-	dev->MSP430_Run = get_func(dev->hnd, "MSP430_Run");
-	if (!dev->MSP430_Run)
-		return -1;
-
-	dev->MSP430_State = get_func(dev->hnd, "MSP430_State");
-	if (!dev->MSP430_State)
-		return -1;
-
-	dev->MSP430_EEM_Init = get_func(dev->hnd, "MSP430_EEM_Init");
-	if (!dev->MSP430_EEM_Init)
-		return -1;
-
-	dev->MSP430_EEM_SetBreakpoint = get_func(dev->hnd,
-		"MSP430_EEM_SetBreakpoint");
-	if (!dev->MSP430_EEM_SetBreakpoint)
-		return -1;
-
-	dev->MSP430_FET_FwUpdate = get_func(dev->hnd, "MSP430_FET_FwUpdate");
-	if (!dev->MSP430_FET_FwUpdate)
-		return -1;
-
-	return 0;
-}
-
 static void report_error(struct tilib_device *dev, const char *what)
 {
-	long err = dev->MSP430_Error_Number();
-	const char *desc = dev->MSP430_Error_String(err);
+	long err = tilib_api->MSP430_Error_Number();
+	const char *desc = tilib_api->MSP430_Error_String(err);
 
 	printc_err("tilib: %s: %s (error = %ld)\n", what, desc, err);
 }
@@ -256,7 +100,8 @@ static int refresh_fperm(struct tilib_device *dev)
 
 		printc_dbg("%s locked flash access\n",
 			   opt ? "Enabling" : "Disabling");
-		if (dev->MSP430_Configure(LOCKED_FLASH_ACCESS, opt) < 0) {
+		if (tilib_api->MSP430_Configure
+				(LOCKED_FLASH_ACCESS, opt) < 0) {
 			report_error(dev, "MSP430_Configure "
 				     "(LOCKED_FLASH_ACCESS)\n");
 			return -1;
@@ -268,7 +113,8 @@ static int refresh_fperm(struct tilib_device *dev)
 
 		printc_dbg("%s BSL access\n",
 			   opt ? "Enabling" : "Disabling");
-		if (dev->MSP430_Configure(UNLOCK_BSL_MODE, opt) < 0) {
+		if (tilib_api->MSP430_Configure
+				(UNLOCK_BSL_MODE, opt) < 0) {
 			report_error(dev, "MSP430_Configure "
 				     "(UNLOCK_BSL_MODE)\n");
 			return -1;
@@ -284,7 +130,7 @@ static int tilib_readmem(device_t dev_base, address_t addr,
 {
 	struct tilib_device *dev = (struct tilib_device *)dev_base;
 
-	if (dev->MSP430_Memory(addr, (char *)mem, len, READ) < 0) {
+	if (tilib_api->MSP430_Memory(addr, (char *)mem, len, READ) < 0) {
 		report_error(dev, "MSP430_Memory");
 		return -1;
 	}
@@ -299,7 +145,8 @@ static int tilib_writemem(device_t dev_base, address_t addr,
 
 	refresh_fperm(dev);
 
-	if (dev->MSP430_Memory(addr, (char *)mem, len, WRITE) < 0) {
+	if (tilib_api->MSP430_Memory(addr,
+				(char *)mem, len, WRITE) < 0) {
 		report_error(dev, "MSP430_Memory");
 		return -1;
 	}
@@ -331,7 +178,8 @@ static int tilib_erase(device_t dev_base, device_erase_type_t type,
 	/* We need to pass a non-zero length if we've selected segment
 	 * erase.
 	 */
-	if (dev->MSP430_Erase(ti_erase_type(type), address, 1) < 0) {
+	if (tilib_api->MSP430_Erase(ti_erase_type(type),
+			address, 1) < 0) {
 		report_error(dev, "MSP430_Erase");
 		return -1;
 	}
@@ -345,7 +193,7 @@ static int tilib_getregs(device_t dev_base, address_t *regs)
 	long regbuf[DEVICE_NUM_REGS];
 	int i;
 
-	if (dev->MSP430_Registers(regbuf, 0xffff, READ) < 0) {
+	if (tilib_api->MSP430_Registers(regbuf, 0xffff, READ) < 0) {
 		report_error(dev, "MSP430_Registers");
 		return -1;
 	}
@@ -365,7 +213,7 @@ static int tilib_setregs(device_t dev_base, const address_t *regs)
 	for (i = 0; i < DEVICE_NUM_REGS; i++)
 		regbuf[i] = regs[i];
 
-	if (dev->MSP430_Registers(regbuf, 0xffff, WRITE) < 0) {
+	if (tilib_api->MSP430_Registers(regbuf, 0xffff, WRITE) < 0) {
 		report_error(dev, "MSP430_Registers");
 		return -1;
 	}
@@ -452,8 +300,8 @@ static int refresh_bps(struct tilib_device *dev)
 			param.bpMode = BP_CLEAR;
 		}
 
-		if (dev->MSP430_EEM_SetBreakpoint(&dev->bp_handles[i],
-			&param) < 0) {
+		if (tilib_api->MSP430_EEM_SetBreakpoint
+			    (&dev->bp_handles[i], &param) < 0) {
 			report_error(dev, "MSP430_EEM_SetBreakpoint");
 			return -1;
 		}
@@ -469,7 +317,7 @@ static int do_halt(struct tilib_device *dev)
 	long state;
 	long cycles;
 
-	if (dev->MSP430_State(&state, 1, &cycles) < 0) {
+	if (tilib_api->MSP430_State(&state, 1, &cycles) < 0) {
 		report_error(dev, "MSP430_State");
 		return -1;
 	}
@@ -480,7 +328,7 @@ static int do_halt(struct tilib_device *dev)
 
 static int do_step(struct tilib_device *dev)
 {
-	if (dev->MSP430_Run(SINGLE_STEP, 0) < 0) {
+	if (tilib_api->MSP430_Run(SINGLE_STEP, 0) < 0) {
 		report_error(dev, "MSP430_Run");
 		return -1;
 	}
@@ -494,7 +342,7 @@ static int tilib_ctl(device_t dev_base, device_ctl_t op)
 
 	switch (op) {
         case DEVICE_CTL_RESET:
-		if (dev->MSP430_Reset(RST_RESET, 0, 0) < 0) {
+		if (tilib_api->MSP430_Reset(RST_RESET, 0, 0) < 0) {
 			report_error(dev, "MSP430_Reset");
 			return -1;
 		}
@@ -504,7 +352,7 @@ static int tilib_ctl(device_t dev_base, device_ctl_t op)
 		if (refresh_bps(dev) < 0)
 			return -1;
 
-		if (dev->MSP430_Run(RUN_TO_BREAKPOINT, 0) < 0) {
+		if (tilib_api->MSP430_Run(RUN_TO_BREAKPOINT, 0) < 0) {
 			report_error(dev, "MSP430_Run");
 			return -1;
 		}
@@ -517,7 +365,7 @@ static int tilib_ctl(device_t dev_base, device_ctl_t op)
 		return do_step(dev);
 
 	case DEVICE_CTL_SECURE:
-		if (dev->MSP430_Secure() < 0) {
+		if (tilib_api->MSP430_Secure() < 0) {
 			report_error(dev, "MSP430_Secure");
 			return -1;
 		}
@@ -545,12 +393,12 @@ static void tilib_destroy(device_t dev_base)
 	struct tilib_device *dev = (struct tilib_device *)dev_base;
 
 	printc_dbg("MSP430_Run\n");
-	if (dev->MSP430_Run(FREE_RUN, 1) < 0)
+	if (tilib_api->MSP430_Run(FREE_RUN, 1) < 0)
 		report_error(dev, "MSP430_Run");
 
 	printc_dbg("MSP430_Close\n");
-	dev->MSP430_Close(0);
-	dynload_close(dev->hnd);
+	tilib_api->MSP430_Close(0);
+	tilib_api_exit();
 	thread_lock_destroy(&dev->mb_lock);
 	free(dev);
 }
@@ -607,7 +455,7 @@ static void fw_progress(unsigned int msg_id, unsigned long w_param,
 static int do_fw_update(struct tilib_device *dev, const char *filename)
 {
 	printc("Starting firmware update (this may take some time)...\n");
-	if (dev->MSP430_FET_FwUpdate((char *)filename,
+	if (tilib_api->MSP430_FET_FwUpdate((char *)filename,
 				     fw_progress, (long)dev) < 0) {
 		report_error(dev, "MSP430_FET_FwUpdate");
 		return -1;
@@ -622,7 +470,7 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 	union DEVICE_T device;
 
 	printc_dbg("MSP430_Initialize: %s\n", dev->uifPath);
-	if (dev->MSP430_Initialize(dev->uifPath, &version) < 0) {
+	if (tilib_api->MSP430_Initialize(dev->uifPath, &version) < 0) {
 		report_error(dev, "MSP430_Initialize");
 		return -1;
 	}
@@ -632,7 +480,7 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 		       args->require_fwupdate);
 
 		if (do_fw_update(dev, args->require_fwupdate) < 0) {
-			dev->MSP430_Close(0);
+			tilib_api->MSP430_Close(0);
 			return -1;
 		}
 	} else if (version < 0) {
@@ -640,13 +488,13 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 
 		if (args->flags & DEVICE_FLAG_DO_FWUPDATE) {
 			if (do_fw_update(dev, NULL) < 0) {
-				dev->MSP430_Close(0);
+				tilib_api->MSP430_Close(0);
 				return -1;
 			}
 		} else {
 			printc("Re-run with --allow-fw-update to perform "
 			       "a firmware update.\n");
-			dev->MSP430_Close(0);
+			tilib_api->MSP430_Close(0);
 			return -1;
 		}
 	} else {
@@ -654,9 +502,9 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 	}
 
 	printc_dbg("MSP430_VCC: %d mV\n", args->vcc_mv);
-	if (dev->MSP430_VCC(args->vcc_mv) < 0) {
+	if (tilib_api->MSP430_VCC(args->vcc_mv) < 0) {
 		report_error(dev, "MSP430_VCC");
-		dev->MSP430_Close(0);
+		tilib_api->MSP430_Close(0);
 		return -1;
 	}
 
@@ -664,17 +512,17 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 	delay_s(1);
 
 	printc_dbg("MSP430_OpenDevice\n");
-	if (dev->MSP430_OpenDevice("DEVICE_UNKNOWN", "", 0, 0, 0) < 0) {
+	if (tilib_api->MSP430_OpenDevice("DEVICE_UNKNOWN", "", 0, 0, 0) < 0) {
 		report_error(dev, "MSP430_OpenDevice");
-		dev->MSP430_Close(0);
+		tilib_api->MSP430_Close(0);
 		return -1;
 	}
 
 	printc_dbg("MSP430_GetFoundDevice\n");
-	if (dev->MSP430_GetFoundDevice(device.buffer,
+	if (tilib_api->MSP430_GetFoundDevice(device.buffer,
 				       sizeof(device.buffer)) < 0) {
 		report_error(dev, "MSP430_GetFoundDevice");
-		dev->MSP430_Close(0);
+		tilib_api->MSP430_Close(0);
 		return -1;
 	}
 
@@ -686,10 +534,10 @@ static int do_init(struct tilib_device *dev, const struct device_args *args)
 
 	printc_dbg("MSP430_EEM_Init\n");
 	thread_lock_init(&dev->mb_lock);
-	if (dev->MSP430_EEM_Init(event_notify, (long)dev,
+	if (tilib_api->MSP430_EEM_Init(event_notify, (long)dev,
 				 (MessageID_t *)&my_message_ids) < 0) {
 		report_error(dev, "MSP430_EEM_Init");
-		dev->MSP430_Close(0);
+		tilib_api->MSP430_Close(0);
 		thread_lock_destroy(&dev->mb_lock);
 		return -1;
 	}
@@ -704,7 +552,7 @@ static int do_findUif(struct tilib_device *dev)
 	long uifIndex = 0;
 
 	printc_dbg("MSP430_GetNumberOfUsbIfs\n");
-	if (dev->MSP430_GetNumberOfUsbIfs(&attachedUifCount) < 0) {
+	if (tilib_api->MSP430_GetNumberOfUsbIfs(&attachedUifCount) < 0) {
 		report_error(dev, "MSP430_GetNumberOfUsbIfs");
 		return -1;
 	}
@@ -715,7 +563,8 @@ static int do_findUif(struct tilib_device *dev)
 		long status = 0;
 
 		printc_dbg("MSP430_GetNameOfUsbIf\n");
-		if (dev->MSP430_GetNameOfUsbIf(uifIndex, &name, &status) < 0) {
+		if (tilib_api->MSP430_GetNameOfUsbIf(uifIndex,
+				&name, &status) < 0) {
 			report_error(dev, "MSP430_GetNameOfUsbIf");
 			return -1;
 		}
@@ -748,16 +597,7 @@ static device_t tilib_open(const struct device_args *args)
 	memset(dev, 0, sizeof(*dev));
 	dev->base.type = &device_tilib;
 
-	dev->hnd = dynload_open(tilib_filename);
-	if (!dev->hnd) {
-		printc_err("tilib: can't find %s: %s\n",
-			   tilib_filename, dynload_error());
-		free(dev);
-		return NULL;
-	}
-
-	if (get_all_funcs(dev) < 0) {
-		dynload_close(dev->hnd);
+	if (tilib_api_init() < 0) {
 		free(dev);
 		return NULL;
 	}
@@ -774,7 +614,7 @@ static device_t tilib_open(const struct device_args *args)
 	} else {
 		// No path was supplied, use the first UIF we can find
 		if (do_findUif(dev) < 0) {
-			dynload_close(dev->hnd);
+			tilib_api_exit();
 			free(dev);
 			return NULL;
 		}
@@ -782,7 +622,7 @@ static device_t tilib_open(const struct device_args *args)
 
 	if (do_init(dev, args) < 0) {
 		printc_err("tilib: device initialization failed\n");
-		dynload_close(dev->hnd);
+		tilib_api_exit();
 		free(dev);
 		return NULL;
 	}

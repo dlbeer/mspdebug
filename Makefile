@@ -169,6 +169,7 @@ OBJ=\
     drivers/fet3.o \
     drivers/bsllib.o \
     drivers/rom_bsl.o \
+    drivers/tilib_api.o \
     formats/binfile.o \
     formats/coff.o \
     formats/elf32.o \
