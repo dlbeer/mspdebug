@@ -380,7 +380,7 @@ union DEVICE_T {
 		WORD nSequencer;
 		/* Msp430 has FRAM Memroy */
 		WORD HasFramMemroy;
-	};
+	} __attribute__((packed));
 };
 
 #endif
