@@ -601,6 +601,12 @@ int fet_erase(device_t dev_base, device_erase_type_t type, address_t addr)
 		return -1;
 	}
 
+	if (fet_proto_xfer(&dev->proto, C_RESET, NULL, 0,
+			   3, FET_RESET_ALL, 0, 0) < 0) {
+		printc_err("fet: reset failed\n");
+		return -1;
+	}
+
 	return 0;
 }
 
