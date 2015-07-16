@@ -61,14 +61,20 @@ static int read_flatfile(const char *path, uint8_t **buf, address_t *len)
 	*len = ftell(in);
 	rewind(in);
 
-	*buf = malloc(*len);
-	if (!*buf) {
-		printc_err("flatfile: can't allocate memory\n");
-		fclose(in);
-		return -1;
+	if (!*len) {
+		*buf = malloc(1);
+		count = 1;
+	} else {
+		*buf = malloc(*len);
+		if (!*buf) {
+			printc_err("flatfile: can't allocate memory\n");
+			fclose(in);
+			return -1;
+		}
+
+		count = fread(*buf, *len, 1, in);
 	}
 
-	count = fread(*buf, *len, 1, in);
 	fclose(in);
 
 	if (count != 1) {
@@ -97,7 +103,7 @@ static int write_flatfile(const char *path, uint8_t *buf, address_t len)
 		return -1;
 	}
 
-	if (fwrite(buf, len, 1, out) != 1)
+	if (len && (fwrite(buf, len, 1, out) != 1))
 		errmsg = last_error();
 
 	if (fclose(out) != 0 && !errmsg)
