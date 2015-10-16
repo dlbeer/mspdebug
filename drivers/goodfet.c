@@ -289,7 +289,7 @@ static int write_byte(sport_t fd, address_t addr, uint8_t value)
 
 	data[addr & 1] = value;
 
-	if (addr < 0x8000)
+	if (addr < 0x1000)
 		r = write_ram_word(fd, aligned,
 				   ((uint16_t)data[0]) |
 				   (((uint16_t)data[1]) << 8));
@@ -446,7 +446,7 @@ static int goodfet_writemem(device_t dev_base, address_t addr,
 	}
 
 	while (len >= 2) {
-		if (addr < 0x8000) {
+		if (addr < 0x1000) {
 			if (write_ram_word(gc->serial_fd, addr,
 					   ((uint16_t)mem[0]) |
 					   (((uint16_t)mem[1]) << 8)) < 0)
