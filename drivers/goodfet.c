@@ -308,7 +308,6 @@ fail:
 static int init_device(sport_t fd)
 {
 	struct packet pkt;
-	uint8_t chip_id[2];
 
 	printc_dbg("Initializing...\n");
 
@@ -351,14 +350,6 @@ static int init_device(sport_t fd)
 		xfer(fd, APP_JTAG430, GLOBAL_STOP, 0, NULL, &pkt);
 		return -1;
 	}
-
-	if (read_words(fd, 0xff0, 2, chip_id) < 0) {
-		printc_err("goodfet: failed to read chip ID\n");
-		xfer(fd, APP_JTAG430, GLOBAL_STOP, 0, NULL, &pkt);
-		return -1;
-	}
-
-	printc_dbg("Chip ID: 0x%02x%02x\n", chip_id[0], chip_id[1]);
 
 	return 0;
 }
@@ -628,6 +619,7 @@ static device_t goodfet_open(const struct device_args *args)
 
 	gc->base.type = &device_goodfet;
 	gc->base.max_breakpoints = 0;
+	gc->base.need_probe = 1;
 
 	gc->serial_fd = sport_open(args->path, 115200, 0);
 	if (SPORT_ISERR(gc->serial_fd)) {

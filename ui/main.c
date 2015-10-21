@@ -486,7 +486,7 @@ int main(int argc, char **argv)
 		goto fail_driver;
 	}
 
-	if (device_probe_id(device_default) < 0)
+	if (device_probe_id(device_default, args.devarg.forced_chip_id) < 0)
 		printc_err("warning: device ID probe failed\n");
 
 	simio_init();

@@ -16,8 +16,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <string.h>
 #include "output.h"
 #include "device.h"
+#include "bytes.h"
 
 device_t device_default;
 
@@ -90,14 +92,50 @@ int device_setbrk(device_t dev, int which, int enabled, address_t addr,
 	return 0;
 }
 
-int device_probe_id(device_t dev)
+static void show_device_type(device_t dev)
 {
+	printc("Device: %s", dev->chip->name);
+
+	if (device_is_fram(dev))
+		printc(" [FRAM]");
+
+	printc("\n");
+}
+
+
+int device_probe_id(device_t dev, const char *force_id)
+{
+	/* skip probe if driver already did it */
+	if (dev->chip) {
+		show_device_type(dev);
+		return 0;
+	}
+
+	/* use forced id if present */
+	if (force_id) {
+		dev->chip = chipinfo_find_by_name(force_id);
+		if (!dev->chip) {
+			printc_err("unknown chip: %s\n", force_id);
+			return -1;
+		}
+                printc("Device: %s (forced)\n", dev->chip->name);
+		return 0;
+	}
+
+	/* no probing if not requested */
+	if (!dev->need_probe)
+		return 0;
+
+	/* else proceed with identification */
 	uint8_t data[16];
 
 	if (dev->type->readmem(dev, 0xff0, data, sizeof(data)) < 0) {
 		printc_err("device_probe_id: read failed\n");
 		return -1;
 	}
+
+	struct chipinfo_id id;
+	memset(&id, 0, sizeof(id));
 
 	if (data[0] == 0x80) {
 		if (dev->type->readmem(dev, 0x1a00, data, sizeof(data)) < 0) {
@@ -108,20 +146,42 @@ int device_probe_id(device_t dev)
 		dev->dev_id[0] = data[4];
 		dev->dev_id[1] = data[5];
 		dev->dev_id[2] = data[6];
+
+		id.ver_id = r16le(data + 4);
+		//id.ver_sub_id = 0; --> need TLV lookup for this
+		id.revision = data[6];
+		id.config = data[7];
+		id.fab = 0x55;
+		id.self = 0x5555;
+		id.fuses = 0x55;
 	} else {
 		dev->dev_id[0] = data[0];
 		dev->dev_id[1] = data[1];
 		dev->dev_id[2] = data[13];
+
+		id.ver_id = r16le(data);
+		id.ver_sub_id = 0;
+		id.revision = data[2];
+		id.fab = data[3];
+		id.self = r16le(data + 8);
+		id.config = data[13] & 0x7f;
 	}
 
-	printc_dbg("Chip ID data: %02x %02x", dev->dev_id[0], dev->dev_id[1]);
-	if (dev->dev_id[2])
-		printc_dbg(" %02x", dev->dev_id[2]);
+	printc_dbg("Chip ID data:\n");
+	printc_dbg("  ver_id:         %04x\n", id.ver_id);
+	printc_dbg("  ver_sub_id:     %04x\n", id.ver_sub_id);
+	printc_dbg("  revision:       %02x\n", id.revision);
+	printc_dbg("  fab:            %02x\n", id.fab);
+	printc_dbg("  self:           %04x\n", id.self);
+	printc_dbg("  config:         %02x\n", id.config);
+	//printc_dbg("  fuses:          %02x\n", id.fuses);
+	//printc_dbg("  activation_key: %08x\n", id.activation_key);
 
-	if (device_is_fram(dev))
-		printc_dbg(" [FRAM]");
+	dev->chip = chipinfo_find_by_id(&id);
+	if (!dev->chip)
+		return -1;
 
-	printc_dbg("\n");
+	show_device_type(dev);
 	return 0;
 }
 

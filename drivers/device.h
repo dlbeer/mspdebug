@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include "util.h"
 #include "powerbuf.h"
+#include "chipinfo.h"
 
 struct device;
 typedef struct device *device_t;
@@ -134,12 +135,17 @@ struct device {
 	 * device.
 	 */
 	powerbuf_t power_buf;
+
+	/* Chip information data.
+	 */
+	const struct chipinfo *chip;
+	int need_probe;
 };
 
 /* Probe the device memory and extract ID bytes. This should be called
  * after the device structure is ready.
  */
-int device_probe_id(device_t dev);
+int device_probe_id(device_t dev, const char *force_id);
 
 /* Determine, from the device ID bytes, whether this chip is an FRAM or
  * flash-based device.

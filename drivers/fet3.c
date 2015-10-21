@@ -231,6 +231,8 @@ static int debug_init(struct fet3 *fet, const struct device_args *args)
 			goto fail_stop_jtag;
 	}
 
+	fet->base.chip = fet->hil.chip;
+
 	if (v3hil_configure(&fet->hil) < 0)
 		goto fail_stop_jtag;
 	if (v3hil_update_regs(&fet->hil) < 0)

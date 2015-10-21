@@ -124,7 +124,6 @@ static int write_byte( struct jtdev *p,
 static int init_device(struct jtdev *p)
 {
   unsigned int jtag_id;
-  unsigned int chip_id;
 
   printc_dbg("Starting JTAG\n");
   jtag_id = jtag_init(p);
@@ -134,9 +133,6 @@ static int init_device(struct jtdev *p)
     jtag_release_device(p, 0xfffe);
     return -1;
   }
-
-  chip_id =jtag_chip_id(p);
-  printc_dbg("Chip ID: %04X\n", chip_id);
 
   return 0;
 }
@@ -409,6 +405,7 @@ static device_t pif_open(const struct device_args *args)
   memset(dev, 0, sizeof(*dev));
   dev->base.type = &device_pif;
   dev->base.max_breakpoints = 2; //supported by all devices
+  dev->base.need_probe = 1;
   (&dev->jtag)->f = &jtdev_func_pif;
 
   if ((&dev->jtag)->f->jtdev_open(&dev->jtag, args->path) < 0) {
