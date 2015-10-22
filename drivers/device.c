@@ -92,6 +92,50 @@ int device_setbrk(device_t dev, int which, int enabled, address_t addr,
 	return 0;
 }
 
+static uint8_t tlv_data[1024];
+
+int tlv_read(device_t dev)
+{
+	if (dev->type->readmem(dev, 0x1a00, tlv_data, 8) < 0)
+		return -1;
+
+	uint8_t info_len = tlv_data[0];
+	if (info_len < 1 || info_len > 8)
+		return -1;
+
+	int tlv_size = 4 * (1 << info_len);
+	if (dev->type->readmem(dev, 0x1a00+8, tlv_data+8, tlv_size-8) < 0)
+		return -1;
+
+	return 0;
+}
+
+int tlv_find(const uint8_t type, uint8_t * const size, uint8_t ** const ptr)
+{
+	const int tlv_size = 4 * (1 << tlv_data[0]);
+	int i = 8;
+	*ptr = NULL;
+	*size = 0;
+	while (i + 3 < tlv_size) {
+		uint8_t tag = tlv_data[i++];
+		uint8_t len = tlv_data[i++];
+
+		if (tag == 0xff)
+			break;
+
+		if (tag == type) {
+			*ptr = tlv_data + i;
+			*size = len;
+			break;
+		}
+
+		i += len;
+	}
+
+        return *ptr != NULL;
+}
+
+
 static void show_device_type(device_t dev)
 {
 	printc("Device: %s", dev->chip->name);
@@ -138,22 +182,30 @@ int device_probe_id(device_t dev, const char *force_id)
 	memset(&id, 0, sizeof(id));
 
 	if (data[0] == 0x80) {
-		if (dev->type->readmem(dev, 0x1a00, data, sizeof(data)) < 0) {
-			printc_err("device_probe_id: read failed\n");
+		if (tlv_read(dev) < 0) {
+			printc_err("device_probe_id: tlv_read failed\n");
 			return -1;
 		}
 
-		dev->dev_id[0] = data[4];
-		dev->dev_id[1] = data[5];
-		dev->dev_id[2] = data[6];
+		dev->dev_id[0] = tlv_data[4];
+		dev->dev_id[1] = tlv_data[5];
+		dev->dev_id[2] = tlv_data[6];
 
-		id.ver_id = r16le(data + 4);
-		//id.ver_sub_id = 0; --> need TLV lookup for this
-		id.revision = data[6];
-		id.config = data[7];
+		id.ver_id = r16le(tlv_data + 4);
+		id.revision = tlv_data[6];
+		id.config = tlv_data[7];
 		id.fab = 0x55;
 		id.self = 0x5555;
 		id.fuses = 0x55;
+
+		/* Search TLV for sub-ID */
+		uint8_t len;
+		uint8_t *p;
+		if (tlv_find(0x14, &len, &p)) {
+			if (len >= 2)
+				id.ver_sub_id = r16le(p);
+		}
+
 	} else {
 		dev->dev_id[0] = data[0];
 		dev->dev_id[1] = data[1];
