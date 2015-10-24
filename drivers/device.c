@@ -19,7 +19,6 @@
 #include <string.h>
 #include "output.h"
 #include "device.h"
-#include "bytes.h"
 
 device_t device_default;
 
@@ -255,4 +254,216 @@ int device_erase(device_erase_type_t et, address_t addr)
 	}
 
 	return device_default->type->erase(device_default, et, addr);
+}
+
+static const struct chipinfo default_chip = {
+		.name		= "DefaultChip",
+		.bits		= 20,
+		.memory		= {
+			{
+				.name		= "DefaultFlash",
+				.type		= CHIPINFO_MEMTYPE_FLASH,
+				.bits		= 20,
+				.mapped		= 1,
+				.size		= 0xff000,
+				.offset		= 0x01000,
+				.seg_size	= 0,
+				.bank_size	= 0,
+				.banks		= 1,
+			},
+			{
+				.name		= "DefaultRam",
+				.type		= CHIPINFO_MEMTYPE_RAM,
+				.bits		= 20,
+				.mapped		= 1,
+				.size		= 0x01000,
+				.offset		= 0x00000,
+				.seg_size	= 0,
+				.bank_size	= 0,
+				.banks		= 1,
+			},
+			{0}
+		},
+	};
+
+/* Given an address range, specified by a start and a size (in bytes),
+ * return a size which is trimmed so as to not overrun a region boundary
+ * in the chip's memory map.
+ *
+ * The single region occupied is optionally returned in m_ret. If the
+ * range doesn't start in a valid region, it's trimmed to the start of
+ * the next valid region, and m_ret is NULL.
+ */
+address_t check_range(const struct chipinfo *chip,
+			     address_t addr, address_t size,
+			     const struct chipinfo_memory **m_ret)
+{
+	if (!chip) {
+		chip = &default_chip;
+	}
+
+	const struct chipinfo_memory *m =
+		chipinfo_find_mem_by_addr(chip, addr);
+
+	if (m) {
+		if (m->offset > addr) {
+			address_t n = m->offset - addr;
+
+			if (size > n)
+				size = n;
+
+			m = NULL;
+		} else if (addr + size > m->offset + m->size) {
+			size = m->offset + m->size - addr;
+		}
+	}
+
+	*m_ret = m;
+
+	return size;
+}
+
+/* Read bytes from device taking care of memory types.
+ * Function read_words is only called for existing memory ranges and
+ * with a word aligned address.
+ * Non-existing memory locations read as 0x55.
+ * returns 0 on success, -1 on failure
+ */
+int readmem(device_t dev, address_t addr,
+		uint8_t *mem, address_t len,
+		int (*read_words)(device_t dev,
+			const struct chipinfo_memory *m,
+			address_t addr, address_t len,
+			uint8_t *data)
+		)
+{
+	const struct chipinfo_memory *m;
+
+	if (!len)
+		return 0;
+
+	/* Handle unaligned start */
+	if (addr & 1) {
+		uint8_t data[2];
+		check_range(dev->chip, addr - 1, 2, &m);
+		if (!m)
+			data[1] = 0x55;
+		else if (read_words(dev, m, addr - 1, 2, data) < 0)
+			return -1;
+
+		mem[0] = data[1];
+		addr++;
+		mem++;
+		len--;
+	}
+
+	/* Read aligned blocks */
+	while (len >= 2) {
+		int rlen = check_range(dev->chip, addr, len & ~1, &m);
+		if (!m)
+			memset(mem, 0x55, rlen);
+		else {
+			rlen = read_words(dev, m, addr, rlen, mem);
+			if (rlen < 0)
+				return -1;
+		}
+
+		addr += rlen;
+		mem += rlen;
+		len -= rlen;
+	}
+
+	/* Handle unaligned end */
+	if (len) {
+		uint8_t data[2];
+		check_range(dev->chip, addr, 2, &m);
+		if (!m)
+			data[0] = 0x55;
+		else if (read_words(dev, m, addr, 2, data) < 0)
+			return -1;
+
+		mem[0] = data[0];
+	}
+
+	return 0;
+}
+
+/* Write bytes to device taking care of memory types.
+ * Functions write_words and read_words are only called for existing memory ranges and
+ * with a word aligned address and length.
+ * Writes to non-existing memory locations fail.
+ * returns 0 on success, -1 on failure
+ */
+int writemem(device_t dev, address_t addr,
+		const uint8_t *mem, address_t len,
+		int (*write_words)(device_t dev,
+			const struct chipinfo_memory *m,
+			address_t addr, address_t len,
+			const uint8_t *data),
+		int (*read_words)(device_t dev,
+			const struct chipinfo_memory *m,
+			address_t addr, address_t len,
+			uint8_t *data)
+		)
+{
+	const struct chipinfo_memory *m;
+
+	if (!len)
+		return 0;
+
+	/* Handle unaligned start */
+	if (addr & 1) {
+		uint8_t data[2];
+		check_range(dev->chip, addr - 1, 2, &m);
+		if (!m)
+			goto fail; // fail on unmapped regions
+
+		if (read_words(dev, m, addr - 1, 2, data) < 0)
+			return -1;
+
+		data[1] = mem[0];
+
+		if (write_words(dev, m, addr - 1, 2, data) < 0)
+			return -1;
+
+		addr++;
+		mem++;
+		len--;
+	}
+
+	while (len >= 2) {
+		int wlen = check_range(dev->chip, addr, len & ~1, &m);
+		if (!m)
+			goto fail; // fail on unmapped regions
+
+		wlen = write_words(dev, m, addr, wlen, mem);
+		if (wlen < 0)
+			return -1;
+
+		addr += wlen;
+		mem += wlen;
+		len -= wlen;
+	}
+
+	/* Handle unaligned end */
+	if (len) {
+		uint8_t data[2];
+		check_range(dev->chip, addr, 2, &m);
+		if (!m)
+			goto fail; // fail on unmapped regions
+
+		if (read_words(dev, m, addr, 2, data) < 0)
+			return -1;
+
+		data[0] = mem[0];
+
+		if (write_words(dev, m, addr, 2, data) < 0)
+			return -1;
+	}
+
+	return 0;
+
+fail:
+	printc_err("writemem failed at 0x%x\n", addr);
+	return -1;
 }

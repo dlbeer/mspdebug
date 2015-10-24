@@ -136,40 +136,6 @@ static hal_proto_fid_t map_fid(const struct v3hil *h, hal_proto_fid_t src)
 	return dst ? dst : src;
 }
 
-/* Given an address range, specified by a start and a size (in bytes),
- * return a size which is trimmed so as to not overrun a region boundary
- * in the chip's memory map.
- *
- * The single region occupied is optionally returned in m_ret. If the
- * range doesn't start in a valid region, it's trimmed to the start of
- * the next valid region, and m_ret is NULL.
- */
-static address_t check_range(const struct chipinfo *chip,
-			     address_t addr, address_t size,
-			     const struct chipinfo_memory **m_ret)
-{
-	const struct chipinfo_memory *m =
-		chipinfo_find_mem_by_addr(chip, addr);
-
-	if (m) {
-		if (m->offset > addr) {
-			address_t n = m->offset - addr;
-
-			if (size > n)
-				size = n;
-
-			m = NULL;
-		} else if (addr + size > m->offset + m->size) {
-			size = m->offset + m->size - addr;
-		}
-	}
-
-	if (m)
-		*m_ret = m;
-
-	return size;
-}
-
 void v3hil_init(struct v3hil *h, transport_t trans,
 		hal_proto_flags_t flags)
 {

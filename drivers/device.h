@@ -23,6 +23,7 @@
 #include "util.h"
 #include "powerbuf.h"
 #include "chipinfo.h"
+#include "bytes.h"
 
 struct device;
 typedef struct device *device_t;
@@ -181,5 +182,29 @@ extern device_t device_default;
 	device_default->type->poll(device_default)
 
 int device_erase(device_erase_type_t et, address_t addr);
+
+address_t check_range(const struct chipinfo *chip,
+			     address_t addr, address_t size,
+			     const struct chipinfo_memory **m_ret);
+
+int readmem(device_t dev, address_t addr,
+		uint8_t *mem, address_t len,
+		int (*read_words)(device_t dev,
+			const struct chipinfo_memory *m,
+			address_t addr, address_t len,
+			uint8_t *data)
+		);
+
+int writemem(device_t dev, address_t addr,
+		const uint8_t *mem, address_t len,
+		int (*write_words)(device_t dev,
+			const struct chipinfo_memory *m,
+			address_t addr, address_t len,
+			const uint8_t *data),
+		int (*read_words)(device_t dev,
+			const struct chipinfo_memory *m,
+			address_t addr, address_t len,
+			uint8_t *data)
+		);
 
 #endif

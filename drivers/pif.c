@@ -34,15 +34,23 @@
 #include "jtaglib.h"
 #include "ctrlc.h"
 
+struct pif_device {
+  struct device		base;
+  struct jtdev		jtag;
+};
+
 /*============================================================================*/
 /* pif MSP430 JTAG operations */
 
 /*----------------------------------------------------------------------------*/
-/* Read a word-aligned block from any kind of memory */
-static int read_words( struct jtdev *p, address_t addr,
-		       address_t len,
-		       uint8_t*  data )
+/* Read a word-aligned block from any kind of memory
+ * returns the number of bytes read or -1 on failure
+ */
+static int read_words(device_t dev, const struct chipinfo_memory *m,
+		address_t addr, address_t len, uint8_t *data)
 {
+  struct pif_device *pif = (struct pif_device *)dev;
+  struct jtdev *p = &pif->jtag;
   unsigned int index;
   unsigned int word;
 
@@ -52,18 +60,15 @@ static int read_words( struct jtdev *p, address_t addr,
     data[index+1] = (word >> 8) & 0x00ff;
   }
 
-  return p->failed ? -1 : 0;
+  return p->failed ? -1 : len;
 }
 
 /*----------------------------------------------------------------------------*/
 /* Write a word to RAM */
-int write_ram_word( struct jtdev *p, address_t addr,
+static int write_ram_word( struct jtdev *p, address_t addr,
 		    uint16_t  value )
 {
-  unsigned int word;
-
-  word = ((value & 0x00ff) << 8) | ((value & 0xff00) >> 8);
-  jtag_write_mem( p, 16, addr, word );
+  jtag_write_mem( p, 16, addr, value );
 
   return p->failed ? -1 : 0;
 }
@@ -95,29 +100,29 @@ static int write_flash_block( struct jtdev *p, address_t addr,
   return p->failed ? -1 : 0;
 }
 
-/*----------------------------------------------------------------------------*/
-/* Write a single byte by reading and rewriting a word. */
-static int write_byte( struct jtdev *p,
-		       address_t addr,
-		       uint8_t   value )
+/* Write a word-aligned block to any kind of memory.
+ * returns the number of bytes written or -1 on failure
+ */
+static int write_words(device_t dev, const struct chipinfo_memory *m,
+		address_t addr, address_t len, const uint8_t *data)
 {
-  address_t aligned = addr & ~1;
-  uint8_t data[2];
-  unsigned int word;
+  struct pif_device *pif = (struct pif_device *)dev;
+  struct jtdev *p = &pif->jtag;
+  int r;
 
-  read_words(p, aligned, 2, data);
-  data[addr & 1] = value;
-
-  if ( ADDR_IN_FLASH(addr) ) {
-    /* program in FLASH */
-    write_flash_block(p, aligned, 2, data);
+  if (m->type != CHIPINFO_MEMTYPE_FLASH) {
+    len = 2;
+    r = write_ram_word(p, addr, r16le(data));
   } else {
-    /* write to RAM */
-    word = (uint16_t)data[1] | ((uint16_t)data[0] << 8);
-    write_ram_word(p, aligned, word);
+    r = write_flash_block(p, addr, len, data);
   }
 
-  return p->failed ? -1 : 0;
+  if (r < 0) {
+    printc_err("pif: write_words at address 0x%x failed\n", addr);
+    return -1;
+  }
+
+  return len;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -138,11 +143,6 @@ static int init_device(struct jtdev *p)
 }
 
 /*===== MSPDebug Device interface ============================================*/
-
-struct pif_device {
-  struct device		base;
-  struct jtdev		jtag;
-};
 
 /*----------------------------------------------------------------------------*/
 static int refresh_bps(struct pif_device *dev)
@@ -188,38 +188,8 @@ static int pif_readmem( device_t  dev_base,
 			address_t len )
 {
   struct pif_device *dev = (struct pif_device *)dev_base;
-  uint8_t  data[2];
-
   dev->jtag.failed = 0;
-
-  if ( len > 0 ) {
-    /* Handle unaligned start */
-    if (addr & 1) {
-      if (read_words(&dev->jtag, addr & ~1, 2, data) < 0)
-	return -1;
-      mem[0] = data[1];
-      addr++;
-      mem++;
-      len--;
-    }
-
-    /* Read aligned blocks */
-    if (len >= 2) {
-      if (read_words(&dev->jtag, addr, len & ~1, mem) < 0)
-	return -1;
-      addr += len & ~1;
-      mem += len & ~1;
-      len &= 1;
-    }
-
-    /* Handle unaligned end */
-    if (len == 1) {
-      if (read_words(&dev->jtag, addr, 2, data) < 0)
-	return -1;
-      mem[0] = data[0];
-    }
-  }
-  return 0;
+  return readmem(dev_base, addr, mem, len, read_words);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -229,45 +199,8 @@ static int pif_writemem( device_t       dev_base,
 			 address_t      len )
 {
   struct pif_device *dev = (struct pif_device *)dev_base;
-
   dev->jtag.failed = 0;
-
-  if (len > 0)
-  {
-    /* Handle unaligned start */
-    if (addr & 1) {
-      if (write_byte(&dev->jtag, addr, mem[0]) < 0)
-	return -1;
-      addr++;
-      mem++;
-      len--;
-    }
-
-    /* Write aligned blocks */
-    while (len >= 2) {
-      if ( ADDR_IN_FLASH(addr) ) {
-	if (write_flash_block(&dev->jtag, addr, len & ~1, mem) < 0)
-	  return -1;
-	addr += len & ~1;
-	mem += len & ~1;
-	len &= 1;
-      } else {
-	if (write_ram_word(&dev->jtag, addr,
-		(uint16_t)mem[1] | ((uint16_t)mem[0] << 8)) < 0)
-	  return -1;
-	addr += 2;
-	mem  += 2;
-	len  -= 2;
-      }
-    }
-
-    /* Handle unaligned end */
-    if (len == 1) {
-      if (write_byte(&dev->jtag, addr, mem[0]) < 0)
-	return -1;
-    }
-  }
-  return 0;
+  return writemem(dev_base, addr, mem, len, write_words, read_words);
 }
 
 /*----------------------------------------------------------------------------*/
