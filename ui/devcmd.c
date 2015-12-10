@@ -38,11 +38,25 @@ int cmd_regs(char **arg)
 	address_t regs[DEVICE_NUM_REGS];
 	uint8_t code[16];
 	int len = sizeof(code);
+	int i;
 
 	(void)arg;
 
 	if (device_getregs(regs) < 0)
 		return -1;
+
+	/* Check for breakpoints */
+	for (i = 0; i < device_default->max_breakpoints; i++) {
+		const struct device_breakpoint *bp =
+		    &device_default->breakpoints[i];
+
+		if ((bp->flags & DEVICE_BP_ENABLED) &&
+		    (bp->type == DEVICE_BPTYPE_BREAK) &&
+		    (bp->addr == regs[MSP430_REG_PC]))
+			printc("Breakpoint %d triggered (0x%04x)\n",
+				i, bp->addr);
+	}
+
 	show_regs(regs);
 
 	/* Try to disassemble the instruction at PC */

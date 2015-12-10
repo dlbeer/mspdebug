@@ -68,6 +68,8 @@ static void watchpoint_check(struct sim_device *dev, uint16_t addr,
 		    ((bp->type == DEVICE_BPTYPE_WATCH ||
 		      (bp->type == DEVICE_BPTYPE_READ && !is_write) ||
 		      (bp->type == DEVICE_BPTYPE_WRITE && is_write)))) {
+			printc_dbg("Watchpoint %d triggered (0x%04x, %s)\n",
+				   i, addr, is_write ? "WRITE" : "READ");
 			dev->watchpoint_hit = 1;
 			return;
 		}
