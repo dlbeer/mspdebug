@@ -165,11 +165,7 @@ int device_probe_id(device_t dev, const char *force_id)
 		return 0;
 	}
 
-	/* no probing if not requested */
-	if (!dev->need_probe)
-		return 0;
-
-	/* else proceed with identification */
+	/* proceed with identification */
 	uint8_t data[16];
 
 	if (dev->type->readmem(dev, 0xff0, data, sizeof(data)) < 0) {
@@ -229,8 +225,10 @@ int device_probe_id(device_t dev, const char *force_id)
 	//printc_dbg("  activation_key: %08x\n", id.activation_key);
 
 	dev->chip = chipinfo_find_by_id(&id);
-	if (!dev->chip)
-		return -1;
+	if (!dev->chip) {
+		printc_err("warning: unknown chip\n");
+		return 0;
+	}
 
 	show_device_type(dev);
 	return 0;
@@ -239,11 +237,7 @@ int device_probe_id(device_t dev, const char *force_id)
 /* Is there a more reliable way of doing this? */
 int device_is_fram(device_t dev)
 {
-	const uint8_t a = dev->dev_id[0];
-	const uint8_t b = dev->dev_id[1];
-
-	return ((a < 0x04) && (b == 0x81)) ||
-	       (((a & 0xf0) == 0x70) && ((b & 0x8e) == 0x80));
+	return dev->chip && (dev->chip->features & CHIPINFO_FEATURE_FRAM);
 }
 
 int device_erase(device_erase_type_t et, address_t addr)
