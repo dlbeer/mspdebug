@@ -234,6 +234,27 @@ int cmd_erase(char **arg)
 	return 0;
 }
 
+static int bp_poll(void)
+{
+	address_t regs[DEVICE_NUM_REGS];
+	int i;
+
+	if (device_getregs(regs) < 0)
+		return -1;
+
+	for (i = 0; i < device_default->max_breakpoints; i++) {
+		const struct device_breakpoint *bp =
+		    &device_default->breakpoints[i];
+
+		if ((bp->flags & DEVICE_BP_ENABLED) &&
+		    (bp->type == DEVICE_BPTYPE_BREAK) &&
+		    (bp->addr == regs[MSP430_REG_PC]))
+			return 1;
+	}
+
+	return 0;
+}
+
 int cmd_step(char **arg)
 {
 	char *count_text = get_arg(arg);
@@ -247,9 +268,22 @@ int cmd_step(char **arg)
 		}
 	}
 
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
+		int r;
+
 		if (device_ctl(DEVICE_CTL_STEP) < 0)
 			return -1;
+
+		r = bp_poll();
+
+		if (r < 0)
+			return -1;
+
+		if (r) {
+			printc("Breakpoint hit after %d steps\n", i + 1);
+			break;
+		}
+	}
 
 	reader_set_repeat("step");
 	return cmd_regs(NULL);
