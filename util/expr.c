@@ -29,6 +29,8 @@
 #include "output.h"
 #include "opdb.h"
 #include "demangle.h"
+#include "device.h"
+#include "dis.h"
 
 /************************************************************************
  * Address expression parsing.
@@ -56,6 +58,18 @@ static int addr_exp_data(struct addr_exp_state *s, const char *text)
 		value = strtoul(text + 2, NULL, 16);
 	} else if (*text == '0' && text[1] == 'd') {
 		value = atoi(text + 2);
+	} else if (*text == '@') {
+		int reg = dis_reg_from_name(text + 1);
+		if (reg < 0) {
+			printc_err("invalid register: %s\n", text);
+			return -1;
+		}
+
+		address_t regs[DEVICE_NUM_REGS];
+		if (device_getregs(regs) < 0)
+			return -1;
+
+		value = regs[reg];
 	} else if (stab_get(text, &value) < 0) {
 		char *end;
 
@@ -252,7 +266,7 @@ int expr_eval(const char *text, address_t *addr)
 		else if (!*text || isspace(*text))
 			cc = 2;
 		else if (isalnum(*text) || *text == '.' || *text == '_' ||
-			 *text == '$' || *text == ':')
+			 *text == '$' || *text == ':' || *text == '@')
 			cc = 3;
 		else {
 			printc_err("illegal character in expression: %c\n",

@@ -732,10 +732,19 @@ Any command which accepts a memory address, length or register value
 as an argument may be given an address expression. An address
 expression consists of an algebraic combination of values.
 
-An address value may be either a symbol name, a hex value preceded
-with the specifier "0x", a decimal value preceded with the specifier
-"0d", or a number in the default input radix (without a specifier). See
-the option \fBiradix\fR for more information.
+An address value can be one of the following:
+.RS
+A symbol name
+.br
+A CPU register name preceded with "@"
+.br
+A hex value preceded with the specifier "0x"
+.br
+A decimal value preceded with the specifier "0d"
+.br
+A number in the default input radix (without a specifier). See the option
+\fBiradix\fR for more information.
+.RE
 
 The operators recognised are the usual algebraic operators: \fB+\fR, \fB-\fR,
 \fB*\fR, \fB/\fR, \fB%\fR, \fB(\fR and \fB)\fR. Operator precedence is the
@@ -751,6 +760,8 @@ The following are all valid examples of address expressions:
 .B main+0x3f
 .br
 .B __bss_end-__bss_start
+.br
+.B @sp
 .SH OPTIONS
 MSPDebug's behaviour can be configured via the following variables:
 .IP "\fBcolor\fR (boolean)"
