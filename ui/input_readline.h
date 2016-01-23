@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009-2012 Daniel Beer
+ * Copyright (C) 2009-2016 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,20 +16,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifndef INPUT_READLINE_H_
+#define INPUT_READLINE_H_
+
 #include "input.h"
 
-#ifdef USE_READLINE
-
-#include "input_readline.h"
-
-/* Default input module */
-const struct input_interface *input_module = &input_readline;
-
-#else
-
-#include "input_console.h"
-
-/* Default input module */
-const struct input_interface *input_module = &input_console;
+extern const struct input_interface input_readline;
 
 #endif

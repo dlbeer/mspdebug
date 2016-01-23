@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009-2012 Daniel Beer
+ * Copyright (C) 2009-2016 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,53 +21,19 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "input_console.h"
-#include "util.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
-#define LINE_BUF_SIZE 128
+#include "input_readline.h"
 
-static char *readline(const char *prompt)
-{
-	char *buf = malloc(LINE_BUF_SIZE);
-
-	if (!buf) {
-		fprintf(stdout, "readline: can't allocate memory: %s\n",
-			last_error());
-		return NULL;
-	}
-
-	for (;;) {
-		printf("%s", prompt);
-		fflush(stdout);
-
-		if (fgets(buf, LINE_BUF_SIZE, stdin)) {
-			int len = strlen(buf);
-
-			while (len > 0 && isspace(buf[len - 1]))
-				len--;
-
-			buf[len] = 0;
-			return buf;
-		}
-
-		if (feof(stdin))
-			break;
-
-		printf("\n");
-	}
-
-	free(buf);
-	return NULL;
-}
-
-static int console_init(void)
+static int readline_init(void)
 {
 	return 0;
 }
 
-static void console_exit(void) { }
+static void readline_exit(void) { }
 
-static int console_read_command(char *out, int max_len)
+static int readline_read_command(char *out, int max_len)
 {
 	char *buf = readline("(mspdebug) ");
 
@@ -76,6 +42,9 @@ static int console_read_command(char *out, int max_len)
 		return 1;
 	}
 
+	if (*buf)
+		add_history(buf);
+
 	strncpy(out, buf, max_len);
 	out[max_len - 1] = 0;
 	free(buf);
@@ -83,7 +52,7 @@ static int console_read_command(char *out, int max_len)
 	return 0;
 }
 
-static int console_prompt_abort(const char *message)
+static int readline_prompt_abort(const char *message)
 {
 	char buf[32];
 
@@ -107,9 +76,9 @@ static int console_prompt_abort(const char *message)
 	return 0;
 }
 
-const struct input_interface input_console = {
-	.init		= console_init,
-	.exit		= console_exit,
-	.read_command	= console_read_command,
-	.prompt_abort	= console_prompt_abort
+const struct input_interface input_readline = {
+	.init		= readline_init,
+	.exit		= readline_exit,
+	.read_command	= readline_read_command,
+	.prompt_abort	= readline_prompt_abort
 };

@@ -28,9 +28,11 @@ LIBDIR = ${PREFIX}/lib/
 ifdef WITHOUT_READLINE
 	READLINE_CFLAGS =
 	READLINE_LIBS =
+	CONSOLE_INPUT_OBJ = ui/input_console.o
 else
 	READLINE_CFLAGS = -DUSE_READLINE
 	READLINE_LIBS = -lreadline
+	CONSOLE_INPUT_OBJ = ui/input_readline.o
 endif
 
 ifeq ($(OS),Windows_NT)
@@ -195,8 +197,8 @@ OBJ=\
     ui/aliasdb.o \
     ui/power.o \
     ui/input.o \
-    ui/input_console.o \
     ui/input_async.o \
+    $(CONSOLE_INPUT_OBJ) \
     ui/main.o
 
 $(BINARY): $(OBJ)
