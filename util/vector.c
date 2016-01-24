@@ -47,6 +47,7 @@ int vector_realloc(struct vector *v, int capacity)
 
 		v->ptr = new_ptr;
 	} else {
+		free(v->ptr);
 		v->ptr = NULL;
 	}
 
