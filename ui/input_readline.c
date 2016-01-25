@@ -25,13 +25,28 @@
 #include <readline/history.h>
 
 #include "input_readline.h"
+#include "util.h"
+
+#define HISTORY_FILENAME "~/.mspdebug_history"
 
 static int readline_init(void)
 {
+	char *path = expand_tilde(HISTORY_FILENAME);
+	if (path) {
+		read_history(path);
+		free(path);
+	}
 	return 0;
 }
 
-static void readline_exit(void) { }
+static void readline_exit(void)
+{
+	char *path = expand_tilde(HISTORY_FILENAME);
+	if (path) {
+		write_history(path);
+		free(path);
+	}
+}
 
 static int readline_read_command(char *out, int max_len)
 {
