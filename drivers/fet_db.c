@@ -7306,7 +7306,7 @@ static const struct fet_db_record fet_db[] = {{        .name= "Prototype_MSP430F
 		, 0x00, 0x00, 0x00
 		, 0xFF         /* CONF   (off: 13)*/
 		, 0x00, 0x00
-		, 0x00         /* FUSES  (off: 16)*/
+		, 0x80         /* FUSES  (off: 16)*/
 		, 0x07 }       /* F PATT (off: 17)*/
 
 , .msg29_params={ 0x00, 0x39, 0x31 /*, 0x4A */ }
