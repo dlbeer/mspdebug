@@ -646,7 +646,7 @@ static int do_cmd_prog(char **arg, int prog_flags)
 	in = fopen(path, "rb");
 	free(path);
 	if (!in) {
-		printc_err("prog: %s: %s\n", *arg, last_error());
+		printc_err("prog: %s: %s\n", path, last_error());
 		return -1;
 	}
 
