@@ -644,11 +644,12 @@ static int do_cmd_prog(char **arg, int prog_flags)
 		return -1;
 
 	in = fopen(path, "rb");
-	free(path);
 	if (!in) {
 		printc_err("prog: %s: %s\n", path, last_error());
+                free(path);
 		return -1;
 	}
+	free(path);
 
 	if (device_ctl(DEVICE_CTL_HALT) < 0) {
 		fclose(in);
