@@ -528,6 +528,7 @@ static device_t goodfet_open(const struct device_args *args)
 		return NULL;
 	}
 
+        memset(gc, 0, sizeof(*gc));
 	gc->base.type = &device_goodfet;
 	gc->base.max_breakpoints = 0;
 	gc->base.need_probe = 1;
