@@ -1,3 +1,9 @@
+Version 0.24 - 14 May 2016
+	* Various bug fixes.
+	* Persistent history and tab completion with libreadline.
+	* Address expressions now support register names.
+	* Add support for new 64-bit TI library API.
+
 Version 0.23 - 2 Mar 2015
 	* Support for raw JTAG via GPIOs.
 	* Raw JTAG drivers now support single stepping and breakpoints.
