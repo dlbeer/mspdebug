@@ -19,9 +19,10 @@
 #ifndef SPORT_H_
 #define SPORT_H_
 
+#include <stdint.h>
+
 #ifndef __Windows__
 
-#include <stdint.h>
 #include <termios.h>
 #include <sys/ioctl.h>
 

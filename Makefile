@@ -36,7 +36,7 @@ else
 endif
 
 ifeq ($(OS),Windows_NT)
-    MSPDEBUG_CC = gcc
+    MSPDEBUG_CC = $(CC)
     BINARY = mspdebug.exe
 
     ifneq ($(UNAME_O),Cygwin)
