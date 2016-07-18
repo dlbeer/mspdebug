@@ -597,9 +597,19 @@ static device_t flash_bsl_open(const struct device_args *args)
 	dev->long_password = args->flags & DEVICE_FLAG_LONG_PW;
 
 	/* enter bootloader */
-	if (bsllib_seq_do(dev->serial_fd, dev->seq) < 0) {
-		printc_err("BSL entry sequence failed\n");
-		goto fail;
+	if ( args->bsl_gpio_used )
+	{
+		if (bsllib_seq_do_gpio(args->bsl_gpio_rts, args->bsl_gpio_dtr, dev->seq) < 0) {
+      printc_err("BSL entry sequence failed\n");
+			goto fail;
+		}
+	}
+	else
+	{
+		if (bsllib_seq_do(dev->serial_fd, dev->seq) < 0) {
+      printc_err("BSL entry sequence failed\n");
+			goto fail;
+		}
 	}
 
 	delay_ms(500);
