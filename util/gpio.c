@@ -18,6 +18,12 @@
  *
  * Daniel Beer <dlbeer@gmail.com>, 3 Mar 2015
  */
+int gpio_is_exported ( unsigned int gpio )
+{
+	printc_err("gpio: GPIO interface not supported on Windows\n");
+	return -1;
+}
+
 int gpio_export ( unsigned int gpio )
 {
 	printc_err("gpio: GPIO interface not supported on Windows\n");
@@ -77,6 +83,36 @@ int gpio_open_fd (unsigned int gpio)
 
 #define SYSFS_GPIO_DIR		"/sys/class/gpio"
 #define MAX_BUF 64
+
+/**
+ * @return 1 if the gpio is already exported, 0 otherwise, -1 on error
+ */
+int gpio_is_exported ( unsigned int gpio )
+{
+	char dir_name[100] = {};
+	snprintf(dir_name, sizeof(dir_name) - 1, SYSFS_GPIO_DIR "/gpio%d", gpio);
+
+	struct stat s;
+	int err = stat(dir_name, &s);
+	if(-1 == err)
+	{
+		if(errno == ENOENT)
+		{
+			return 0;
+		} else {
+			return -1;
+		}
+	} else {
+		if(S_ISDIR(s.st_mode))
+		{
+			return 1;
+		} else {
+			return -1;
+		}
+	}
+
+	return -1;
+}
 
 /**
  * Before a Linux application can configure and use a GPIO, the GPIO first has to be exported to user.
