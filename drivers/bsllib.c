@@ -61,6 +61,9 @@ int bsllib_seq_do(sport_t fd, const char *seq)
 
 int bsllib_seq_do_gpio(int rts, int dtr, const char *seq)
 {
+	int was_rts_exported = gpio_is_exported(rts);
+	int was_dtr_exported = gpio_is_exported(dtr);
+
 	gpio_export ( rts );
 	gpio_set_dir ( rts, 1 );
 	gpio_export ( dtr );
@@ -93,8 +96,14 @@ int bsllib_seq_do_gpio(int rts, int dtr, const char *seq)
 		}
 	}
 
-	gpio_unexport ( rts );
-	gpio_unexport ( dtr );
+	if (was_rts_exported == 0)
+	{
+		gpio_unexport ( rts );
+	}
+	if (was_dtr_exported == 0)
+	{
+		gpio_unexport ( dtr );
+	}
 
 	delay_ms(50);
 

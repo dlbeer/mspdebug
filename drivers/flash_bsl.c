@@ -36,6 +36,7 @@ struct flash_bsl_device {
 
 	sport_t		serial_fd;
 	int		long_password;
+	const struct device_args *args;
 
 	const char	*seq;
 };
@@ -554,7 +555,15 @@ static void flash_bsl_destroy(device_t dev_base)
 {
 	struct flash_bsl_device *dev = (struct flash_bsl_device *)dev_base;
 
-	bsllib_seq_do(dev->serial_fd, bsllib_seq_next(dev->seq));
+	if ( dev->args->bsl_gpio_used )
+	{
+		bsllib_seq_do_gpio(dev->args->bsl_gpio_rts, dev->args->bsl_gpio_dtr,
+							bsllib_seq_next(dev->seq));
+	}
+	else
+	{
+		bsllib_seq_do(dev->serial_fd, bsllib_seq_next(dev->seq));
+	}
 	sport_close(dev->serial_fd);
 	free(dev);
 }
@@ -581,6 +590,7 @@ static device_t flash_bsl_open(const struct device_args *args)
 
 	memset(dev, 0, sizeof(*dev));
 	dev->base.type = &device_flash_bsl;
+	dev->args = args;
 
 	dev->serial_fd = sport_open(args->path, 9600, SPORT_EVEN_PARITY);
 	if (SPORT_ISERR(dev->serial_fd)) {

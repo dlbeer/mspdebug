@@ -13,6 +13,7 @@
 #ifndef _GPIO_H
 #define _GPIO_H
 
+int gpio_is_exported ( unsigned int gpio );
 int gpio_export ( unsigned int gpio );
 int gpio_unexport ( unsigned int gpio );
 int gpio_set_dir ( unsigned int gpio, unsigned int out_flag );
