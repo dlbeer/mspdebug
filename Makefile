@@ -25,6 +25,9 @@ BINDIR = ${PREFIX}/bin/
 MANDIR = ${PREFIX}/share/man/man1
 LIBDIR = ${PREFIX}/lib/
 
+UNAME_S := $(shell sh -c 'uname -s')
+UNAME_O := $(shell sh -c 'uname -o 2> /dev/null')
+
 ifdef WITHOUT_READLINE
 	READLINE_CFLAGS =
 	READLINE_LIBS =
@@ -38,17 +41,15 @@ endif
 ifeq ($(OS),Windows_NT)
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug.exe
-
     ifneq ($(UNAME_O),Cygwin)
 	OS_LIBS = -lws2_32 -lregex
 	OS_CFLAGS = -D__Windows__ -DNO_SHELLCMD
+	RM = del
     endif
 else
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug
 
-    UNAME_S := $(shell sh -c 'uname -s')
-    UNAME_O := $(shell sh -c 'uname -o 2> /dev/null')
 
     ifneq ($(filter $(UNAME_S),OpenBSD NetBSD),)
 	OS_LIBS =
@@ -92,17 +93,22 @@ all: $(BINARY)
 
 ifeq ($(OS),Windows_NT)
 clean:
-	del drivers\*.o
-	del formats\*.o
-	del simio\*.o
-	del transport\*.o
-	del ui\*.o
-	del util\*.o
-	del $(BINARY)
+    ifeq ($(UNAME_O),Cygwin)
+	$(RM) */*.o
+	$(RM) $(BINARY)
+    else
+	$(RM) drivers\*.o
+	$(RM) formats\*.o
+	$(RM) simio\*.o
+	$(RM) transport\*.o
+	$(RM) ui\*.o
+	$(RM) util\*.o
+	$(RM) $(BINARY)
+    endif
 else
 clean:
-	rm -f */*.o
-	rm -f $(BINARY)
+	$(RM) */*.o
+	$(RM) $(BINARY)
 endif
 
 install: $(BINARY) mspdebug.man
