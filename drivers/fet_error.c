@@ -127,9 +127,20 @@ static const char *error_strings[] =
 		  "Please contact TI to obtain a newer version.",
 	/*  89 */ "Secure device via the IDE is not supported. See Device User Guide "
 		  "for further information.",
-	/*  90 */ "Cycle counter is in basic mode. Set to advanced mode to use this function.",
 
-	/*  91 */ "Invalid error number",
+	/*  90 */ "Cycle counter is in basic mode. Set to advanced mode to use this function.",
+	/*  91 */ "Parallel port FET (MSP-FETP430IF) is no longer supported.",
+	/*  92 */ "Wrong target architecture was selected. "
+		  "Valid architectures are MSP430 or MSP432_M4.",
+	/*  93 */ "Mass erase executed. Please power-cycle your device and restart the debug session.",
+	/*  94 */ "Your connected hardware might drain too much power from the debugger. "
+		  "This results in an overcurrent.",
+	/*  95 */ "MSP Tool firmware update failed. Please ensure the USB or Backchannel "
+		  "UART connection is not in use.",
+	/*  96 */ "MSP432 devices are not supported using the MSPFET430-UIF",
+	/*  97 */ "DAP is locked or wrong debug protocol selected.",
+
+	/*  98 */ "Invalid error number",
 };
 
 const char *fet_error(int code)
