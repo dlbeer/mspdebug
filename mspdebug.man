@@ -203,7 +203,7 @@ Linux, ppi on FreeBSD and DragonFly BSD) must be specified via the
 Connect to system gpios. JTAG mode must be used, and
 only tty access is supported. Currently, this driver is only supported
 on Linux, FreeBSD and DragonFly BSD. The gpios to used must defined using
-a string like "tdi=7 tdo=8 tms=9 tck=4" via the
+a string like "tdi=7 tdo=8 tms=9 tck=4 rst=10 tst=11" via the
 \fB-d\fR option. (dont forget the quotes)
 
 .IP "\fBload-bsl\fR"
