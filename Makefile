@@ -19,7 +19,7 @@
 CC ?= gcc
 INSTALL = /usr/bin/install
 PREFIX ?= /usr/local
-LDFLAGS ?= -s
+# LDFLAGS ?= -s
 
 BINDIR = ${PREFIX}/bin/
 MANDIR = ${PREFIX}/share/man/man1

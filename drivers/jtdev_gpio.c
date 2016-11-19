@@ -99,7 +99,7 @@ gpio_parse_config (const char *params)
       char* help;
       help = strstr(params,ops[i].name);
       if (help)
-        jtag_gpios[ops[i].num] = atoi(help+6);
+        jtag_gpios[ops[i].num] = atoi(help+4);
       else
 	return -1;
       printf("gpio %s %d\n", ops[i].name,jtag_gpios[ops[i].num]);
