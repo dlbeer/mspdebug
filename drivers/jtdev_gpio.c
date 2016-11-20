@@ -42,11 +42,13 @@ enum {
     GPIO_TCK,
     GPIO_TMS,
     GPIO_TDO,
+    GPIO_RST,
+    GPIO_TST,
     GPIO_REQUIRED
 };
 
-unsigned int jtag_gpios[4];
-int          fd_gpios[4];
+unsigned int jtag_gpios[6];
+int          fd_gpios[6];
 
 static int
 gpio_open ()
@@ -87,11 +89,13 @@ gpio_parse_config (const char *params)
       {"tms=",GPIO_TMS},
       {"tdi=",GPIO_TDI},
       {"tdo=",GPIO_TDO},
-      {"tck=",GPIO_TCK}
+      {"tck=",GPIO_TCK},
+      {"rst=",GPIO_RST},
+      {"tst=",GPIO_TST}
     };
     int i;
 
-    for( i = 0;i < 4; i++) {
+    for( i = 0;i < 6; i++) {
       char* help;
       help = strstr(params,ops[i].name);
       if (help)
@@ -164,12 +168,12 @@ static void jtgpio_tdi(struct jtdev *p, int out)
 
 static void jtgpio_rst(struct jtdev *p, int out)
 {
-  printf("jtag_reset\n");
+  gpio_set_value_fd (fd_gpios[GPIO_RST], out);
 }
 
 static void jtgpio_tst(struct jtdev *p, int out)
 {
-  printf("jtag_test\n");
+  gpio_set_value_fd (fd_gpios[GPIO_TST], out);
 }
 
 static int jtgpio_tdo_get(struct jtdev *p)
