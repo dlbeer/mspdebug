@@ -386,12 +386,20 @@ unsigned int jtag_init(struct jtdev *p)
 
 	jtag_rst_clr(p);
 	p->f->jtdev_power_on(p);
-	jtag_tst_set(p);
 	jtag_tdi_set(p);
 	jtag_tms_set(p);
 	jtag_tck_set(p);
 	jtag_tclk_set(p);
+
+	jtag_rst_set(p);
+	jtag_tst_clr(p);
+
+	jtag_tst_set(p);
 	jtag_rst_clr(p);
+	jtag_tst_clr(p);
+
+	jtag_tst_set(p);
+
 	p->f->jtdev_connect(p);
 	jtag_rst_set(p);
 	jtag_reset_tap(p);
