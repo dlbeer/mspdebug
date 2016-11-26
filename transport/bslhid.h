@@ -25,6 +25,10 @@
  * protocol. The interface is described in SLAU319C: "MSP430 Programming
  * via the Bootstrap Loader".
  */
+#if defined(__APPLE__)
+transport_t bslosx_open(const char *dev_path, const char *requested_serial);
+#else
 transport_t bslhid_open(const char *dev_path, const char *requested_serial);
+#endif
 
 #endif
