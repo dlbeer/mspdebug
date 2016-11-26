@@ -198,40 +198,6 @@ static struct usb_device *find_first_bsl(struct usb_bus *bus)
 
 static int bslosx_resume(transport_t base)
 {
-	struct bslosx_transport *tr = (struct bslosx_transport *)base;
-#if 0
-	struct usb_bus *bus;
-	struct usb_device *dev;
-
-	if (tr->handle)
-		return 0;
-
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
-
-	bus = find_by_name(tr->bus_name);
-	if (!bus) {
-		printc_err("bslosx: can't find bus to resume from\n");
-		return -1;
-	}
-
-	/* We can't portably distinguish physical locations, so this
-	 * will have to do.
-	 */
-	dev = find_first_bsl(bus);
-	if (!dev) {
-		printc_err("bslosx: can't find a BSL HID on this bus\n");
-		return -1;
-	}
-
-
-	if (open_device(tr, dev) < 0) {
-		printc_err("bslosx: failed to resume BSL HID device\n");
-		return -1;
-	}
-#endif
-
 	return 0;
 }
 
