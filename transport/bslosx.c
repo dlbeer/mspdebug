@@ -1,5 +1,6 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
  * Copyright (C) 2009-2013 Daniel Beer
+ * Copyright (C) 2016 Hiroki Mori
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
