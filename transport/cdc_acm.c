@@ -19,7 +19,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef __Windows__
 #include <usb.h>
+#else
+#include <lusb0_usb.h>
+#endif
 
 #include "cdc_acm.h"
 #include "util.h"

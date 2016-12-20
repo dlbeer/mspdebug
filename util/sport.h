@@ -20,8 +20,8 @@
 #define SPORT_H_
 
 #include <stdint.h>
-
 #ifndef __Windows__
+
 
 #include <termios.h>
 #include <sys/ioctl.h>
