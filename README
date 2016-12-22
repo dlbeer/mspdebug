@@ -33,7 +33,7 @@ Compiling from source
 
 Ensure that you have the necessary packages to compile programs that use
 libusb (on Debian or Ubuntu systems, you might need to do apt-get
-install libusb-dev). After that, unpack and compile the source code
+install libusb-dev libreadline-dev). After that, unpack and compile the source code
 with:
 
     tar xvfz mspdebug-version.tar.gz
