@@ -40,7 +40,9 @@ with:
     cd mspdebug-version
     make
 
-If you don't want GNU readline support, you can invoke make with:
+On Debian Ubuntu systems sudo apt-get install libreadline-dev may be 
+required. If you don't want GNU readline support, you can invoke make 
+with:
 
     make WITHOUT_READLINE=1
 
