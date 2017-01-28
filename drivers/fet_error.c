@@ -139,6 +139,7 @@ static const char *error_strings[] =
 		  "UART connection is not in use.",
 	/*  96 */ "MSP432 devices are not supported using the MSPFET430-UIF",
 	/*  97 */ "DAP is locked or wrong debug protocol selected.",
+	/*  98 */ "Device database not loaded.",
 
 	/*  98 */ "Invalid error number",
 };
