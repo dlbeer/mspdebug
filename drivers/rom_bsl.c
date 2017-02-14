@@ -96,8 +96,16 @@ static int send_command(struct rom_bsl_device *dev,
 	uint8_t pktbuf[256];
 	uint8_t cklow = 0xff;
 	uint8_t ckhigh = 0xff;
-	int pktlen = data ? len + 4 : 4;
+	int pktlen;
+	int evenlen = len;
 	int i;
+
+	if (len % 2 != 0) {
+	    printc_dbg("Making length even\n");
+	    evenlen = len + 1;
+	}
+
+	pktlen = data ? evenlen + 4 : 4;
 
 	if (pktlen + 6 > sizeof(pktbuf)) {
 		printc_err("rom_bsl: payload too large: %d\n", len);
@@ -110,11 +118,14 @@ static int send_command(struct rom_bsl_device *dev,
 	pktbuf[3] = pktlen;
 	pktbuf[4] = addr & 0xff;
 	pktbuf[5] = addr >> 8;
-	pktbuf[6] = len & 0xff;
-	pktbuf[7] = len >> 8;
+	pktbuf[6] = evenlen & 0xff;
+	pktbuf[7] = evenlen >> 8;
 
-	if (data)
+	if (data) {
 		memcpy(pktbuf + 8, data, len);
+		if (len != evenlen)
+		    pktbuf[8 + len] = 0xff;
+	}
 
 	for (i = 0; i < pktlen + 4; i += 2)
 		cklow ^= pktbuf[i];
@@ -294,8 +305,25 @@ static int rom_bsl_writemem(device_t dev_base,
 	while (len) {
 		int wlen = len > 100 ? 100 : len;
 		int r;
+		uint8_t memtmp[256];
+		const uint8_t *memptr;
 
-		r = rom_bsl_xfer(dev, CMD_RX_DATA, addr, mem, wlen);
+		if (addr % 2) {
+		    printc_dbg("Memory aligning\n");
+		    memcpy(memtmp + 1, mem, wlen);
+		    memtmp[0] = 0xff;
+		    memptr = memtmp;
+
+		    wlen++;
+		    len++;
+		    addr--;
+		    mem--;
+		}
+		else {
+		    memptr = mem;
+		}
+
+		r = rom_bsl_xfer(dev, CMD_RX_DATA, addr, memptr, wlen);
 
 		if (r < 0) {
 			printc_err("rom_bsl: failed to write to 0x%04x\n",
@@ -323,9 +351,17 @@ static int rom_bsl_readmem(device_t dev_base,
 
 	while (len) {
 		address_t count = len;
+		int align = 0;
 
-		if (count > 128)
-			count = 128;
+		if (addr % 2 != 0) {
+		    printc_dbg("Memory aligning\n");
+		    count++;
+		    addr--;
+		    align = 1;
+		}
+
+		if (count > 220)
+			count = 220;
 
 		if (rom_bsl_xfer(dev, CMD_TX_DATA, addr, NULL, count) < 0) {
 			printc_err("rom_bsl: failed to read memory\n");
@@ -335,10 +371,10 @@ static int rom_bsl_readmem(device_t dev_base,
 		if (count > dev->reply_buf[2])
 			count = dev->reply_buf[2];
 
-		memcpy(mem, dev->reply_buf + 4, count);
-		mem += count;
-		len -= count;
-		addr += count;
+		memcpy(mem, dev->reply_buf + 4 + align, count - align);
+		mem += (count - align);
+		len -= (count - align);
+		addr += (count - align);
 	}
 
 	return 0;
