@@ -225,6 +225,7 @@ struct tilib_new_api {
 	int32_t TIDLL (*MSP430_GetNumberOfUsbIfs)(int32_t* number);
 	int32_t TIDLL (*MSP430_GetNameOfUsbIf)(int32_t idx, char **name,
 						int32_t *status);
+	int32_t TIDLL (*MSP430_LoadDeviceDb)(const char *f); // needed for slac460s
 
 	/* MSP430_Debug.h */
 	int32_t TIDLL (*MSP430_Registers)(int32_t *registers, int32_t mask,
@@ -260,6 +261,9 @@ static STATUS_T new_Initialize(char *port, long *version)
 	r = napi.MSP430_Initialize(port, &nv);
 	if (r < 0)
 		return r;
+
+	if (napi.MSP430_LoadDeviceDb)
+	    napi.MSP430_LoadDeviceDb(NULL);
 
 	*version = nv;
 	return 0;
@@ -495,6 +499,7 @@ static int init_new_api(void)
 	if (!(napi.MSP430_GetNumberOfUsbIfs =
 		    get_func("MSP430_GetNumberOfUsbIfs")))
 		return -1;
+	napi.MSP430_LoadDeviceDb = dynload_sym(lib_handle, "MSP430_LoadDeviceDb");
 	if (!(napi.MSP430_GetNameOfUsbIf = get_func("MSP430_GetNameOfUsbIf")))
 		return -1;
 	if (!(napi.MSP430_Registers = get_func("MSP430_Registers")))
