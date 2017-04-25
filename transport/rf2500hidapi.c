@@ -19,11 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef __Windows__
-#include <usb.h>
-#else
-#include <lusb0_usb.h>
-#endif
+#include <hidapi.h>
 
 #include "rf2500.h"
 #include "util.h"
@@ -34,7 +30,7 @@ struct rf2500_transport {
 	struct transport        base;
 
 	int                     int_number;
-	struct usb_dev_handle   *handle;
+	hid_device              *handle;
 
 	uint8_t                 buf[64];
 	int                     len;
@@ -58,60 +54,6 @@ struct rf2500_transport {
 
 #define USB_FET_IN_EP			0x81
 #define USB_FET_OUT_EP			0x01
-
-static int open_interface(struct rf2500_transport *tr,
-			  struct usb_device *dev, int ino)
-{
-	printc_dbg("Trying to open interface %d on %s\n", ino, dev->filename);
-
-	tr->int_number = ino;
-
-	tr->handle = usb_open(dev);
-	if (!tr->handle) {
-		pr_error("rf2500: can't open device");
-		return -1;
-	}
-
-#if defined(__linux__)
-	if (usb_detach_kernel_driver_np(tr->handle, tr->int_number) < 0)
-		pr_error("rf2500: warning: can't "
-			"detach kernel driver");
-#endif
-
-#ifdef __Windows__
-	if (usb_set_configuration(tr->handle, 1) < 0) {
-		pr_error("rf2500: can't set configuration 1");
-		usb_close(tr->handle);
-		return -1;
-	}
-#endif
-
-	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
-		pr_error("rf2500: can't claim interface");
-		usb_close(tr->handle);
-		return -1;
-	}
-
-	return 0;
-}
-
-static int open_device(struct rf2500_transport *tr,
-		       struct usb_device *dev)
-{
-	struct usb_config_descriptor *c = &dev->config[0];
-	int i;
-
-	for (i = 0; i < c->bNumInterfaces; i++) {
-		struct usb_interface *intf = &c->interface[i];
-		struct usb_interface_descriptor *desc = &intf->altsetting[0];
-
-		if (desc->bInterfaceClass == USB_FET_INTERFACE_CLASS &&
-		    !open_interface(tr, dev, desc->bInterfaceNumber))
-			return 0;
-	}
-
-	return -1;
-}
 
 static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 {
@@ -138,8 +80,8 @@ static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 #ifdef DEBUG_USBTR
 		debug_hexdump("USB transfer out", pbuf, txlen);
 #endif
-		if (usb_bulk_write(tr->handle, USB_FET_OUT_EP,
-			(char *)pbuf, txlen, 10000) < 0) {
+		if (hid_write(tr->handle,
+					  (const unsigned char *)pbuf, txlen) < 0) {
 			pr_error("rf2500: can't send data");
 			return -1;
 		}
@@ -157,9 +99,8 @@ static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 	int rlen;
 
 	if (tr->offset >= tr->len) {
-		if (usb_bulk_read(tr->handle, USB_FET_IN_EP,
-				(char *)tr->buf, sizeof(tr->buf),
-				10000) < 0) {
+		if (hid_read_timeout(tr->handle, (unsigned char *)tr->buf,
+				sizeof(tr->buf), 10000) < 0) {
 			pr_error("rf2500: can't receive data");
 			return -1;
 		}
@@ -187,27 +128,23 @@ static void usbtr_destroy(transport_t tr_base)
 {
 	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
 
-	usb_release_interface(tr->handle, tr->int_number);
-	usb_close(tr->handle);
+	hid_close(tr->handle);
 	free(tr);
+	hid_exit();
 }
 
 static int usbtr_flush(transport_t tr_base)
 {
 	struct rf2500_transport *tr = (struct rf2500_transport *)tr_base;
 
-#if !defined(__APPLE__) && !defined(__sun__)
-	char buf[64];
+	unsigned char buf[64];
 
 	/* Flush out lingering data.
 	 *
 	 * The timeout apparently doesn't work on OS/X, and this loop
 	 * just hangs once the endpoint buffer empties.
 	 */
-	while (usb_bulk_read(tr->handle, USB_FET_IN_EP,
-			     buf, sizeof(buf),
-			     100) > 0);
-#endif
+	while (hid_read_timeout(tr->handle, buf, sizeof(buf), 100) > 0);
 
 	tr->len = 0;
 	tr->offset = 0;
@@ -231,7 +168,7 @@ static const struct transport_class rf2500_transport = {
 transport_t rf2500_open(const char *devpath, const char *requested_serial)
 {
 	struct rf2500_transport *tr = malloc(sizeof(*tr));
-	struct usb_device *dev;
+	hid_device *handle;
 
 	if (!tr) {
 		pr_error("rf2500: can't allocate memory");
@@ -241,26 +178,22 @@ transport_t rf2500_open(const char *devpath, const char *requested_serial)
 	memset(tr, 0, sizeof(*tr));
 	tr->base.ops = &rf2500_transport;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	hid_init();
 
 	if (devpath)
-		dev = usbutil_find_by_loc(devpath);
+		handle = hid_open_path(devpath);
 	else
-		dev = usbutil_find_by_id(USB_FET_VENDOR, USB_FET_PRODUCT,
-					 requested_serial);
+		handle = hid_open(USB_FET_VENDOR, USB_FET_PRODUCT,
+			              (wchar_t *)requested_serial);
 
-	if (!dev) {
-		free(tr);
-		return NULL;
-	}
-
-	if (open_device(tr, dev) < 0) {
+	if (!handle) {
 		printc_err("rf2500: failed to open RF2500 device\n");
 		free(tr);
+		hid_exit();
 		return NULL;
 	}
+
+	tr->handle = handle;
 
 	usbtr_flush(&tr->base);
 
