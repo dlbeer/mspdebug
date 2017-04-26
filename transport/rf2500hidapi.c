@@ -165,6 +165,15 @@ static const struct transport_class rf2500_transport = {
 	.set_modem	= usbtr_set_modem
 };
 
+static const wchar_t * get_wc(const char *c)
+{
+    const size_t csize = strlen(c)+1;
+    wchar_t* wc = malloc(sizeof(wchar_t)*csize);
+    mbstowcs (wc, c, csize);
+
+    return wc;
+}
+
 transport_t rf2500_open(const char *devpath, const char *requested_serial)
 {
 	struct rf2500_transport *tr = malloc(sizeof(*tr));
@@ -180,11 +189,21 @@ transport_t rf2500_open(const char *devpath, const char *requested_serial)
 
 	hid_init();
 
-	if (devpath)
+	if (devpath) {
 		handle = hid_open_path(devpath);
-	else
-		handle = hid_open(USB_FET_VENDOR, USB_FET_PRODUCT,
-			              (wchar_t *)requested_serial);
+	}
+	else {
+		const wchar_t * wc_serial;
+		if ( requested_serial ) {
+			wc_serial = get_wc(requested_serial);
+		} else {
+			wc_serial = NULL;
+		}
+		handle = hid_open(USB_FET_VENDOR, USB_FET_PRODUCT, wc_serial);
+		if ( wc_serial ) {
+			free((wchar_t *)wc_serial);
+		}
+	}
 
 	if (!handle) {
 		printc_err("rf2500: failed to open RF2500 device\n");
