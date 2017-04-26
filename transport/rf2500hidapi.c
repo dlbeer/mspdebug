@@ -26,34 +26,20 @@
 #include "usbutil.h"
 #include "output.h"
 
+#define USB_FET_VENDOR			0x0451
+#define USB_FET_PRODUCT			0xf432
+#define USB_FET_IN_EP			0x81
+#define USB_FET_OUT_EP			0x01
+
 struct rf2500_transport {
 	struct transport        base;
 
-	int                     int_number;
 	hid_device              *handle;
 
 	uint8_t                 buf[64];
 	int                     len;
 	int                     offset;
 };
-
-/*********************************************************************
- * USB transport
- *
- * These functions handle the details of slicing data over USB
- * transfers. The interface presented is a continuous byte stream with
- * no slicing codes.
- *
- * Writes are unbuffered -- a single write translates to at least
- * one transfer.
- */
-
-#define USB_FET_VENDOR			0x0451
-#define USB_FET_PRODUCT			0xf432
-#define USB_FET_INTERFACE_CLASS		3
-
-#define USB_FET_IN_EP			0x81
-#define USB_FET_OUT_EP			0x01
 
 static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 {
@@ -78,7 +64,7 @@ static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 		pbuf[0] = txlen - 1;
 
 #ifdef DEBUG_USBTR
-		debug_hexdump("USB transfer out", pbuf, txlen);
+		debug_hexdump("HIDUSB transfer out", pbuf, txlen);
 #endif
 		if (hid_write(tr->handle,
 					  (const unsigned char *)pbuf, txlen) < 0) {
@@ -106,7 +92,7 @@ static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 		}
 
 #ifdef DEBUG_USBTR
-		debug_hexdump("USB transfer in", tr->buf, 64);
+		debug_hexdump("HIDUSB transfer in", tr->buf, 64);
 #endif
 
 		tr->len = tr->buf[1] + 2;
@@ -148,6 +134,7 @@ static int usbtr_flush(transport_t tr_base)
 
 	tr->len = 0;
 	tr->offset = 0;
+
 	return 0;
 }
 
