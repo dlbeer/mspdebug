@@ -39,6 +39,7 @@ else
 endif
 
 BSLHID_OBJ ?= transport/bslhid.o
+RF25000_OBJ ?= transport/rf2500.o
 
 ifeq ($(OS),Windows_NT)
     MSPDEBUG_CC = $(CC)
@@ -66,13 +67,18 @@ else
 
     ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
       ifeq ($(shell fink -V > /dev/null 2>&1 && echo ok),ok)
-	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -ltermcap -pthread
+      else ifeq ($(shell brew --version > /dev/null 2>&1 && echo ok),ok)
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi) -framework IOKit -framework CoreFoundation
       else
 	PORTS_CFLAGS := -I/opt/local/include
-	PORTS_LDFLAGS := -L/opt/local/lib -framework IOKit -framework CoreFoundation
+	PORTS_LDFLAGS := -L/opt/local/lib -lhidapi -framework IOKit -framework CoreFoundation
       endif
       BSLHID_OBJ = transport/bslosx.o
+      RF25000_OBJ = transport/rf2500hidapi.o
+      LDFLAGS =
     else ifneq ($(filter $(UNAME_S),OpenBSD NetBSD DragonFly),)
 	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
 	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
@@ -150,10 +156,10 @@ OBJ=\
     transport/cp210x.o \
     transport/cdc_acm.o \
     transport/ftdi.o \
-    transport/rf2500.o \
     transport/ti3410.o \
     transport/comport.o \
     $(BSLHID_OBJ) \
+    $(RF25000_OBJ) \
     drivers/device.o \
     drivers/bsl.o \
     drivers/fet.o \
