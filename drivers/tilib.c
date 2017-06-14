@@ -642,5 +642,6 @@ const struct device_class device_tilib = {
 	.getregs	= tilib_getregs,
 	.setregs	= tilib_setregs,
 	.ctl		= tilib_ctl,
-	.poll		= tilib_poll
+	.poll		= tilib_poll,
+	.getconfigfuses = NULL
 };

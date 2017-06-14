@@ -665,5 +665,6 @@ const struct device_class device_flash_bsl = {
 	.setregs	= flash_bsl_setregs,
 	.ctl		= flash_bsl_ctl,
 	.poll		= flash_bsl_poll,
-	.erase		= flash_bsl_erase
+	.erase		= flash_bsl_erase,
+	.getconfigfuses = NULL
 };

@@ -472,5 +472,6 @@ const struct device_class device_gdbc = {
 	.getregs	= gdbc_getregs,
 	.setregs	= gdbc_setregs,
 	.ctl		= gdbc_ctl,
-	.poll		= gdbc_poll
+	.poll		= gdbc_poll,
+	.getconfigfuses = NULL
 };

@@ -115,5 +115,6 @@ void jtag_single_step(struct jtdev *p);
 unsigned int jtag_set_breakpoint(struct jtdev *p,
 				 int bp_num, address_t bp_addr);
 unsigned int jtag_cpu_state(struct jtdev *p);
+int jtag_get_config_fuses(struct jtdev *p);
 
 #endif

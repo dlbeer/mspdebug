@@ -472,5 +472,6 @@ const struct device_class device_loadbsl = {
 	.getregs	= loadbsl_getregs,
 	.setregs	= loadbsl_setregs,
 	.ctl		= loadbsl_ctl,
-	.poll		= loadbsl_poll
+	.poll		= loadbsl_poll,
+	.getconfigfuses = NULL
 };

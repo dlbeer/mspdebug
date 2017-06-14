@@ -512,5 +512,6 @@ const struct device_class device_rom_bsl = {
 	.getregs	= rom_bsl_getregs,
 	.setregs	= rom_bsl_setregs,
 	.ctl		= rom_bsl_ctl,
-	.poll		= rom_bsl_poll
+	.poll		= rom_bsl_poll,
+	.getconfigfuses = NULL
 };

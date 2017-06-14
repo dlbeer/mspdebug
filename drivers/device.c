@@ -212,6 +212,9 @@ int device_probe_id(device_t dev, const char *force_id)
 		id.fab = data[3];
 		id.self = r16le(data + 8);
 		id.config = data[13] & 0x7f;
+		if(dev->type->getconfigfuses != NULL) {
+			id.fuses = dev->type->getconfigfuses(dev);
+		}
 	}
 
 	printc_dbg("Chip ID data:\n");
@@ -221,7 +224,7 @@ int device_probe_id(device_t dev, const char *force_id)
 	printc_dbg("  fab:            %02x\n", id.fab);
 	printc_dbg("  self:           %04x\n", id.self);
 	printc_dbg("  config:         %02x\n", id.config);
-	//printc_dbg("  fuses:          %02x\n", id.fuses);
+	printc_dbg("  fuses:          %02x\n", id.fuses);
 	//printc_dbg("  activation_key: %08x\n", id.activation_key);
 
 	dev->chip = chipinfo_find_by_id(&id);

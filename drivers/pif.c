@@ -313,6 +313,14 @@ static int pif_erase( device_t dev_base,
 }
 
 /*----------------------------------------------------------------------------*/
+static int pif_getconfigfuses(device_t dev_base)
+{
+  struct pif_device *dev = (struct pif_device *)dev_base;
+
+  return jtag_get_config_fuses(&dev->jtag);
+}
+
+/*----------------------------------------------------------------------------*/
 
 
 static device_t pif_open(const struct device_args *args)
@@ -423,7 +431,8 @@ const struct device_class device_pif = {
   .setregs  = pif_setregs,
   .ctl      = pif_ctl,
   .poll     = pif_poll,
-  .erase    = pif_erase
+  .erase    = pif_erase,
+  .getconfigfuses = pif_getconfigfuses
 };
 
 const struct device_class device_gpio = {
@@ -437,5 +446,6 @@ const struct device_class device_gpio = {
   .setregs  = pif_setregs,
   .ctl      = pif_ctl,
   .poll     = pif_poll,
-  .erase    = pif_erase
+  .erase    = pif_erase,
+  .getconfigfuses = pif_getconfigfuses
 };
