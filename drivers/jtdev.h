@@ -19,6 +19,9 @@
 
 #ifndef JTDEV_H_
 #define JTDEV_H_
+
+#include <stdint.h>
+
 struct jtdev_func;
 struct jtdev {
 	int		port;
@@ -65,5 +68,6 @@ struct jtdev_func{
 
 extern const struct jtdev_func jtdev_func_pif;
 extern const struct jtdev_func jtdev_func_gpio;
+extern const struct jtdev_func jtdev_func_bp;
 
 #endif
