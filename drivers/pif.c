@@ -313,6 +313,14 @@ static int pif_erase( device_t dev_base,
 }
 
 /*----------------------------------------------------------------------------*/
+static int pif_getconfigfuses(device_t dev_base)
+{
+  struct pif_device *dev = (struct pif_device *)dev_base;
+
+  return jtag_get_config_fuses(&dev->jtag);
+}
+
+/*----------------------------------------------------------------------------*/
 
 
 static device_t pif_open(const struct device_args *args)
@@ -400,6 +408,50 @@ static device_t gpio_open(const struct device_args *args)
 }
 
 /*----------------------------------------------------------------------------*/
+
+
+static device_t bp_open(const struct device_args *args)
+{
+  struct pif_device *dev;
+
+  if (!(args->flags & DEVICE_FLAG_TTY)) {
+    printc_err("bp: this driver does not support raw USB access\n");
+    return NULL;
+  }
+
+  if (!(args->flags & DEVICE_FLAG_JTAG)) {
+    printc_err("bp: this driver does not support Spy-Bi-Wire\n");
+    return NULL;
+  }
+
+  dev = malloc(sizeof(*dev));
+  if (!dev) {
+    printc_err("bp: malloc: %s\n", last_error());
+    return NULL;
+  }
+
+  memset(dev, 0, sizeof(*dev));
+  dev->base.type = &device_pif;
+  dev->base.max_breakpoints = 2; //supported by all devices
+  dev->base.need_probe = 1;
+  (&dev->jtag)->f = &jtdev_func_bp;
+
+  if ((&dev->jtag)->f->jtdev_open(&dev->jtag, args->path) < 0) {
+    printc_err("bp: can't open port\n");
+    free(dev);
+    return NULL;
+  }
+
+  if (init_device(&dev->jtag) < 0) {
+    printc_err("bp: initialization failed\n");
+    free(dev);
+    return NULL;
+  }
+
+  return &dev->base;
+}
+
+/*----------------------------------------------------------------------------*/
 static void pif_destroy(device_t dev_base)
 {
   struct pif_device *dev = (struct pif_device *)dev_base;
@@ -423,7 +475,8 @@ const struct device_class device_pif = {
   .setregs  = pif_setregs,
   .ctl      = pif_ctl,
   .poll     = pif_poll,
-  .erase    = pif_erase
+  .erase    = pif_erase,
+  .getconfigfuses = pif_getconfigfuses
 };
 
 const struct device_class device_gpio = {
@@ -437,5 +490,21 @@ const struct device_class device_gpio = {
   .setregs  = pif_setregs,
   .ctl      = pif_ctl,
   .poll     = pif_poll,
-  .erase    = pif_erase
+  .erase    = pif_erase,
+  .getconfigfuses = pif_getconfigfuses
+};
+
+const struct device_class device_bp = {
+  .name     = "bus-pirate",
+  .help     = "Bus Pirate JTAG, MISO-TDO, MOSI-TDI, CS-TMS, AUX-RESET, CLK-TCK",
+  .open     = bp_open,
+  .destroy  = pif_destroy,
+  .readmem  = pif_readmem,
+  .writemem = pif_writemem,
+  .getregs  = pif_getregs,
+  .setregs  = pif_setregs,
+  .ctl      = pif_ctl,
+  .poll     = pif_poll,
+  .erase    = pif_erase,
+  .getconfigfuses = pif_getconfigfuses
 };

@@ -90,7 +90,8 @@ static const struct device_class *const driver_table[] = {
 	&device_gpio,
 	&device_loadbsl,
 	&device_ezfet,
-	&device_rom_bsl
+	&device_rom_bsl,
+	&device_bp
 };
 
 static const char *version_text =

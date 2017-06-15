@@ -580,5 +580,6 @@ const struct device_class device_goodfet = {
 	.setregs	= goodfet_setregs,
 	.ctl		= goodfet_ctl,
 	.poll		= goodfet_poll,
-	.erase		= goodfet_erase
+	.erase		= goodfet_erase,
+	.getconfigfuses = NULL
 };

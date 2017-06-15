@@ -411,5 +411,6 @@ const struct device_class device_bsl = {
 	.getregs	= bsl_getregs,
 	.setregs	= bsl_setregs,
 	.ctl		= bsl_ctl,
-	.poll		= bsl_poll
+	.poll		= bsl_poll,
+	.getconfigfuses = NULL
 };

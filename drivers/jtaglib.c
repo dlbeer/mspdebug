@@ -60,6 +60,8 @@
 /* Instructions for the JTAG Fuse */
 #define IR_PREPARE_BLOW		0x44	/* 0x22 */
 #define IR_EX_BLOW		0x24	/* 0x24 */
+/* Instructions for the Configuration Fuse */
+#define IR_CONFIG_FUSES	0x94
 /* Bypass instruction */
 #define IR_BYPASS		0xFF	/* 0xFF */
 /* Instructions for the EEM */
@@ -203,11 +205,37 @@ static unsigned int jtag_ir_shift(struct jtdev *p, unsigned int instruction)
 	/* JTAG state = Run-Test/Idle */
 }
 
+/* Shifts a given 8-bit byte into the JTAG data register through TDI.
+ * data  : 8 bit data
+ * return: scanned TDO value
+ */
+static unsigned int jtag_dr_shift_8(struct jtdev *p, unsigned int data)
+{
+	/* JTAG state = Run-Test/Idle */
+	jtag_tms_set(p);
+	jtag_tck_clr(p);
+	jtag_tck_set(p);
+
+	/* JTAG state = Select DR-Scan */
+	jtag_tms_clr(p);
+	jtag_tck_clr(p);
+	jtag_tck_set(p);
+
+	/* JTAG state = Capture-DR */
+	jtag_tck_clr(p);
+	jtag_tck_set(p);
+
+	/* JTAG state = Shift-DR, Shift in TDI (16-bit) */
+	return jtag_shift(p, 8, data);
+
+	/* JTAG state = Run-Test/Idle */
+}
+
 /* Shifts a given 16-bit word into the JTAG data register through TDI.
  * data  : 16 bit data
  * return: scanned TDO value
  */
-static unsigned int jtag_dr_shift(struct jtdev *p, unsigned int data)
+static unsigned int jtag_dr_shift_16(struct jtdev *p, unsigned int data)
 {
 	/* JTAG state = Run-Test/Idle */
 	jtag_tms_set(p);
@@ -242,10 +270,10 @@ static int jtag_set_instruction_fetch(struct jtdev *p)
 	 * timeout after limited attempts
 	 */
 	for (loop_counter = 50; loop_counter > 0; loop_counter--) {
-		if ((jtag_dr_shift(p, 0x0000) & 0x0080) == 0x0080)
+		if ((jtag_dr_shift_16(p, 0x0000) & 0x0080) == 0x0080)
 			return 1;
 
-		jtag_tclk_clr(p); /* The TCLK pulse befor jtag_dr_shift leads to   */
+		jtag_tclk_clr(p); /* The TCLK pulse befor jtag_dr_shift_16 leads to   */
 		jtag_tclk_set(p); /* problems at MEM_QUICK_READ, it's from SLAU265 */
 	}
 
@@ -263,17 +291,17 @@ static void jtag_halt_cpu(struct jtdev *p)
 
 	/* Set device into JTAG mode + read */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2401);
+	jtag_dr_shift_16(p, 0x2401);
 
 	/* Send JMP $ instruction to keep CPU from changing the state */
 	jtag_ir_shift(p, IR_DATA_16BIT);
-	jtag_dr_shift(p, 0x3FFF);
+	jtag_dr_shift_16(p, 0x3FFF);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 
 	/* Set JTAG_HALT bit */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2409);
+	jtag_dr_shift_16(p, 0x2409);
 	jtag_tclk_set(p);
 }
 
@@ -284,7 +312,7 @@ static void jtag_release_cpu(struct jtdev *p)
 
 	/* clear the HALT_JTAG bit */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2401);
+	jtag_dr_shift_16(p, 0x2401);
 	jtag_ir_shift(p, IR_ADDR_CAPTURE);
 	jtag_tclk_set(p);
 }
@@ -313,13 +341,13 @@ static int jtag_verify_psa(struct jtdev *p,
 
 	jtag_execute_puc(p);
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2401);
+	jtag_dr_shift_16(p, 0x2401);
 	jtag_set_instruction_fetch(p);
 	jtag_ir_shift(p, IR_DATA_16BIT);
-	jtag_dr_shift(p, 0x4030);
+	jtag_dr_shift_16(p, 0x4030);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
-	jtag_dr_shift(p, start_address-2);
+	jtag_dr_shift_16(p, start_address-2);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
@@ -327,7 +355,7 @@ static int jtag_verify_psa(struct jtdev *p,
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_ir_shift(p, IR_ADDR_CAPTURE);
-	jtag_dr_shift(p, 0x0000);
+	jtag_dr_shift_16(p, 0x0000);
 	jtag_ir_shift(p, IR_DATA_PSA);
 
 	for (index = 0; index < length; index++) {
@@ -369,7 +397,7 @@ static int jtag_verify_psa(struct jtdev *p,
 
 	/* Read out the PSA value */
 	jtag_ir_shift(p, IR_SHIFT_OUT_PSA);
-	psa_value = jtag_dr_shift(p, 0x0000);
+	psa_value = jtag_dr_shift_16(p, 0x0000);
 	jtag_tclk_set(p);
 
 	return (psa_value == psa_crc) ? 1 : 0;
@@ -436,14 +464,14 @@ unsigned int jtag_get_device(struct jtdev *p)
 
 	/* Set device into JTAG mode + read */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2401);
+	jtag_dr_shift_16(p, 0x2401);
 
 	/* Wait until CPU is synchronized,
 	 * timeout after a limited number of attempts
 	 */
 	jtag_id = jtag_ir_shift(p, IR_CNTRL_SIG_CAPTURE);
 	for ( loop_counter = 50; loop_counter > 0; loop_counter--) {
-		if ( (jtag_dr_shift(p, 0x0000) & 0x0200) == 0x0200 ) {
+		if ( (jtag_dr_shift_16(p, 0x0000) & 0x0200) == 0x0200 ) {
 			break;
 		}
 	}
@@ -491,20 +519,20 @@ uint16_t jtag_read_mem(struct jtdev *p,
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 	if (format == 16) {
 		/* set word read */
-		jtag_dr_shift(p, 0x2409);
+		jtag_dr_shift_16(p, 0x2409);
 	} else {
 		/* set byte read */
-		jtag_dr_shift(p, 0x2419);
+		jtag_dr_shift_16(p, 0x2419);
 	}
 	/* set address */
 	jtag_ir_shift(p, IR_ADDR_16BIT);
-	jtag_dr_shift(p, address);
+	jtag_dr_shift_16(p, address);
 	jtag_ir_shift(p, IR_DATA_TO_ADDR);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 
 	/* shift out 16 bits */
-	content = jtag_dr_shift(p, 0x0000);
+	content = jtag_dr_shift_16(p, 0x0000);
 	jtag_tclk_set(p); /* is also the first instruction in jtag_release_cpu() */
 	jtag_release_cpu(p);
 	if (format == 8)
@@ -532,14 +560,14 @@ void jtag_read_mem_quick(struct jtdev *p,
 
 	/* set RW to read */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2409);
+	jtag_dr_shift_16(p, 0x2409);
 	jtag_ir_shift(p, IR_DATA_QUICK);
 
 	for (index = 0; index < length; index++) {
 		jtag_tclk_set(p);
 		jtag_tclk_clr(p);
 		/* shift out the data from the target */
-		data[index] = jtag_dr_shift(p, 0x0000);
+		data[index] = jtag_dr_shift_16(p, 0x0000);
 	}
 
 	jtag_tclk_set(p);
@@ -562,19 +590,19 @@ void jtag_write_mem(struct jtdev *p,
 
 	if (format == 16)
 		/* Set word write */
-		jtag_dr_shift(p, 0x2408);
+		jtag_dr_shift_16(p, 0x2408);
 	else
 		/* Set byte write */
-		jtag_dr_shift(p, 0x2418);
+		jtag_dr_shift_16(p, 0x2418);
 
 	jtag_ir_shift(p, IR_ADDR_16BIT);
 
 	/* Set addr */
-	jtag_dr_shift(p, address);
+	jtag_dr_shift_16(p, address);
 	jtag_ir_shift(p, IR_DATA_TO_ADDR);
 
 	/* Shift in 16 bits */
-	jtag_dr_shift(p, data);
+	jtag_dr_shift_16(p, data);
 	jtag_tclk_set(p);
 	jtag_release_cpu(p);
 }
@@ -598,12 +626,12 @@ void jtag_write_mem_quick(struct jtdev *p,
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 
 	/* Set RW to write */
-	jtag_dr_shift(p, 0x2408);
+	jtag_dr_shift_16(p, 0x2408);
 	jtag_ir_shift(p, IR_DATA_QUICK);
 
 	for (index = 0; index < length; index++) {
 		/* Write data */
-		jtag_dr_shift(p, data[index]);
+		jtag_dr_shift_16(p, data[index]);
 
 		/* Increment PC by 2 */
 		jtag_tclk_set(p);
@@ -625,7 +653,7 @@ int jtag_is_fuse_blown (struct jtdev *p)
 	/* First trial could be wrong */
 	for (loop_counter = 3; loop_counter > 0; loop_counter--) {
 		jtag_ir_shift(p, IR_CNTRL_SIG_CAPTURE);
-		if (jtag_dr_shift(p, 0xAAAA) == 0x5555)
+		if (jtag_dr_shift_16(p, 0xAAAA) == 0x5555)
 			/* Fuse is blown */
 			return 1;
 	}
@@ -644,8 +672,8 @@ unsigned int jtag_execute_puc(struct jtdev *p)
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 
 	/* Apply and remove reset */
-	jtag_dr_shift(p, 0x2C01);
-	jtag_dr_shift(p, 0x2401);
+	jtag_dr_shift_16(p, 0x2C01);
+	jtag_dr_shift_16(p, 0x2401);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
@@ -681,8 +709,8 @@ void jtag_release_device(struct jtdev *p, address_t address)
 			jtag_set_breakpoint(p,-1,0);
 			/* issue reset */
 			jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-			jtag_dr_shift(p, 0x2C01);
-			jtag_dr_shift(p, 0x2401);
+			jtag_dr_shift_16(p, 0x2C01);
+			jtag_dr_shift_16(p, 0x2401);
 			break;
 		default: /* Set target CPU's PC */
 			jtag_write_reg(p, 0, address);
@@ -692,11 +720,11 @@ void jtag_release_device(struct jtdev *p, address_t address)
 	jtag_set_instruction_fetch(p);
 
 	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE);
-	jtag_dr_shift(p, BREAKREACT + READ);
-	jtag_dr_shift(p, 0x0000);
+	jtag_dr_shift_16(p, BREAKREACT + READ);
+	jtag_dr_shift_16(p, 0x0000);
 
 	jtag_ir_shift(p, IR_EMEX_WRITE_CONTROL);
-	jtag_dr_shift(p, 0x000f);
+	jtag_dr_shift_16(p, 0x000f);
 
 	jtag_ir_shift(p, IR_CNTRL_SIG_RELEASE);
 }
@@ -746,56 +774,56 @@ void jtag_write_flash(struct jtdev *p,
 
 	/* Set RW to write */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2408);
+	jtag_dr_shift_16(p, 0x2408);
 
 	/* FCTL1 register */
 	jtag_ir_shift(p, IR_ADDR_16BIT);
-	jtag_dr_shift(p, 0x0128);
+	jtag_dr_shift_16(p, 0x0128);
 
 	/* Enable FLASH write */
 	jtag_ir_shift(p, IR_DATA_TO_ADDR);
-	jtag_dr_shift(p, 0xA540);
+	jtag_dr_shift_16(p, 0xA540);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 
 	/* FCTL2 register */
 	jtag_ir_shift(p, IR_ADDR_16BIT);
-	jtag_dr_shift(p, 0x012A);
+	jtag_dr_shift_16(p, 0x012A);
 
 	/* Select MCLK as source, DIV=1 */
 	jtag_ir_shift(p, IR_DATA_TO_ADDR);
-	jtag_dr_shift(p, 0xA540);
+	jtag_dr_shift_16(p, 0xA540);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 
 	/* FCTL3 register */
 	jtag_ir_shift(p, IR_ADDR_16BIT);
-	jtag_dr_shift(p, 0x012C);
+	jtag_dr_shift_16(p, 0x012C);
 
 	/* Clear FCTL3 register */
 	jtag_ir_shift(p, IR_DATA_TO_ADDR);
-	jtag_dr_shift(p, 0xA500);
+	jtag_dr_shift_16(p, 0xA500);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 
 	for (index = 0; index < length; index++) {
 		/* Set RW to write */
 		jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-		jtag_dr_shift(p, 0x2408);
+		jtag_dr_shift_16(p, 0x2408);
 
 		/* Set address */
 		jtag_ir_shift(p, IR_ADDR_16BIT);
-		jtag_dr_shift(p, address);
+		jtag_dr_shift_16(p, address);
 
 		/* Set data */
 		jtag_ir_shift(p, IR_DATA_TO_ADDR);
-		jtag_dr_shift(p, data[index]);
+		jtag_dr_shift_16(p, data[index]);
 		jtag_tclk_set(p);
 		jtag_tclk_clr(p);
 
 		/* Set RW to read */
 		jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-		jtag_dr_shift(p, 0x2409);
+		jtag_dr_shift_16(p, 0x2409);
 
 		/* provide TCLKs
 		 * min. 33 for F149 and F449
@@ -809,15 +837,15 @@ void jtag_write_flash(struct jtdev *p,
 
 	/* Set RW to write */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2408);
+	jtag_dr_shift_16(p, 0x2408);
 
 	/* FCTL1 register */
 	jtag_ir_shift(p, IR_ADDR_16BIT);
-	jtag_dr_shift(p, 0x0128);
+	jtag_dr_shift_16(p, 0x0128);
 
 	/* Disable FLASH write */
 	jtag_ir_shift(p, IR_DATA_TO_ADDR);
-	jtag_dr_shift(p, 0xA500);
+	jtag_dr_shift_16(p, 0xA500);
 	jtag_tclk_set(p);
 	jtag_release_cpu(p);
 
@@ -853,66 +881,66 @@ void jtag_erase_flash(struct jtdev *p,
 
 		/* Set RW to write */
 		jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-		jtag_dr_shift(p, 0x2408);
+		jtag_dr_shift_16(p, 0x2408);
 
 		/* FCTL1 address */
 		jtag_ir_shift(p, IR_ADDR_16BIT);
-		jtag_dr_shift(p, 0x0128);
+		jtag_dr_shift_16(p, 0x0128);
 
 		/* Enable erase mode */
 		jtag_ir_shift(p, IR_DATA_TO_ADDR);
-		jtag_dr_shift(p, erase_mode);
+		jtag_dr_shift_16(p, erase_mode);
 		jtag_tclk_set(p);
 		jtag_tclk_clr(p);
 
 		/* FCTL2 address */
 		jtag_ir_shift(p, IR_ADDR_16BIT);
-		jtag_dr_shift(p, 0x012A);
+		jtag_dr_shift_16(p, 0x012A);
 
 		/* MCLK is source, DIV=1 */
 		jtag_ir_shift(p, IR_DATA_TO_ADDR);
-		jtag_dr_shift(p, 0xA540);
+		jtag_dr_shift_16(p, 0xA540);
 		jtag_tclk_set(p);
 		jtag_tclk_clr(p);
 
 		/* FCTL3 address */
 		jtag_ir_shift(p, IR_ADDR_16BIT);
-		jtag_dr_shift(p, 0x012C);
+		jtag_dr_shift_16(p, 0x012C);
 
 		/* Clear FCTL3 */
 		jtag_ir_shift(p, IR_DATA_TO_ADDR);
-		jtag_dr_shift(p, 0xA500);
+		jtag_dr_shift_16(p, 0xA500);
 		jtag_tclk_set(p);
 		jtag_tclk_clr(p);
 
 		/* Set erase address */
 		jtag_ir_shift(p, IR_ADDR_16BIT);
-		jtag_dr_shift(p, erase_address);
+		jtag_dr_shift_16(p, erase_address);
 
 		/* Dummy write to start erase */
 		jtag_ir_shift(p, IR_DATA_TO_ADDR);
-		jtag_dr_shift(p, 0x55AA);
+		jtag_dr_shift_16(p, 0x55AA);
 		jtag_tclk_set(p);
 		jtag_tclk_clr(p);
 
 		/* Set RW to read */
 		jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-		jtag_dr_shift(p, 0x2409);
+		jtag_dr_shift_16(p, 0x2409);
 
 		/* provide TCLKs */
 		p->f->jtdev_tclk_strobe(p, number_of_strobes);
 
 		/* Set RW to write */
 		jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-		jtag_dr_shift(p, 0x2408);
+		jtag_dr_shift_16(p, 0x2408);
 
 		/* FCTL1 address */
 		jtag_ir_shift(p, IR_ADDR_16BIT);
-		jtag_dr_shift(p, 0x0128);
+		jtag_dr_shift_16(p, 0x0128);
 
 		/* Disable erase */
 		jtag_ir_shift(p, IR_DATA_TO_ADDR);
-		jtag_dr_shift(p, 0xA500);
+		jtag_dr_shift_16(p, 0xA500);
 		jtag_tclk_set(p);
 		jtag_release_cpu(p);
 	}
@@ -927,7 +955,7 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 
 	/* CPU controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x3401);
+	jtag_dr_shift_16(p, 0x3401);
 
 	/* Set CPU into instruction fetch mode */
 	jtag_set_instruction_fetch(p);
@@ -937,7 +965,7 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 	/* "jmp $-4" instruction */
 	/* PC - 4 -> PC          */
 	/* needs 2 clock cycles  */
-	jtag_dr_shift(p, 0x3ffd);
+	jtag_dr_shift_16(p, 0x3ffd);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
@@ -950,10 +978,10 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 	 * it's a ROM address, write has no effect, but
 	 * the registers value is placed on the databus
 	 */
-	jtag_dr_shift(p, 0x4082 | (((unsigned int)reg << 8) & 0x0f00) );
+	jtag_dr_shift_16(p, 0x4082 | (((unsigned int)reg << 8) & 0x0f00) );
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
-	jtag_dr_shift(p, 0x01fe);
+	jtag_dr_shift_16(p, 0x01fe);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
@@ -963,11 +991,11 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 
 	/* Read databus which contains the registers value */
 	jtag_ir_shift(p, IR_DATA_CAPTURE);
-	value = jtag_dr_shift(p, 0x0000);
+	value = jtag_dr_shift_16(p, 0x0000);
 
 	/* JTAG controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2401);
+	jtag_dr_shift_16(p, 0x2401);
 
 	jtag_tclk_set(p);
 
@@ -980,7 +1008,7 @@ void jtag_write_reg(struct jtdev *p, int reg, address_t value)
 {
 	/* CPU controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x3401);
+	jtag_dr_shift_16(p, 0x3401);
 
 	/* Set CPU into instruction fetch mode */
 	jtag_set_instruction_fetch(p);
@@ -990,7 +1018,7 @@ void jtag_write_reg(struct jtdev *p, int reg, address_t value)
 	/* "jmp $-4" instruction */
 	/* PC - 4 -> PC          */
 	/* needs 4 clock cycles  */
-	jtag_dr_shift(p, 0x3ffd);
+	jtag_dr_shift_16(p, 0x3ffd);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
@@ -1001,16 +1029,16 @@ void jtag_write_reg(struct jtdev *p, int reg, address_t value)
 	 * PC is advanced 4 bytes by this instruction
 	 * needs 2 clock cycles
 	 */
-	jtag_dr_shift(p, 0x4030 | (reg & 0x000f) );
+	jtag_dr_shift_16(p, 0x4030 | (reg & 0x000f) );
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
-	jtag_dr_shift(p, value);
+	jtag_dr_shift_16(p, value);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 
 	/* JTAG controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2401);
+	jtag_dr_shift_16(p, 0x2401);
 
 	jtag_tclk_set(p);
 }
@@ -1022,7 +1050,7 @@ void jtag_single_step( struct jtdev *p )
 
 	/* CPU controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x3401);
+	jtag_dr_shift_16(p, 0x3401);
 
 	/* clock CPU until next instruction fetch cycle  */
 	/* failure after 10 clock cycles                 */
@@ -1031,14 +1059,14 @@ void jtag_single_step( struct jtdev *p )
 	for (loop_counter = 10; loop_counter > 0; loop_counter--) {
 		jtag_tclk_clr(p);
 		jtag_tclk_set(p);
-		if ((jtag_dr_shift(p, 0x0000) & 0x0080) == 0x0080) {
+		if ((jtag_dr_shift_16(p, 0x0000) & 0x0080) == 0x0080) {
 			break;
 		}
 	}
 
 	/* JTAG controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
-	jtag_dr_shift(p, 0x2401);
+	jtag_dr_shift_16(p, 0x2401);
 
 	if (loop_counter == 0) {
 		/* timeout reached */
@@ -1071,42 +1099,42 @@ unsigned int jtag_set_breakpoint( struct jtdev *p,int bp_num, address_t bp_addr 
 		/* disable all breakpoints by deleting the BREAKREACT
 		 * register */
 		jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE);
-		jtag_dr_shift(p, BREAKREACT + WRITE);
-		jtag_dr_shift(p, 0x0000);
+		jtag_dr_shift_16(p, BREAKREACT + WRITE);
+		jtag_dr_shift_16(p, 0x0000);
 		return 1;
 	}
 
 	/* set breakpoint */
 	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE);
-	jtag_dr_shift(p, GENCTRL + WRITE);
-	jtag_dr_shift(p, EEM_EN + CLEAR_STOP + EMU_CLK_EN + EMU_FEAT_EN);
+	jtag_dr_shift_16(p, GENCTRL + WRITE);
+	jtag_dr_shift_16(p, EEM_EN + CLEAR_STOP + EMU_CLK_EN + EMU_FEAT_EN);
 
 	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
-	jtag_dr_shift(p, 8*bp_num + MBTRIGxVAL + WRITE);
-	jtag_dr_shift(p, bp_addr);
+	jtag_dr_shift_16(p, 8*bp_num + MBTRIGxVAL + WRITE);
+	jtag_dr_shift_16(p, bp_addr);
 
 	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
-	jtag_dr_shift(p, 8*bp_num + MBTRIGxCTL + WRITE);
-	jtag_dr_shift(p, MAB + TRIG_0 + CMP_EQUAL);
+	jtag_dr_shift_16(p, 8*bp_num + MBTRIGxCTL + WRITE);
+	jtag_dr_shift_16(p, MAB + TRIG_0 + CMP_EQUAL);
 
 	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
-	jtag_dr_shift(p, 8*bp_num + MBTRIGxMSK + WRITE);
-	jtag_dr_shift(p, NO_MASK);
+	jtag_dr_shift_16(p, 8*bp_num + MBTRIGxMSK + WRITE);
+	jtag_dr_shift_16(p, NO_MASK);
 
 	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
-	jtag_dr_shift(p, 8*bp_num + MBTRIGxCMB + WRITE);
-	jtag_dr_shift(p, 1<<bp_num);
+	jtag_dr_shift_16(p, 8*bp_num + MBTRIGxCMB + WRITE);
+	jtag_dr_shift_16(p, 1<<bp_num);
 
 	/* read the actual setting of the BREAKREACT register         */
 	/* while reading a 1 is automatically shifted into LSB        */
 	/* this will be undone and the bit for the new breakpoint set */
 	/* then the updated value is stored back                      */
 	jtag_ir_shift(p, IR_EMEX_DATA_EXCHANGE); //repeating may not needed
-	breakreact  = jtag_dr_shift(p, BREAKREACT + READ);
-	breakreact += jtag_dr_shift(p, 0x000);
+	breakreact  = jtag_dr_shift_16(p, BREAKREACT + READ);
+	breakreact += jtag_dr_shift_16(p, 0x000);
 	breakreact  = (breakreact >> 1) | (1 << bp_num);
-	jtag_dr_shift(p, BREAKREACT + WRITE);
-	jtag_dr_shift(p, breakreact);
+	jtag_dr_shift_16(p, BREAKREACT + WRITE);
+	jtag_dr_shift_16(p, breakreact);
 	return 1;
 }
 
@@ -1115,9 +1143,17 @@ unsigned int jtag_cpu_state( struct jtdev *p )
 {
 	jtag_ir_shift(p, IR_EMEX_READ_CONTROL);
 
-	if ((jtag_dr_shift(p, 0x0000) & 0x0080) == 0x0080) {
+	if ((jtag_dr_shift_16(p, 0x0000) & 0x0080) == 0x0080) {
 		return 1; /* halted */
 	} else {
 		return 0; /* running */
 	}
+}
+
+/*----------------------------------------------------------------------------*/
+int jtag_get_config_fuses( struct jtdev *p )
+{
+    jtag_ir_shift(p, IR_CONFIG_FUSES);
+
+    return jtag_dr_shift_8(p, 0);
 }

@@ -117,6 +117,9 @@ struct device_class {
 
 	/* Wait a little while for the CPU to change state */
 	device_status_t (*poll)(device_t dev);
+
+	/* Get the configuration fuse values */
+	int (*getconfigfuses)(device_t dev);
 };
 
 struct device {

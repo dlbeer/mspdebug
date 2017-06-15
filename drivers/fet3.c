@@ -309,5 +309,6 @@ const struct device_class device_ezfet = {
 	.setregs	= fet3_setregs,
 	.ctl		= fet3_ctl,
 	.poll		= fet3_poll,
-	.erase		= fet3_erase
+	.erase		= fet3_erase,
+	.getconfigfuses = NULL
 };

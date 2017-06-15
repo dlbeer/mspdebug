@@ -817,5 +817,6 @@ const struct device_class device_sim = {
 	.getregs	= sim_getregs,
 	.setregs	= sim_setregs,
 	.ctl		= sim_ctl,
-	.poll		= sim_poll
+	.poll		= sim_poll,
+	.getconfigfuses = NULL
 };
