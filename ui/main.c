@@ -1,5 +1,5 @@
 /* MSPDebug - debugging tool for MSP430 MCUs
- * Copyright (C) 2009-2016 Daniel Beer
+ * Copyright (C) 2009-2017 Daniel Beer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -95,8 +95,8 @@ static const struct device_class *const driver_table[] = {
 };
 
 static const char *version_text =
-"MSPDebug version 0.24 - debugging tool for MSP430 MCUs\n"
-"Copyright (C) 2009-2016 Daniel Beer <dlbeer@gmail.com>\n"
+"MSPDebug version 0.25 - debugging tool for MSP430 MCUs\n"
+"Copyright (C) 2009-2017 Daniel Beer <dlbeer@gmail.com>\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
 "PURPOSE.\n";

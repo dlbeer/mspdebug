@@ -1,4 +1,4 @@
-.TH mspdebug 1 "14 May 2016" "Version 0.24"
+.TH mspdebug 1 "24 Jul 2017" "Version 0.25"
 .SH NAME
 MSPDebug - debugging tool for MSP430 MCUs
 .SH SYNOPSIS
@@ -221,6 +221,8 @@ sequence is \fBDR,r,R,r,d,R:DR,r\fR, but you can override this with the
 \fBWARNING:\fR this driver unlocks the BSL by performing a mass erase.
 There are reports of this operation causing an erase of info A in some
 devices. Use at your own risk.
+.IP "\fBbus-pirate\fR"
+Raw JTAG using Bus Pirate devices.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported

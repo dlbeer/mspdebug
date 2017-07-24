@@ -1,3 +1,10 @@
+Version 0.25 - 24 Jul 2017
+	* Various bug fixes and improvements.
+	* flash_bsl entry using Linux GPIO interface.
+	* Raw JTAG driver now works on Spy-Bi-Wire targets.
+	* Raw JTAG bus pirate driver.
+	* Use HIDAPI on OS/X.
+
 Version 0.24 - 14 May 2016
 	* Various bug fixes.
 	* Persistent history and tab completion with libreadline.
