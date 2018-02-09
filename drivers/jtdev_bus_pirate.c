@@ -182,11 +182,11 @@ static int jtbp_open(struct jtdev *p, const char *device)
 
 static void jtbp_close(struct jtdev *p)
 {
-    char out_buff;
+	char out_buff;
 
-    out_buff = 0x0f;
-    // Don't care if this fails, user can just power cycle the bus pirate
-    if(write(p->port, &out_buff, 1));
+	out_buff = 0x0f;
+	// Don't care if this fails, user can just power cycle the bus pirate
+	if(write(p->port, &out_buff, 1));
 
 	close(p->port);
 }
