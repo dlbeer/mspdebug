@@ -88,6 +88,8 @@ char *get_arg(char **text)
 		case 4: /* Backslash */
 			if (*end == '\\')
 				*(rewrite++) = '\\';
+			else if (*end == '\'')
+				*(rewrite++) = '\'';
 			else if (*end == 'n')
 				*(rewrite++) = '\n';
 			else if (*end == 'r')
