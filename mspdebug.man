@@ -204,7 +204,7 @@ Connect to system gpios. JTAG mode must be used, and
 only tty access is supported. Currently, this driver is only supported
 on Linux, FreeBSD and DragonFly BSD. The gpios to used must defined using
 a string like "tdi=7 tdo=8 tms=9 tck=4 rst=10 tst=11" via the
-\fB-d\fR option. (dont forget the quotes)
+\fB-d\fR option. (don't forget the quotes)
 
 .IP "\fBload-bsl\fR"
 Connect to a USB bootloader. The stub bootloader will be used to load a
@@ -801,7 +801,7 @@ Default input radix for address expressions. For address values with
 no radix specifier, this value gives the input radix, which is
 10 (decimal) by default.
 .IP "\fBquiet\fR (boolean)"
-If set, MSPDebug will supress most of its debug-related output. This option
+If set, MSPDebug will suppress most of its debug-related output. This option
 defaults to false, but can be set true on start-up using the \fB-q\fR
 command-line option.
 .SH ENVIRONMENT

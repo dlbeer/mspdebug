@@ -43,7 +43,7 @@ static const struct opdb_key keys[] = {
 	{
 		.name = "quiet",
 		.type = OPDB_TYPE_BOOLEAN,
-		.help = "Supress debugging output.\n",
+		.help = "Suppress debugging output.\n",
 		.defval = {
 			.boolean = 0
 		}

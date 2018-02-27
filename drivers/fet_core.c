@@ -292,7 +292,7 @@ static int identify_olimex(struct fet_device *dev, const char *force_id)
 		if (fet_proto_xfer(&dev->proto, C_IDENT1, NULL, 0, 3,
 				   set_id, dev_id, 0) < 0) {
 			printc_err("fet: command C_IDENT1 with "
-				   "magic patern failed\n");
+				   "magic pattern failed\n");
 			return -1;
 		}
 

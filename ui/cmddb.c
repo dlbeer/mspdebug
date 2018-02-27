@@ -265,7 +265,7 @@ const struct cmddb_record commands[] = {
 "sym find <regex>\n"
 "    Search for symbols by regular expression.\n"
 "sym rename <regex> <string>\n"
-"    Replace every occurance of a pattern in symbol names.\n"
+"    Replace every occurrence of a pattern in symbol names.\n"
 	},
 	{
 		.name = "isearch",
