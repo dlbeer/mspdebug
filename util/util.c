@@ -60,6 +60,8 @@ char *get_arg(char **text)
 				goto out;
 			else if (*end == '"')
 				qstate = 1;
+			else if (*end == '\'')
+				qstate = 2;
 			else
 				*(rewrite++) = *end;
 			break;
@@ -67,15 +69,27 @@ char *get_arg(char **text)
 		case 1: /* In quotes */
 			if (*end == '"')
 				qstate = 0;
+			else if (*end == '\'')
+				qstate = 3;
 			else if (*end == '\\')
-				qstate = 2;
+				qstate = 4;
 			else
 				*(rewrite++) = *end;
 			break;
 
-		case 2: /* Backslash */
+		case 2: /* In quote (verbatim) */
+		case 3:
+			if (*end == '\'')
+				qstate -= 2;
+			else
+				*(rewrite++) = *end;
+			break;
+
+		case 4: /* Backslash */
 			if (*end == '\\')
 				*(rewrite++) = '\\';
+			else if (*end == '\'')
+				*(rewrite++) = '\'';
 			else if (*end == 'n')
 				*(rewrite++) = '\n';
 			else if (*end == 'r')
@@ -83,24 +97,24 @@ char *get_arg(char **text)
 			else if (*end == 't')
 				*(rewrite++) = '\t';
 			else if (*end >= '0' && *end <= '3') {
-				qstate = 30;
+				qstate = 50;
 				qval = *end - '0';
 			} else if (*end == 'x') {
-				qstate = 40;
+				qstate = 60;
 				qval = 0;
 			} else
 				*(rewrite++) = *end;
 
-			if (qstate == 2)
+			if (qstate == 4)
 				qstate = 1;
 			break;
 
-		case 30: /* Octal */
-		case 31:
+		case 50: /* Octal */
+		case 51:
 			if (*end >= '0' && *end <= '7')
 				qval = (qval << 3) | (*end - '0');
 
-			if (qstate == 31) {
+			if (qstate == 51) {
 				*(rewrite++) = qval;
 				qstate = 1;
 			} else {
@@ -108,8 +122,8 @@ char *get_arg(char **text)
 			}
 			break;
 
-		case 40: /* Hex */
-		case 41:
+		case 60: /* Hex */
+		case 61:
 			if (isdigit(*end))
 				qval = (qval << 4) | (*end - '0');
 			else if (isupper(*end))
@@ -117,7 +131,7 @@ char *get_arg(char **text)
 			else if (islower(*end))
 				qval = (qval << 4) | (*end - 'a' + 10);
 
-			if (qstate == 41) {
+			if (qstate == 61) {
 				*(rewrite++) = qval;
 				qstate = 1;
 			} else {
