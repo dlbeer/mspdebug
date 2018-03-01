@@ -30,6 +30,7 @@
 
 #ifdef __Windows__
 #include <windows.h>
+#include <winerror.h>
 #endif
 
 #ifdef __Windows__
