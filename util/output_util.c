@@ -26,6 +26,7 @@
 #include "stab.h"
 #include "util.h"
 #include "demangle.h"
+#include "opdb.h"
 
 static int format_addr(msp430_amode_t amode, address_t addr)
 {
@@ -111,14 +112,15 @@ static int dis_format(const struct msp430_instruction *insn)
 	int len = 0;
 	const char *opname = dis_opcode_name(insn->op);
 	const char *suffix = "";
+	const int lowercase = opdb_get_boolean("lowercase_dis");
 
 	if (!opname)
 		opname = "???";
 
 	if (insn->dsize == MSP430_DSIZE_BYTE)
-		suffix = ".B";
+		suffix = lowercase ? ".b" : ".B";
 	else if (insn->dsize == MSP430_DSIZE_AWORD)
-		suffix = ".A";
+		suffix = lowercase ? ".a" : ".A";
 	else if (insn->dsize == MSP430_DSIZE_UNKNOWN)
 		suffix = ".?";
 

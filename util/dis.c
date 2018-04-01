@@ -24,6 +24,7 @@
 
 #include "dis.h"
 #include "util.h"
+#include "opdb.h"
 
 #define ALL_ONES               0xfffff
 #define EXTENSION_BIT          0x20000
@@ -845,127 +846,128 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 
 static const struct {
 	msp430_op_t     op;
-	const char      *mnemonic;
+	const char      *const mnemonic;
+	const char      *const lowercase;
 } opcode_names[] = {
 	/* Single operand */
-	{MSP430_OP_RRC,         "RRC"},
-	{MSP430_OP_SWPB,        "SWPB"},
-	{MSP430_OP_RRA,         "RRA"},
-	{MSP430_OP_SXT,         "SXT"},
-	{MSP430_OP_PUSH,        "PUSH"},
-	{MSP430_OP_CALL,        "CALL"},
-	{MSP430_OP_RETI,        "RETI"},
+	{MSP430_OP_RRC,         "RRC",   "rrc"},
+	{MSP430_OP_SWPB,        "SWPB",  "swpb"},
+	{MSP430_OP_RRA,         "RRA",   "rra"},
+	{MSP430_OP_SXT,         "SXT",   "sxt"},
+	{MSP430_OP_PUSH,        "PUSH",  "push"},
+	{MSP430_OP_CALL,        "CALL",  "call"},
+	{MSP430_OP_RETI,        "RETI",  "reti"},
 
 	/* Jump */
-	{MSP430_OP_JNZ,         "JNZ"},
-	{MSP430_OP_JZ,          "JZ"},
-	{MSP430_OP_JNC,         "JNC"},
-	{MSP430_OP_JC,          "JC"},
-	{MSP430_OP_JN,          "JN"},
-	{MSP430_OP_JL,          "JL"},
-	{MSP430_OP_JGE,         "JGE"},
-	{MSP430_OP_JMP,         "JMP"},
+	{MSP430_OP_JNZ,         "JNZ",   "jnz"},
+	{MSP430_OP_JZ,          "JZ",    "jz"},
+	{MSP430_OP_JNC,         "JNC",   "jnc"},
+	{MSP430_OP_JC,          "JC",    "jc"},
+	{MSP430_OP_JN,          "JN",    "jn"},
+	{MSP430_OP_JL,          "JL",    "jl"},
+	{MSP430_OP_JGE,         "JGE",   "jge"},
+	{MSP430_OP_JMP,         "JMP",   "jmp"},
 
 	/* Double operand */
-	{MSP430_OP_MOV,         "MOV"},
-	{MSP430_OP_ADD,         "ADD"},
-	{MSP430_OP_ADDC,        "ADDC"},
-	{MSP430_OP_SUBC,        "SUBC"},
-	{MSP430_OP_SUB,         "SUB"},
-	{MSP430_OP_CMP,         "CMP"},
-	{MSP430_OP_DADD,        "DADD"},
-	{MSP430_OP_BIT,         "BIT"},
-	{MSP430_OP_BIC,         "BIC"},
-	{MSP430_OP_BIS,         "BIS"},
-	{MSP430_OP_XOR,         "XOR"},
-	{MSP430_OP_AND,         "AND"},
+	{MSP430_OP_MOV,         "MOV",   "mov"},
+	{MSP430_OP_ADD,         "ADD",   "add"},
+	{MSP430_OP_ADDC,        "ADDC",  "addc"},
+	{MSP430_OP_SUBC,        "SUBC",  "subc"},
+	{MSP430_OP_SUB,         "SUB",   "sub"},
+	{MSP430_OP_CMP,         "CMP",   "cmp"},
+	{MSP430_OP_DADD,        "DADD",  "dadd"},
+	{MSP430_OP_BIT,         "BIT",   "bit"},
+	{MSP430_OP_BIC,         "BIC",   "bic"},
+	{MSP430_OP_BIS,         "BIS",   "bis"},
+	{MSP430_OP_XOR,         "XOR",   "xor"},
+	{MSP430_OP_AND,         "AND",   "and"},
 
 	/* Emulated instructions */
-	{MSP430_OP_ADC,         "ADC"},
-	{MSP430_OP_BR,          "BR"},
-	{MSP430_OP_CLR,         "CLR"},
-	{MSP430_OP_CLRC,        "CLRC"},
-	{MSP430_OP_CLRN,        "CLRN"},
-	{MSP430_OP_CLRZ,        "CLRZ"},
-	{MSP430_OP_DADC,        "DADC"},
-	{MSP430_OP_DEC,         "DEC"},
-	{MSP430_OP_DECD,        "DECD"},
-	{MSP430_OP_DINT,        "DINT"},
-	{MSP430_OP_EINT,        "EINT"},
-	{MSP430_OP_INC,         "INC"},
-	{MSP430_OP_INCD,        "INCD"},
-	{MSP430_OP_INV,         "INV"},
-	{MSP430_OP_NOP,         "NOP"},
-	{MSP430_OP_POP,         "POP"},
-	{MSP430_OP_RET,         "RET"},
-	{MSP430_OP_RLA,         "RLA"},
-	{MSP430_OP_RLC,         "RLC"},
-	{MSP430_OP_SBC,         "SBC"},
-	{MSP430_OP_SETC,        "SETC"},
-	{MSP430_OP_SETN,        "SETN"},
-	{MSP430_OP_SETZ,        "SETZ"},
-	{MSP430_OP_TST,         "TST"},
+	{MSP430_OP_ADC,         "ADC",   "adc"},
+	{MSP430_OP_BR,          "BR",    "br"},
+	{MSP430_OP_CLR,         "CLR",   "clr"},
+	{MSP430_OP_CLRC,        "CLRC",  "clrc"},
+	{MSP430_OP_CLRN,        "CLRN",  "clrn"},
+	{MSP430_OP_CLRZ,        "CLRZ",  "clrz"},
+	{MSP430_OP_DADC,        "DADC",  "dadc"},
+	{MSP430_OP_DEC,         "DEC",   "dec"},
+	{MSP430_OP_DECD,        "DECD",  "decd"},
+	{MSP430_OP_DINT,        "DINT",  "dint"},
+	{MSP430_OP_EINT,        "EINT",  "eint"},
+	{MSP430_OP_INC,         "INC",   "inc"},
+	{MSP430_OP_INCD,        "INCD",  "incd"},
+	{MSP430_OP_INV,         "INV",   "inv"},
+	{MSP430_OP_NOP,         "NOP",   "nop"},
+	{MSP430_OP_POP,         "POP",   "pop"},
+	{MSP430_OP_RET,         "RET",   "ret"},
+	{MSP430_OP_RLA,         "RLA",   "rla"},
+	{MSP430_OP_RLC,         "RLC",   "rlc"},
+	{MSP430_OP_SBC,         "SBC",   "sbc"},
+	{MSP430_OP_SETC,        "SETC",  "setc"},
+	{MSP430_OP_SETN,        "SETN",  "setn"},
+	{MSP430_OP_SETZ,        "SETZ",  "setz"},
+	{MSP430_OP_TST,         "TST",   "tst"},
 
 	/* MSP430X double operand (extension word) */
-	{MSP430_OP_MOVX,        "MOVX"},
-	{MSP430_OP_ADDX,        "ADDX"},
-	{MSP430_OP_ADDCX,       "ADDCX"},
-	{MSP430_OP_SUBCX,       "SUBCX"},
-	{MSP430_OP_SUBX,        "SUBX"},
-	{MSP430_OP_CMPX,        "CMPX"},
-	{MSP430_OP_DADDX,       "DADDX"},
-	{MSP430_OP_BITX,        "BITX"},
-	{MSP430_OP_BICX,        "BICX"},
-	{MSP430_OP_BISX,        "BISX"},
-	{MSP430_OP_XORX,        "XORX"},
-	{MSP430_OP_ANDX,        "ANDX"},
+	{MSP430_OP_MOVX,        "MOVX",  "movx"},
+	{MSP430_OP_ADDX,        "ADDX",  "addx"},
+	{MSP430_OP_ADDCX,       "ADDCX", "addcx"},
+	{MSP430_OP_SUBCX,       "SUBCX", "subcx"},
+	{MSP430_OP_SUBX,        "SUBX",  "subx"},
+	{MSP430_OP_CMPX,        "CMPX",  "cmpx"},
+	{MSP430_OP_DADDX,       "DADDX", "daddx"},
+	{MSP430_OP_BITX,        "BITX",  "bitx"},
+	{MSP430_OP_BICX,        "BICX",  "bicx"},
+	{MSP430_OP_BISX,        "BISX",  "bisx"},
+	{MSP430_OP_XORX,        "XORX",  "xorx"},
+	{MSP430_OP_ANDX,        "ANDX",  "andx"},
 
 	/* MSP430X single operand (extension word) */
-	{MSP430_OP_RRCX,        "RRCX"},
-	{MSP430_OP_RRUX,        "RRUX"},
-	{MSP430_OP_SWPBX,       "SWPBX"},
-	{MSP430_OP_RRAX,        "RRAX"},
-	{MSP430_OP_SXTX,        "SXTX"},
-	{MSP430_OP_PUSHX,       "PUSHX"},
+	{MSP430_OP_RRCX,        "RRCX",  "rrcx"},
+	{MSP430_OP_RRUX,        "RRUX",  "rrux"},
+	{MSP430_OP_SWPBX,       "SWPBX", "swpbx"},
+	{MSP430_OP_RRAX,        "RRAX",  "rrax"},
+	{MSP430_OP_SXTX,        "SXTX",  "sxtx"},
+	{MSP430_OP_PUSHX,       "PUSHX", "pushx"},
 
 	/* MSP430X group 13xx */
-	{MSP430_OP_CALLA,	"CALLA"},
+	{MSP430_OP_CALLA,	"CALLA", "calla"},
 
 	/* MSP430X group 14xx */
-	{MSP430_OP_PUSHM,	"PUSHM"},
-	{MSP430_OP_POPM,	"POPM"},
+	{MSP430_OP_PUSHM,	"PUSHM", "pushm"},
+	{MSP430_OP_POPM,	"POPM",  "popm"},
 
 	/* MSP430X address instructions */
-	{MSP430_OP_MOVA,        "MOVA"},
-	{MSP430_OP_CMPA,        "CMPA"},
-	{MSP430_OP_SUBA,	"SUBA"},
-	{MSP430_OP_ADDA,	"ADDA"},
+	{MSP430_OP_MOVA,        "MOVA",  "mova"},
+	{MSP430_OP_CMPA,        "CMPA",  "cmpa"},
+	{MSP430_OP_SUBA,	"SUBA",  "suba"},
+	{MSP430_OP_ADDA,	"ADDA",  "adda"},
 
 	/* MSP430X group 00xx, non-address */
-	{MSP430_OP_RRCM,        "RRCM"},
-	{MSP430_OP_RRAM,        "RRAM"},
-	{MSP430_OP_RLAM,	"RLAM"},
-	{MSP430_OP_RRUM,	"RRUM"},
+	{MSP430_OP_RRCM,        "RRCM",  "rrcm"},
+	{MSP430_OP_RRAM,        "RRAM",  "rram"},
+	{MSP430_OP_RLAM,	"RLAM",  "rlam"},
+	{MSP430_OP_RRUM,	"RRUM",  "rrum"},
 
 	/* MSP430X emulated instructions */
-	{MSP430_OP_ADCX,	"ADCX"},
-	{MSP430_OP_BRA,		"BRA"},
-	{MSP430_OP_RETA,	"RETA"},
-	{MSP430_OP_CLRX,	"CLRX"},
-	{MSP430_OP_DADCX,	"DADCX"},
-	{MSP430_OP_DECX,	"DECX"},
-	{MSP430_OP_DECDA,	"DECDA"},
-	{MSP430_OP_DECDX,	"DECDX"},
-	{MSP430_OP_INCX,	"INCX"},
-	{MSP430_OP_INCDA,	"INCDA"},
-	{MSP430_OP_INVX,	"INVX"},
-	{MSP430_OP_RLAX,	"RLAX"},
-	{MSP430_OP_RLCX,	"RLCX"},
-	{MSP430_OP_SECX,	"SECX"},
-	{MSP430_OP_TSTA,	"TSTA"},
-	{MSP430_OP_TSTX,	"TSTX"},
-	{MSP430_OP_POPX,	"POPX"},
-	{MSP430_OP_INCDX,	"INCDX"}
+	{MSP430_OP_ADCX,	"ADCX",  "adcx"},
+	{MSP430_OP_BRA,		"BRA",   "bra"},
+	{MSP430_OP_RETA,	"RETA",  "reta"},
+	{MSP430_OP_CLRX,	"CLRX",  "clrx"},
+	{MSP430_OP_DADCX,	"DADCX", "dadcx"},
+	{MSP430_OP_DECX,	"DECX",  "decx"},
+	{MSP430_OP_DECDA,	"DECDA", "decda"},
+	{MSP430_OP_DECDX,	"DECDX", "decdx"},
+	{MSP430_OP_INCX,	"INCX",  "incx"},
+	{MSP430_OP_INCDA,	"INCDA", "incda"},
+	{MSP430_OP_INVX,	"INVX",  "invx"},
+	{MSP430_OP_RLAX,	"RLAX",  "rlax"},
+	{MSP430_OP_RLCX,	"RLCX",  "rlcx"},
+	{MSP430_OP_SECX,	"SECX",  "secx"},
+	{MSP430_OP_TSTA,	"TSTA",  "tsta"},
+	{MSP430_OP_TSTX,	"TSTX",  "tstx"},
+	{MSP430_OP_POPX,	"POPX",  "popx"},
+	{MSP430_OP_INCDX,	"INCDX", "incdx"}
 };
 
 /* Return the mnemonic for an operation, if possible. */
@@ -975,7 +977,9 @@ const char *dis_opcode_name(msp430_op_t op)
 
 	for (i = 0; i < ARRAY_LEN(opcode_names); i++)
 		if (op == opcode_names[i].op)
-			return opcode_names[i].mnemonic;
+			return opdb_get_boolean("lowercase_dis")
+				? opcode_names[i].lowercase
+				: opcode_names[i].mnemonic;
 
 	return NULL;
 }
@@ -996,6 +1000,12 @@ static const char *const msp430_reg_names[] = {
 	"R4",  "R5",  "R6",  "R7",
 	"R8",  "R9",  "R10", "R11",
 	"R12", "R13", "R14", "R15"
+};
+static const char *const msp430_reg_lowercases[] = {
+	"pc",  "sp",  "sr",  "r3",
+	"r4",  "r5",  "r6",  "r7",
+	"r8",  "r9",  "r10", "r11",
+	"r12", "r13", "r14", "r15"
 };
 
 int dis_reg_from_name(const char *name)
@@ -1026,7 +1036,9 @@ int dis_reg_from_name(const char *name)
 const char *dis_reg_name(msp430_reg_t reg)
 {
 	if (reg <= 15)
-		return msp430_reg_names[reg];
+		return opdb_get_boolean("lowercase_dis")
+			? msp430_reg_lowercases[reg]
+			: msp430_reg_names[reg];
 
 	return NULL;
 }

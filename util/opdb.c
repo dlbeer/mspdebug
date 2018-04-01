@@ -113,7 +113,14 @@ static const struct opdb_key keys[] = {
 "\x1b[1mWARNING: this is an irreversible operation!\x1b[0m\n"
 "\n"
 "If in doubt, do not enable this option.\n"
-	}
+	},
+	{
+		.name = "lowercase_dis",
+		.type = OPDB_TYPE_BOOLEAN,
+		.help =
+"If set, disassembled instruction and register name are displayed in\n"
+"lowercase.\n"
+	},
 };
 
 static union opdb_value values[ARRAY_LEN(keys)];
