@@ -28,6 +28,9 @@ const struct tilib_api_table *tilib_api;
 #if defined(__Windows__) || defined(__CYGWIN__)
 static const char tilib_filename[] = "MSP430.DLL";
 #define TIDLL __stdcall
+#elif defined(__APPLE__)
+static const char tilib_filename[] = "libmsp430.dylib";
+#define TIDLL
 #else
 static const char tilib_filename[] = "libmsp430.so";
 #define TIDLL
