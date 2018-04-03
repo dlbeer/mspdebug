@@ -70,8 +70,8 @@ else
 	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
 	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -ltermcap -pthread
       else ifeq ($(shell brew --version > /dev/null 2>&1 && echo ok),ok)
-	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi)
-	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi) -framework IOKit -framework CoreFoundation
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -framework IOKit -framework CoreFoundation
       else
 	PORTS_CFLAGS := -I/opt/local/include
 	PORTS_LDFLAGS := -L/opt/local/lib -lhidapi -framework IOKit -framework CoreFoundation
