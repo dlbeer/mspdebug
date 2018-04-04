@@ -138,7 +138,7 @@ struct chipinfo {
 	unsigned int			bits;
 	chipinfo_psa_t			psa;
 	uint8_t				clock_control;
-	uint16_t			mclk_control;
+	uint32_t			mclk_control;
 	chipinfo_clock_sys_t		clock_sys;
 	chipinfo_features_t		features;
 
