@@ -20,12 +20,75 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "dis.h"
 #include "output_util.h"
 #include "stab.h"
 #include "util.h"
 #include "demangle.h"
+#include "opdb.h"
+
+static char* copy_string(int lowercase_dis, char *dst, const char *const end,
+			 const char *src)
+{
+	int c;
+
+	if (src != NULL) {
+		while (dst < end && (c = *src++) != '\0') {
+			if (lowercase_dis && isupper(c))
+				c = tolower(c);
+			*dst++ = c;
+		}
+	}
+	*dst = '\0';
+	return dst;
+}
+
+static const char *opcode_name_with_size(const struct msp430_instruction *insn)
+{
+	static char buf[10];
+	const char *const end = buf + sizeof(buf) - 1;
+	const char *opname = dis_opcode_name(insn->op);
+	const int lowercase_dis = opdb_get_boolean("lowercase_dis");
+	const char *suffix = NULL;
+	char *dst;
+
+	if (!opname)
+		opname = "???";
+
+	if (insn->dsize == MSP430_DSIZE_BYTE)
+		suffix = ".B";
+	else if (insn->dsize == MSP430_DSIZE_AWORD)
+		suffix = ".A";
+	else if (insn->dsize == MSP430_DSIZE_UNKNOWN)
+		suffix = ".?";
+
+	/* Don't show the .A suffix for these instructions */
+	if (insn->op == MSP430_OP_MOVA || insn->op == MSP430_OP_CMPA ||
+	    insn->op == MSP430_OP_SUBA || insn->op == MSP430_OP_ADDA ||
+	    insn->op == MSP430_OP_BRA || insn->op == MSP430_OP_RETA)
+		suffix = NULL;
+
+	dst = copy_string(lowercase_dis, buf, end, opname);
+	dst = copy_string(lowercase_dis, dst, end, suffix);
+	return buf;
+}
+
+static const char *reg_name(const msp430_reg_t reg)
+{
+	static char buf[4];
+	const char *const end = buf + sizeof(buf) - 1;
+	const int lowercase_dis = opdb_get_boolean("lowercase_dis");
+	const char *name = dis_reg_name(reg);
+
+	if (!name)
+		return "???";
+	if (lowercase_dis == 0)
+		return name;
+	copy_string(lowercase_dis, buf, end, name);
+	return buf;
+}
 
 static int format_addr(msp430_amode_t amode, address_t addr)
 {
@@ -59,7 +122,6 @@ static int format_reg(msp430_amode_t amode, msp430_reg_t reg)
 {
 	const char *prefix = "";
 	const char *suffix = "";
-	const char *name;
 
 	switch (amode) {
 	case MSP430_AMODE_REGISTER:
@@ -82,11 +144,7 @@ static int format_reg(msp430_amode_t amode, msp430_reg_t reg)
 		break;
 	}
 
-	name = dis_reg_name(reg);
-	if (!name)
-		name = "???";
-
-	return printc("%s\x1b[33m%s\x1b[0m%s", prefix, name, suffix);
+	return printc("%s\x1b[33m%s\x1b[0m%s", prefix, reg_name(reg), suffix);
 }
 
 /* Given an operands addressing mode, value and associated register,
@@ -109,26 +167,8 @@ static int format_operand(msp430_amode_t amode, address_t addr,
 static int dis_format(const struct msp430_instruction *insn)
 {
 	int len = 0;
-	const char *opname = dis_opcode_name(insn->op);
-	const char *suffix = "";
 
-	if (!opname)
-		opname = "???";
-
-	if (insn->dsize == MSP430_DSIZE_BYTE)
-		suffix = ".B";
-	else if (insn->dsize == MSP430_DSIZE_AWORD)
-		suffix = ".A";
-	else if (insn->dsize == MSP430_DSIZE_UNKNOWN)
-		suffix = ".?";
-
-	/* Don't show the .A suffix for these instructions */
-	if (insn->op == MSP430_OP_MOVA || insn->op == MSP430_OP_CMPA ||
-	    insn->op == MSP430_OP_SUBA || insn->op == MSP430_OP_ADDA ||
-	    insn->op == MSP430_OP_BRA || insn->op == MSP430_OP_RETA)
-		suffix = "";
-
-	len += printc("\x1b[36m%s%s\x1b[0m", opname, suffix);
+	len += printc("\x1b[36m%s\x1b[0m", opcode_name_with_size(insn));
 	while (len < 8)
 		len += printc(" ");
 
@@ -152,7 +192,7 @@ static int dis_format(const struct msp430_instruction *insn)
 
 	/* Repetition count */
 	if (insn->rep_register)
-		len += printc(" [repeat %s]", dis_reg_name(insn->rep_index));
+		len += printc(" [repeat %s]", reg_name(insn->rep_index));
 	else if (insn->rep_index)
 		len += printc(" [repeat %d]", insn->rep_index + 1);
 
@@ -278,7 +318,7 @@ void show_regs(const address_t *regs)
 			int k = j * 4 + i;
 
 			printc("(\x1b[1m%3s:\x1b[0m %05x)  ",
-			       dis_reg_name(k), regs[k]);
+			       reg_name(k), regs[k]);
 		}
 
 		printc("\n");
