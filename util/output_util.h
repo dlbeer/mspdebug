@@ -38,7 +38,8 @@ void show_regs(const address_t *regs);
  * Returns non-zero if the result is of the form sym+0x0offset.
  */
 typedef enum {
-	PRINT_ADDRESS_EXACT	= 0x01
+	PRINT_ADDRESS_EXACT	= 0x01,
+	PRINT_BYTE_DATA         = 0x02
 } print_address_flags_t;
 
 int print_address(address_t addr, char *buf, int max_len,
