@@ -90,10 +90,12 @@ static const char *reg_name(const msp430_reg_t reg)
 	return buf;
 }
 
-static int format_addr(msp430_amode_t amode, address_t addr)
+static int format_addr(msp430_amode_t amode, address_t addr,
+		       msp430_dsize_t dsize)
 {
 	char name[MAX_SYMBOL_LENGTH];
 	const char *prefix = "";
+	int print_flags = PRINT_ADDRESS_EXACT;
 
 	switch (amode) {
 	case MSP430_AMODE_REGISTER:
@@ -103,6 +105,8 @@ static int format_addr(msp430_amode_t amode, address_t addr)
 
 	case MSP430_AMODE_IMMEDIATE:
 		prefix = "#";
+		if (dsize == MSP430_DSIZE_BYTE)
+			print_flags |= PRINT_BYTE_DATA;
 	case MSP430_AMODE_INDEXED:
 		break;
 
@@ -114,7 +118,7 @@ static int format_addr(msp430_amode_t amode, address_t addr)
 		break;
 	}
 
-	print_address(addr, name, sizeof(name), PRINT_ADDRESS_EXACT);
+	print_address(addr, name, sizeof(name), print_flags);
 	return printc("%s\x1b[1m%s\x1b[0m", prefix, name);
 }
 
@@ -153,11 +157,11 @@ static int format_reg(msp430_amode_t amode, msp430_reg_t reg)
  * Returns the number of characters printed.
  */
 static int format_operand(msp430_amode_t amode, address_t addr,
-			  msp430_reg_t reg)
+			  msp430_reg_t reg, msp430_dsize_t dsize)
 {
 	int len = 0;
 
-	len += format_addr(amode, addr);
+	len += format_addr(amode, addr, dsize);
 	len += format_reg(amode, reg);
 
 	return len;
@@ -176,7 +180,8 @@ static int dis_format(const struct msp430_instruction *insn)
 	if (insn->itype == MSP430_ITYPE_DOUBLE) {
 		len += format_operand(insn->src_mode,
 				      insn->src_addr,
-				      insn->src_reg);
+				      insn->src_reg,
+				      insn->dsize);
 
 		len += printc(",");
 		while (len < 15)
@@ -188,7 +193,8 @@ static int dis_format(const struct msp430_instruction *insn)
 	if (insn->itype != MSP430_ITYPE_NOARG)
 		len += format_operand(insn->dst_mode,
 					insn->dst_addr,
-					insn->dst_reg);
+					insn->dst_reg,
+					insn->dsize);
 
 	/* Repetition count */
 	if (insn->rep_register)
@@ -352,7 +358,7 @@ int print_address(address_t addr, char *out, int max_len,
 		return 1;
 	}
 
-	snprintf(out, max_len, "0x%04x", addr);
+	snprintf(out, max_len, (f & PRINT_BYTE_DATA) ? "0x%02x" : "0x%04x", addr);
 	return 0;
 }
 
