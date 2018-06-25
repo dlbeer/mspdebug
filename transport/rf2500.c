@@ -228,7 +228,7 @@ static const struct transport_class rf2500_transport = {
 	.set_modem	= usbtr_set_modem
 };
 
-transport_t rf2500_open(const char *devpath, const char *requested_serial)
+transport_t rf2500_libusb_open(const char *devpath, const char *requested_serial)
 {
 	struct rf2500_transport *tr = malloc(sizeof(*tr));
 	struct usb_device *dev;

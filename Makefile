@@ -77,7 +77,7 @@ else
 	PORTS_LDFLAGS := -L/opt/local/lib -lhidapi -framework IOKit -framework CoreFoundation
       endif
       BSLHID_OBJ = transport/bslosx.o
-      RF25000_OBJ = transport/rf2500hidapi.o
+      RF25000_OBJ += transport/rf2500hidapi.o
       LDFLAGS =
     else ifneq ($(filter $(UNAME_S),OpenBSD NetBSD DragonFly),)
 	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
