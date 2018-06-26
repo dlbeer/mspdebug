@@ -196,7 +196,8 @@ transport_t rf2500_open(const char *devpath, const char *requested_serial)
 		printc_err("rf2500: failed to open RF2500 device\n");
 		free(tr);
 		hid_exit();
-		return NULL;
+		printc_err("rf2500: fallback to libusb backend\n");
+		return rf2500_libusb_open(devpath, requested_serial);
 	}
 
 	tr->handle = handle;
