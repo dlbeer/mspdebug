@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,6 +33,9 @@ struct console {
 	address_t		base_addr;
 	char			buffer[256];
 	unsigned		buffer_offset;
+
+	/* File output */
+	FILE			*file;
 };
 
 static struct simio_device *console_create(char **arg_text)
@@ -56,6 +60,11 @@ static struct simio_device *console_create(char **arg_text)
 static void console_destroy(struct simio_device *dev)
 {
 	struct console *c = (struct console *)dev;
+
+	if (c->file != NULL) {
+		fclose(c->file);
+	}
+
 	free(c);
 }
 
@@ -63,6 +72,10 @@ static void console_reset(struct simio_device *dev)
 {
 	struct console *c = (struct console *)dev;
 	c->buffer_offset = 0;
+
+	if (c->file != NULL) {
+		rewind(c->file);
+	}
 }
 
 static int config_addr(address_t *addr, char **arg_text)
@@ -82,14 +95,39 @@ static int config_addr(address_t *addr, char **arg_text)
 	return 0;
 }
 
+static int config_output(FILE **file, char **arg_text)
+{
+	char *path = get_arg(arg_text);
+
+	if (path == NULL) {
+		printc_err("console: config: expected path\n");
+		return -1;
+	}
+
+	// don't leak the descriptor if configured multiple times
+	if ((*file != NULL) && (*file != stdout)) {
+		fclose(*file);
+	}
+
+	*file = fopen(path, "w");
+	if (*file == NULL) {
+		printc_err("console: can't open %s for writing\n", path);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int console_config(struct simio_device *dev,
 			const char *param, char **arg_text)
 {
 	struct console *c = (struct console *)dev;
 
-	if (!strcasecmp(param, "base"))
-	{
+	if (!strcasecmp(param, "base")) {
 		return config_addr(&c->base_addr, arg_text);
+	}
+	else if (!strcasecmp(param, "output")) {
+		return config_output(&c->file, arg_text);
 	}
 
 	printc_err("console: config: unknown parameter: %s\n", param);
@@ -108,7 +146,26 @@ static int console_write_b(struct simio_device *dev,
 			address_t addr, uint8_t data)
 {
 	struct console *c = (struct console *)dev;
-	if (addr == c->base_addr)
+
+	if (addr != c->base_addr) {
+		return 1;
+	}
+
+	// write either to file or buffer
+	if (c->file != NULL)
+	{
+		size_t nbytes = sizeof(data);
+		if (fwrite(&data, nbytes, 1, c->file) != nbytes) {
+			printc_err("console: write error\n");
+			return -1;
+		}
+
+		// for tail -f
+		if (data == '\n') {
+			fflush(c->file);
+		}
+	}
+	else // buffer
 	{
 		c->buffer[c->buffer_offset++] = data;
 		if (data == '\n' || c->buffer_offset == sizeof c->buffer)
@@ -117,17 +174,20 @@ static int console_write_b(struct simio_device *dev,
 			c->buffer_offset = 0;
 		}
 	}
+
 	return 1;
 }
 
 const struct simio_class simio_console = {
 	.name = "console",
 	.help =
-"This peripheral prints to stdout every byte written to base address\n"
+"This peripheral prints to buffer or file every byte written to base address\n"
 "\n"
 "Config arguments are:\n"
 "    base <address>\n"
 "        Set the peripheral base address. Defaults to 0x00FF\n"
+"    output <path>\n"
+"        Print to file instead of a buffer.\n"
 "\n",
 
 	.create			= console_create,
