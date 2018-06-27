@@ -161,7 +161,7 @@ static const wchar_t * get_wc(const char *c)
     return wc;
 }
 
-transport_t rf2500_open(const char *devpath, const char *requested_serial)
+transport_t rf2500hidapi_open(const char *devpath, const char *requested_serial)
 {
 	struct rf2500_transport *tr = malloc(sizeof(*tr));
 	hid_device *handle;
@@ -197,7 +197,7 @@ transport_t rf2500_open(const char *devpath, const char *requested_serial)
 		free(tr);
 		hid_exit();
 		printc_err("rf2500: fallback to libusb backend\n");
-		return rf2500_libusb_open(devpath, requested_serial);
+		return rf2500_open(devpath, requested_serial);
 	}
 
 	tr->handle = handle;
