@@ -43,7 +43,11 @@ static device_t fet_open_rf2500(const struct device_args *args)
 		return NULL;
 	}
 
+#if defined(__APPLE__)
+	trans = rf2500hidapi_open(args->path, args->requested_serial);
+#else
 	trans = rf2500_open(args->path, args->requested_serial);
+#endif
 	if (!trans)
 		return NULL;
 
