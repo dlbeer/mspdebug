@@ -71,7 +71,6 @@ static int config_timer(struct simio_device *dev, const char *param,
 #define TxCCTL(index)	(0x02 + (index) * 2)
 #define TxCCR(index)	(0x12 + (index) * 2)
 #define TxIV_TxIFG(index) ((index) * 2)
-#define TAIV_TAIFG      0x0a
 
 static uint16_t read_timer(struct simio_device *dev, int offset)
 {
@@ -185,6 +184,7 @@ static void test_create_no_option()
 	// Check default values.
 	struct timer *tmr = (struct timer *)dev;
 	assert(tmr->size == 3);
+	assert(tmr->timer_type == TIMER_TYPE_A);
 	assert(tmr->base_addr == 0x0160);
 	assert(tmr->iv_addr == 0x012e);
 	assert(tmr->irq0 == 9);
@@ -224,6 +224,53 @@ static void test_create_with_size_1()
 
 	// Timer can't have 1 or no comparator/capture.
 	assert(dev == NULL);
+}
+
+static void test_config_type_default()
+{
+	dev = create_timer("");
+
+	// Default timer type is A.
+	struct timer *tmr = (struct timer *)dev;
+	assert(tmr->timer_type == TIMER_TYPE_A);
+}
+
+static void test_config_type_A()
+{
+	dev = create_timer("");
+
+	// Timer can configured as type A.
+	assert(config_timer(dev, "type", "A") == 0);
+	struct timer *tmr = (struct timer *)dev;
+	assert(tmr->timer_type == TIMER_TYPE_A);
+}
+
+static void test_config_type_B()
+{
+	dev = create_timer("");
+
+	// Timer can configured as type B.
+	struct timer *tmr = (struct timer *)dev;
+	assert(config_timer(dev, "type", "B") == 0);
+	assert(tmr->timer_type == TIMER_TYPE_B);
+}
+
+static void test_config_type_bad()
+{
+	dev = create_timer("");
+
+	struct timer *tmr = (struct timer *)dev;
+	// Timer can't configured other than A/B.
+	assert(config_timer(dev, "type", "bad") != 0);
+}
+
+static void test_config_type_empty()
+{
+	dev = create_timer("");
+
+	struct timer *tmr = (struct timer *)dev;
+	// Timer type can't be empty.
+	assert(config_timer(dev, "type", "") != 0);
 }
 
 static void test_address_space()
@@ -319,7 +366,7 @@ static void test_timer_updown_stop()
 	assert(read_timer(dev, TxR) == 0);
 }
 
-static void test_timer_up()
+static void test_timer_a_up()
 {
 	dev = create_timer("");
 
@@ -348,7 +395,7 @@ static void test_timer_up()
 	assert(check_noirq(dev));
 }
 
-static void test_timer_up_change_period()
+static void test_timer_a_up_change_period()
 {
 	dev = create_timer("");
 
@@ -396,7 +443,7 @@ static void test_timer_up_change_period()
 	assert_not(read_timer(dev, TxCTL) & TAIFG);
 }
 
-static void test_timer_updown_change_period()
+static void test_timer_a_updown_change_period()
 {
 	dev = create_timer("");
 
@@ -657,7 +704,7 @@ static void test_timer_capture_by_signal()
 	assert(read_timer(dev, TxCCR(2)) == 50);
 }
 
-static void test_timer_compare()
+static void test_timer_a_compare()
 {
 	dev = create_timer("");
 
@@ -722,6 +769,142 @@ static void test_timer_compare()
 	assert_not(read_timer(dev, TxCCTL(1)) & SCCI);
 }
 
+static void test_timer_b_compare()
+{
+	dev = create_timer("");
+	config_timer(dev, "type", "B");
+
+	/* Continuous mode, ACLK, interrupt enable, clear */
+	write_timer(dev, TxCTL, MC1 | TASSEL0 | TACLR | TAIE);
+	write_timer(dev, TxR, 0xffff);
+	/* Compare mode, enable interrupts */
+	write_timer(dev, TxCCTL(0), CCIE);
+	write_timer(dev, TxCCR(0), 200);
+	write_timer(dev, TxCCTL(1), CCIE);
+	write_timer(dev, TxCCR(1), 100);
+	write_timer(dev, TxCCTL(2), CCIE);
+	write_timer(dev, TxCCR(2), 200);
+
+	// Timer_B overflow interrupt should happen.
+	step_aclk(dev, 1);
+	assert(check_irq1(dev));
+	// Timer_B overflow vector is 0x0e.
+	assert(TBIV_TBIFG == 0x0e);
+	assert(read_iv(dev) == TBIV_TBIFG);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 0);
+
+	step_aclk(dev, 100);
+	assert(check_noirq(dev));
+	// Set CCI of CCTL[1] to 1.
+	config_timer(dev, "set", "1 1");
+	// Timer_B comparator interrupt should happen.
+	step_aclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_timer(dev, TxCCTL(1)) & CCIFG);
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(1)) & CCIFG);
+
+	// Timer_B comparator interrupts should happen.
+	step_aclk(dev, 100);
+	assert(check_irq0(dev));
+	assert(read_timer(dev, TxCCTL(0)) & CCIFG);
+	ack_irq0(dev);
+	assert_not(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(0)) & CCIFG);
+	// Lower priority interrupt.
+	assert(check_irq1(dev));
+	assert(read_timer(dev, TxCCTL(2)) & CCIFG);
+	assert(read_iv(dev) == TxIV_TxIFG(2));
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(2)) & CCIFG);
+
+	// Set CCI of CCTL[1] to 0.
+	config_timer(dev, "set", "1 0");
+	write_timer(dev, TxCCR(1), 300);
+	step_aclk(dev, 100);
+	// Timer_B comparator interrupt should happen.
+	assert(check_irq1(dev));
+	assert(read_timer(dev, TxCCTL(1)) & CCIFG);
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(1)) & CCIFG);
+}
+
+static void test_timer_capture()
+{
+	dev = create_timer("");
+
+	/* Continuous mode, ACLK, clear */
+	write_timer(dev, TxCTL, MC1 | TASSEL0 | TACLR);
+	/* Capture mode, enable interrupts */
+}
+
+static void test_timer_b_length_8()
+{
+	dev = create_timer("");
+	config_timer(dev, "type", "B");
+
+	/* Continuous 8 bit, SMCLK, interrupt enable, clear */
+	write_timer(dev, TxCTL, MC1 | CNTL1 | CNTL0 | TACLR | TAIE | TASSEL1);
+	write_timer(dev, TxR, 0x00ff);
+	step_smclk(dev, 2);
+
+	// Timer B can configured as 8 bit length.
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TBIV_TBIFG);
+	assert(read_timer(dev, TxR) == 1);
+}
+
+static void test_timer_b_length_10()
+{
+	dev = create_timer("");
+	config_timer(dev, "type", "B");
+
+	/* Continuous 10 bit, ACLK, interrupt enable, clear */
+	write_timer(dev, TxCTL, MC1 | CNTL1 | TACLR | TAIE | TASSEL0);
+	write_timer(dev, TxR, 0x03ff);
+	step_aclk(dev, 3);
+
+	// Timer B can configured as 10 bit length.
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TBIV_TBIFG);
+	assert(read_timer(dev, TxR) == 2);
+}
+
+static void test_timer_b_length_12()
+{
+	dev = create_timer("");
+	config_timer(dev, "type", "B");
+
+	/* Continuous 12 bit, SMCLK, interrupt enable, clear */
+	write_timer(dev, TxCTL,	 MC1 | CNTL0 | TACLR | TAIE | TASSEL1);
+	write_timer(dev, TxR, 0x0fff);
+	step_smclk(dev, 4);
+
+	// Timer B can configured as 12 bit length.
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TBIV_TBIFG);
+	assert(read_timer(dev, TxR) == 3);
+}
+
+static void test_timer_b_length_16()
+{
+	dev = create_timer("");
+	config_timer(dev, "type", "B");
+
+	/* Continuous 16 bit, SMCLK, interrupt enable, clear */
+	write_timer(dev, TxCTL, MC1 | TACLR | TAIE | TASSEL1);
+	write_timer(dev, TxR, 0xffff);
+	step_smclk(dev, 5);
+
+	// Timer B can configured as 16 bit length.
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TBIV_TBIFG);
+	assert(read_timer(dev, TxR) == 4);
+}
+
 
 /*
  * Test runner.
@@ -748,16 +931,26 @@ int main(int argc, char **argv)
 	RUN_TEST(test_create_with_size_2);
 	RUN_TEST(test_create_with_size_8);
 	RUN_TEST(test_create_with_size_1);
+	RUN_TEST(test_config_type_default);
+	RUN_TEST(test_config_type_A);
+	RUN_TEST(test_config_type_B);
+	RUN_TEST(test_config_type_bad);
+	RUN_TEST(test_config_type_empty);
 	RUN_TEST(test_address_space);
 	RUN_TEST(test_timer_continuous);
 	RUN_TEST(test_timer_stop);
 	RUN_TEST(test_timer_up_stop);
 	RUN_TEST(test_timer_updown_stop);
-	RUN_TEST(test_timer_up);
-	RUN_TEST(test_timer_up_change_period);
-	RUN_TEST(test_timer_updown_change_period);
+	RUN_TEST(test_timer_a_up);
+	RUN_TEST(test_timer_a_up_change_period);
+	RUN_TEST(test_timer_a_updown_change_period);
 	RUN_TEST(test_timer_divider);
 	RUN_TEST(test_timer_capture_by_software);
 	RUN_TEST(test_timer_capture_by_signal);
-	RUN_TEST(test_timer_compare);
+	RUN_TEST(test_timer_a_compare);
+	RUN_TEST(test_timer_b_compare);
+	RUN_TEST(test_timer_b_length_8);
+	RUN_TEST(test_timer_b_length_10);
+	RUN_TEST(test_timer_b_length_12);
+	RUN_TEST(test_timer_b_length_16);
 }
