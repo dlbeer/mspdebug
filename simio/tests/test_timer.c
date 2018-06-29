@@ -348,6 +348,94 @@ static void test_timer_up()
 	assert(check_noirq(dev));
 }
 
+static void test_timer_up_change_period()
+{
+	dev = create_timer("");
+
+	/* Up mode, SMCLK, enable interrupt, clear */
+	write_timer(dev, TxCTL, MC0 | TASSEL1 | TACLR | TAIE);
+	write_timer(dev, TxCCTL(0), CCIE);
+	write_timer(dev, TxCCR(0), 10);
+	step_smclk(dev, 8);
+
+	// Changing period to less than current count will roll down
+	// counter to 0.
+	assert(read_timer(dev, TxR) == 8);
+	write_timer(dev, TxCCR(0), 5);
+	assert(check_noirq(dev));
+
+	// TAIFG interrupt should happen.
+	step_smclk(dev, 1);
+	assert(read_timer(dev, TxR) == 0);
+	assert(check_irq1(dev));
+	assert(read_timer(dev, TxCTL) & TAIFG);
+	assert(read_iv(dev) == TAIV_TAIFG);
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCTL) & TAIFG);
+
+	step_smclk(dev, 4);
+	assert(read_timer(dev, TxR) == 4);
+	// Changing period to greater that current count will continue
+	// counting to the new period.
+	write_timer(dev, TxCCR(0), 8);
+	step_smclk(dev, 4);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 8);
+
+	// Compare interrupt should happen at new period TAR=8
+	step_smclk(dev, 1);
+	assert(read_timer(dev, TxR) == 0);
+	assert(check_irq0(dev));
+	assert(read_timer(dev, TxCCTL(0)) & CCIFG);
+	ack_irq0(dev);
+	assert_not(read_timer(dev, TxCCTL(0)) & CCIFG);
+	assert(read_timer(dev, TxCTL) & TAIFG);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TAIV_TAIFG);
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCTL) & TAIFG);
+}
+
+static void test_timer_updown_change_period()
+{
+	dev = create_timer("");
+
+	/* Up/Down mode, SMCLK, enable interrupt, clear */
+	write_timer(dev, TxCTL, MC1 | MC0 | TASSEL1 | TACLR | TAIE);
+	write_timer(dev, TxCCTL(0), CCIE);
+	write_timer(dev, TxCCR(0), 10);
+	step_smclk(dev, 8);
+
+	// While counting up, changing period to less than current
+	// count will change the counting direction to down.
+	assert(read_timer(dev, TxR) == 8);
+	write_timer(dev, TxCCR(0), 5);
+	assert(read_timer(dev, TxR) == 8);
+	step_smclk(dev, 2);
+	assert(read_timer(dev, TxR) == 6);
+	assert(check_noirq(dev));
+
+	// While counting down, Changing period to greater that
+	// current count will continue counting to 0.
+	write_timer(dev, TxCCR(0), 8);
+	step_smclk(dev, 6);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TAIV_TAIFG);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 0);
+
+	// Then count up to TACCR[0] and compare interrupt should happen.
+	step_smclk(dev, 8);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 8);
+	step_smclk(dev, 1);
+	assert(check_irq0(dev));
+	assert(read_timer(dev, TxCCTL(0)) & CCIFG);
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 7);
+}
+
 static void test_timer_divider()
 {
 	dev = create_timer("");
@@ -594,6 +682,8 @@ int main(int argc, char **argv)
 	RUN_TEST(test_timer_up_stop);
 	RUN_TEST(test_timer_updown_stop);
 	RUN_TEST(test_timer_up);
+	RUN_TEST(test_timer_up_change_period);
+	RUN_TEST(test_timer_updown_change_period);
 	RUN_TEST(test_timer_divider);
 	RUN_TEST(test_timer_capture);
 	RUN_TEST(test_timer_compare);

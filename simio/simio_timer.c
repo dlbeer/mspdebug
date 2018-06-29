@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -60,7 +61,7 @@ struct timer {
 
 	int			size;
 	int			clock_input;
-	int			go_down;
+	bool			go_down;
 
 	address_t		base_addr;
 	address_t		iv_addr;
@@ -126,7 +127,7 @@ static void timer_reset(struct simio_device *dev)
 
 	tr->tactl = 0;
 	tr->tar = 0;
-	tr->go_down = 0;
+	tr->go_down = false;
 	memset(tr->ccrs, 0, sizeof(tr->ccrs));
 	memset(tr->ctls, 0, sizeof(tr->ctls));
 }
@@ -321,6 +322,12 @@ static int timer_write(struct simio_device *dev,
 		int index = ((addr & 0xf) - 2) >> 1;
 
 		tr->ccrs[index] = data;
+		if (index == 0 && tr->ccrs[index] < tr->tar &&
+		    (tr->tactl & (MC1 | MC0)) == MC0) {
+			/* When CCR[0] is set less than current TAR in up
+			 * mode, TAR rolls to 0. */
+			tr->go_down = true;
+		}
 		return 0;
 	}
 
@@ -400,9 +407,10 @@ static void tar_step(struct timer *tr)
 	switch ((tr->tactl >> 4) & 3) {
 	case 0: break;
 	case 1:
-		if (tr->tar == tr->ccrs[0]) {
+		if (tr->tar == tr->ccrs[0] || tr->go_down) {
 			tr->tar = 0;
 			tr->tactl |= TAIFG;
+			tr->go_down = false;
 		} else {
 			tr->tar++;
 		}
@@ -416,9 +424,9 @@ static void tar_step(struct timer *tr)
 
 	case 3:
 		if (tr->tar >= tr->ccrs[0])
-			tr->go_down = 1;
+			tr->go_down = true;
 		if (!tr->tar)
-			tr->go_down = 0;
+			tr->go_down = false;
 
 		if (tr->go_down) {
 			tr->tar--;
