@@ -905,6 +905,324 @@ static void test_timer_b_length_16()
 	assert(read_timer(dev, TxR) == 4);
 }
 
+static void test_timer_b_compare_latch_0_up()
+{
+	dev = create_timer("");
+	config_timer(dev, "type", "B");
+
+	/* Up 16 bit, SMCLK, clear */
+	write_timer(dev, TxCTL, MC0 | TACLR | TASSEL1);
+
+	write_timer(dev, TxCCR(0), 2);
+	write_timer(dev, TxCCR(2), 5);
+	// When CLLD=0, new data is transferred from TBCCRx to TBCLx immediately
+	// when TBCCRx is written to.
+	write_timer(dev, TxCCTL(0), CCIE);
+	write_timer(dev, TxCCTL(2), CCIE);
+	step_smclk(dev, 2);
+	assert(check_noirq(dev));
+
+	// TBCCR[0] is immediately transferred to TBCL[0].
+	write_timer(dev, TxCCR(0), 10);
+
+	// Because now TBCL[0] is 10, no overflow interrupt should happen at TBR=2
+	step_smclk(dev, 1);
+	assert(read_timer(dev, TxR) == 3);
+	assert(check_noirq(dev));
+
+	// Because TBCL[2] is 5, comparator interrupt should happen at TBR=5.
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(2));
+	assert(check_noirq(dev));
+
+	// Because TBCL[2] is 8, comparator interrupt should happen again at TBR=8.
+	write_timer(dev, TxCCR(2), 8);
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(2));
+	assert(check_noirq(dev));
+
+	// Because TBCL[0] is 10, overflow interrupt should happen again at TBR=10.
+	step_smclk(dev, 2);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 0);
+}
+
+static void test_timer_b_compare_latch_1_up()
+{
+	dev = create_timer("3");
+	config_timer(dev, "type", "B");
+
+	/* Up 16 bit, SMCLK, clear */
+	write_timer(dev, TxCTL, MC0 | TACLR | TASSEL1);
+
+	write_timer(dev, TxCCR(0), 5);
+	write_timer(dev, TxCCR(1), 2);
+	// When CLLD=1, new data is transferred from TBCCRx to TBCLx when TBR
+	// counts to 0.
+	write_timer(dev, TxCCTL(0), CLLD0 | CCIE);
+	write_timer(dev, TxCCTL(1), CLLD0 | CCIE);
+	step_smclk(dev, 2);
+	assert(check_noirq(dev));
+
+	// TBCCR[0] will be transferred to TBCL[0] when next TBR=0.
+	write_timer(dev, TxCCR(0), 10);
+	// TBCCR[1] will be transferred to TBCL[1] when next TBR=0.
+	write_timer(dev, TxCCR(1), 2);
+
+	// Because TBCL[1] keeps 2, compare interrupt should happen at TBR=2.
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+
+	// Because TBCL[0] keeps 5, compare interrupt should happen at TBR=5, then TBR=0.
+	step_smclk(dev, 3);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(0));
+
+	// Now TBCL[1] becomes 2, compare interrupt should happen again at TBR=2.
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+
+	// Now TBCL[0] becomes 10, no compare interrupt should happen at TBR=5.
+	step_smclk(dev, 7);
+	assert(check_noirq(dev));
+
+	// Then compare interrupt should happen at TBR=10, then TBR=0.
+	step_smclk(dev, 1);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(0));
+	assert(read_timer(dev, TxR) == 0);
+}
+
+static void test_timer_b_compare_latch_2_continuous()
+{
+	dev = create_timer("7");
+	config_timer(dev, "type", "B");
+
+	/* Continuous 8 bit, SMCLK, clear */
+	write_timer(dev, TxCTL, MC1 | CNTL1 | CNTL0 | TACLR | TASSEL1);
+	write_timer(dev, TxR, 0x00fe);
+
+	write_timer(dev, TxCCR(6), 2);
+	// When CLLD=2, new data is transferred from TBCCRx to TBCLx when TBR
+	// counts to 0 for continuous mode.
+	write_timer(dev, TxCCTL(6), CLLD1 | CCIE);
+
+	// TBCCR[6] will be transferred to TBCL[6] when next TBR=0.
+	write_timer(dev, TxCCR(6), 5);
+	step_smclk(dev, 2);
+	assert(read_timer(dev, TxR) == 0);
+
+	// Now TBCL[6] becomes 5, compare interrupt should not happen at TBR=2.
+	step_smclk(dev, 3);
+	assert(check_noirq(dev));
+
+	// Because TBCL[6] is 5, compare interrupt should happen at TBR=5.
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(6));
+	assert(check_noirq(dev));
+
+	// Because TBCCR[6] will be transferred to TBCL[6] when next TBR=0,
+	// no compare interrupt should happen at TBR=5.
+	write_timer(dev, TxCCR(6), 10);
+	step_smclk(dev, 0x100);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) > 5);
+
+	// Now TBCL[6] becomes 10, compare interrupt should happen.
+	step_smclk(dev, 5);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(6));
+	assert(check_noirq(dev));
+}
+
+static void test_timer_b_compare_latch_2_up()
+{
+	dev = create_timer("5");
+	config_timer(dev, "type", "B");
+
+	/* Up 16 bit, SMCLK, clear */
+	write_timer(dev, TxCTL, MC0 | TACLR | TASSEL1);
+
+	write_timer(dev, TxCCR(0), 5);
+	write_timer(dev, TxCCR(4), 2);
+	// When CLLD=2, new data is transferred from TBCCRx to TBCLx when TBR
+	// counts to 0.
+	write_timer(dev, TxCCTL(0), CLLD0 | CCIE);
+	write_timer(dev, TxCCTL(4), CLLD0 | CCIE);
+	step_smclk(dev, 2);
+	assert(check_noirq(dev));
+
+	// TBCCR[0] will be transferred to TBCL[0] when next TBR=0.
+	write_timer(dev, TxCCR(0), 10);
+	// TBCCR[4] will be transferred to TBCL[4] when next TBR=0.
+	write_timer(dev, TxCCR(4), 2);
+
+	// Because TBCL[4] keeps 2, compare interrupt should happen at TBR=2.
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(4));
+	assert(check_noirq(dev));
+
+	// Because TBCL[0] keeps 5, compare interrupt should happen at TBR=5, then TBR=0.
+	step_smclk(dev, 3);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(0));
+
+	// Now TBCL[4] becomes 2, compare interrupt should happen again at TBR=2.
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(4));
+	assert(check_noirq(dev));
+
+	// Now TBCL[0] becomes 10, no compare interrupt should happen at TBR=5.
+	step_smclk(dev, 7);
+	assert(check_noirq(dev));
+
+	// Then compare interrupt should happen at TBR=10, then TBR=0.
+	step_smclk(dev, 1);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(0));
+	assert(read_timer(dev, TxR) == 0);
+}
+
+static void test_timer_b_compare_latch_2_updown()
+{
+	dev = create_timer("7");
+	config_timer(dev, "type", "B");
+
+	/* Up/Down 16 bit, SMCLK, interrupt enable, clear */
+	write_timer(dev, TxCTL, MC1 | MC0 | TACLR | TAIE | TASSEL1);
+
+	write_timer(dev, TxCCR(0), 10);
+	write_timer(dev, TxCCTL(0), CCIE);
+	write_timer(dev, TxCCR(5), 5);
+	// When CLLD=2, new data is transferred from TBCCRx to TBCLx when TBR
+	// counts to the old TBCL0 value or to 0 for up/down mode.
+	write_timer(dev, TxCCTL(5), CLLD1 | CCIE);
+	step_smclk(dev, 4);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 4);
+
+	// TBCCR[5] will be transferred to TBCL[5] when next TBR=5.
+	write_timer(dev, TxCCR(5), 8);
+
+	// Because TBCL[0] is 5, compare interrupt should happen at TBR=TBCL[5]=5.
+	step_smclk(dev, 2);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(5));
+	assert(check_noirq(dev));
+
+	// Now TBCL[5] becomes 8, compare interrupt should happen at TBR=8.
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(5));
+	assert(check_noirq(dev));
+
+	// Because TBCL[0]=10, compare interrupt should happen at TBR=10.
+	step_smclk(dev, 2);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(0));
+	assert(read_timer(dev, TxR) == 9);
+
+	// Because TBCL[5] is still 8, compare interrupt should happen again at TBR=8.
+	step_smclk(dev, 2);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(5));
+	assert(check_noirq(dev));
+
+	// Because TBCL[5] is still 8, no compare interrupt should happen.
+	step_smclk(dev, 6);
+	assert(read_timer(dev, TxR) == 1);
+
+	// TBCCR[5] will be transferred to TBCL[5] when next TBR=0.
+	write_timer(dev, TxCCR(5), 2);
+
+	// Compare interrupt should happen at TBR=0.
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TBIV_TBIFG);
+	assert(check_noirq(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(0));
+	assert(read_timer(dev, TxR) == 0);
+
+	// Now TBCL[5] becomes 2, compare interrupt should happen at TBR=2.
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(5));
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 3);
+}
+
+static void test_timer_b_compare_latch_3_up()
+{
+	dev = create_timer("5");
+	config_timer(dev, "type", "B");
+
+	/* Up 16 bit, SMCLK, clear */
+	write_timer(dev, TxCTL, MC0 | TACLR | TASSEL1);
+
+	write_timer(dev, TxCCR(0), 10);
+	write_timer(dev, TxCCTL(0), CCIE);
+	write_timer(dev, TxCCR(2), 5);
+	// When CLLD=3, new data is transferred from TBCCRx to TBCLx when TBR
+	// counts to the old TBCL0 value.
+	write_timer(dev, TxCCTL(2), CLLD1 | CLLD0 | CCIE);
+	step_smclk(dev, 4);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 4);
+
+	// TBCCR[2] will be transferred to TBCL[2] when next TBR=5.
+	write_timer(dev, TxCCR(2), 8);
+
+	// Because TBCL[0] is 5, compare interrupt should happen at TBR=TBCL[2]=5.
+	step_smclk(dev, 2);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(2));
+	assert(check_noirq(dev));
+
+	// TBCCR[2] will be transferred to TBCL[2] when next TBR=8.
+	write_timer(dev, TxCCR(2), 2);
+
+	// Now TBCL[2] becomes 8, compare interrupt should happen at TBR=8.
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(2));
+	assert(check_noirq(dev));
+
+	// Because TBCL[0] is 10, compare interrupt should happen at TBR=10.
+	step_smclk(dev, 2);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(0));
+	assert(read_timer(dev, TxR) == 0);
+
+	// Because TBCL[2] is 2, compare interrupt should happen again at TBR=2.
+	step_smclk(dev, 3);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(2));
+	assert(check_noirq(dev));
+}
+
 
 /*
  * Test runner.
@@ -953,4 +1271,10 @@ int main(int argc, char **argv)
 	RUN_TEST(test_timer_b_length_10);
 	RUN_TEST(test_timer_b_length_12);
 	RUN_TEST(test_timer_b_length_16);
+	RUN_TEST(test_timer_b_compare_latch_0_up);
+	RUN_TEST(test_timer_b_compare_latch_1_up);
+	RUN_TEST(test_timer_b_compare_latch_2_continuous);
+	RUN_TEST(test_timer_b_compare_latch_2_up);
+	RUN_TEST(test_timer_b_compare_latch_2_updown);
+	RUN_TEST(test_timer_b_compare_latch_3_up);
 }

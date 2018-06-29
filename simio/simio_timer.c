@@ -90,6 +90,8 @@ struct timer {
 	uint16_t		tar;
 	uint16_t		ctls[MAX_CCRS];
 	uint16_t		ccrs[MAX_CCRS];
+	/* Compare latch for Timer_B */
+	uint16_t		bcls[MAX_CCRS];
 };
 
 static struct simio_device *timer_create(char **arg_text)
@@ -148,6 +150,7 @@ static void timer_reset(struct simio_device *dev)
 	tr->go_down = false;
 	memset(tr->ccrs, 0, sizeof(tr->ccrs));
 	memset(tr->ctls, 0, sizeof(tr->ctls));
+	memset(tr->bcls, 0, sizeof(tr->bcls));
 }
 
 static int config_addr(address_t *addr, char **arg_text)
@@ -334,6 +337,8 @@ static int timer_info(struct simio_device *dev)
 	for (i = 0; i < tr->size; i++) {
 		printc("T%cCCTL%d = 0x%04x, T%cCCR%d = 0x%04x",
 		       timer_type, i, tr->ctls[i], timer_type, i, tr->ccrs[i]);
+		if (tr->timer_type == TIMER_TYPE_B)
+			printc(", TBCL%d = 0x%04x", i, tr->bcls[i]);
 		printc("\n");
 	}
 
@@ -397,11 +402,18 @@ static int timer_write(struct simio_device *dev,
 		int index = ((addr & 0xf) - 2) >> 1;
 
 		tr->ccrs[index] = data;
-		if (index == 0 && tr->ccrs[index] < tr->tar &&
+		if (tr->timer_type == TIMER_TYPE_A &&
+		    index == 0 && data < tr->tar &&
 		    (tr->tactl & (MC1 | MC0)) == MC0) {
 			/* When CCR[0] is set less than current TAR in up
 			 * mode, TAR rolls to 0. */
 			tr->go_down = true;
+		}
+		if (tr->timer_type == TIMER_TYPE_B &&
+		    (tr->ctls[index] & (CLLD1 | CLLD0)) == 0) {
+			/* Writing TBCCRx triggers update TBCLx immediately.
+			 * No grouping. */
+			tr->bcls[index] = tr->ccrs[index];
 		}
 		return 0;
 	}
@@ -477,6 +489,12 @@ static void timer_ack_interrupt(struct simio_device *dev, int irq)
 	/* By design irq1 does not clear CCIFG or TAIFG automatically */
 }
 
+static uint16_t get_ccr(struct timer *tr, int index) {
+	if (tr->timer_type == TIMER_TYPE_B)
+		return tr->bcls[index];
+	return tr->ccrs[index];
+}
+
 static uint16_t tar_increment(struct timer *tr)
 {
 	tr->tar++;
@@ -497,7 +515,7 @@ static void tar_step(struct timer *tr)
 	case 0:
 		break;
 	case 1:
-		if (tr->tar == tr->ccrs[0] || tr->go_down) {
+		if (tr->tar == get_ccr(tr, 0) || tr->go_down) {
 			tr->tar = 0;
 			tr->tactl |= TAIFG;
 			tr->go_down = false;
@@ -512,9 +530,9 @@ static void tar_step(struct timer *tr)
 		break;
 
 	case 3:
-		if (tr->tar >= tr->ccrs[0])
+		if (tr->tar >= get_ccr(tr, 0))
 			tr->go_down = true;
-		if (!tr->tar)
+		if (tr->tar == 0)
 			tr->go_down = false;
 
 		if (tr->go_down) {
@@ -530,7 +548,7 @@ static void tar_step(struct timer *tr)
 static void comparator_step(struct timer *tr, int index)
 {
 	if (tr->timer_type == TIMER_TYPE_A) {
-		if (tr->tar == tr->ccrs[index]) {
+		if (tr->tar == get_ccr(tr, index)) {
 			tr->ctls[index] |= CCIFG;
 			if (tr->ctls[index] & CCI)
 				tr->ctls[index] |= SCCI;
@@ -540,8 +558,19 @@ static void comparator_step(struct timer *tr, int index)
 	}
 
 	if (tr->timer_type == TIMER_TYPE_B) {
-		if (tr->tar == tr->ccrs[index]) {
+		const uint16_t mc = tr->tactl & (MC1 | MC0);
+		const uint16_t clld = tr->ctls[index] & (CLLD1 | CLLD0);
+		if (tr->tar == 0) {
+			if (clld == CLLD0 || (clld == CLLD1 && mc != 0)) {
+				tr->bcls[index] = tr->ccrs[index];
+			}
+		}
+		if (tr->tar == get_ccr(tr, index)) {
 			tr->ctls[index] |= CCIFG;
+			if ((clld == CLLD1 && mc == (MC1 | MC0)) ||
+			    clld == (CLLD1 | CLLD0)) {
+				tr->bcls[index] = tr->ccrs[index];
+			}
 		}
 	}
 }
