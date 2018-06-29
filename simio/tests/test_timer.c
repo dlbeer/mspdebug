@@ -505,7 +505,79 @@ static void test_timer_divider()
 	assert(read_timer(dev, TxR) == 10);
 }
 
-static void test_timer_capture()
+static void test_timer_capture_by_software()
+{
+	dev = create_timer("");
+
+	/* Continuous mode, ACLK, clear */
+	write_timer(dev, TxCTL, MC1 | TASSEL0 | TACLR);
+
+	/* Capture mode, input GND, both edge */
+	write_timer(dev, TxCCTL(0), CAP | CCIS1 | CM1 | CM0);
+	step_aclk(dev, 10);
+	// Rising edge.
+	write_timer(dev, TxCCTL(0), read_timer(dev, TxCCTL(0)) | CCIS0);
+	assert(read_timer(dev, TxCCTL(0)) & CCI);
+	assert_not(read_timer(dev, TxCCTL(0)) & COV);
+	assert(read_timer(dev, TxCCTL(0)) & CCIFG);
+	assert(read_timer(dev, TxCCR(0)) == 10);
+
+	write_timer(dev, TxCCTL(0), read_timer(dev, TxCCTL(0)) & ~CCIFG);
+	step_aclk(dev, 10);
+	// Falling edge.
+	write_timer(dev, TxCCTL(0), read_timer(dev, TxCCTL(0)) & ~CCIS0);
+	assert_not(read_timer(dev, TxCCTL(0)) & CCI);
+	assert_not(read_timer(dev, TxCCTL(0)) & COV);
+	assert(read_timer(dev, TxCCTL(0)) & CCIFG);
+	assert(read_timer(dev, TxCCR(0)) == 20);
+
+	// Keep CCIFG on and capture causes COV */
+	step_aclk(dev, 10);
+	// Rising edge.
+	write_timer(dev, TxCCTL(0), read_timer(dev, TxCCTL(0)) | CCIS0);
+	assert(read_timer(dev, TxCCTL(0)) & CCI);
+	assert(read_timer(dev, TxCCTL(0)) & COV);
+	assert(read_timer(dev, TxCCTL(0)) & CCIFG);
+	assert(read_timer(dev, TxCCR(0)) == 20);
+
+	/* Capture mode, input GND, rising edge */
+	write_timer(dev, TxCCTL(1), CAP | CCIS1 | CM0);
+	// Rising edge.
+	write_timer(dev, TxCCTL(1), read_timer(dev, TxCCTL(1)) | CCIS0);
+	assert(read_timer(dev, TxCCTL(1)) & CCI);
+	assert_not(read_timer(dev, TxCCTL(1)) & COV);
+	assert(read_timer(dev, TxCCTL(1)) & CCIFG);
+	assert(read_timer(dev, TxCCR(1)) == 30);
+
+	write_timer(dev, TxCCTL(1), read_timer(dev, TxCCTL(1)) & ~CCIFG);
+	step_aclk(dev, 10);
+	// Falling edge.
+	write_timer(dev, TxCCTL(1), read_timer(dev, TxCCTL(1)) & ~CCIS0);
+	assert_not(read_timer(dev, TxCCTL(1)) & CCI);
+	assert_not(read_timer(dev, TxCCTL(1)) & COV);
+	assert_not(read_timer(dev, TxCCTL(1)) & CCIFG);
+	assert(read_timer(dev, TxCCR(1)) == 30);
+
+	/* Capture mode, input GND, falling edge */
+	write_timer(dev, TxCCTL(2), CAP | CCIS1 | CM1);
+	// Rising edge.
+	write_timer(dev, TxCCTL(2), read_timer(dev, TxCCTL(2)) | CCIS0);
+	assert(read_timer(dev, TxCCTL(2)) & CCI);
+	assert_not(read_timer(dev, TxCCTL(2)) & COV);
+	assert_not(read_timer(dev, TxCCTL(2)) & CCIFG);
+	assert(read_timer(dev, TxCCR(2)) == 0);
+
+	step_aclk(dev, 10);
+	// Falling edge.
+	write_timer(dev, TxCCTL(2), read_timer(dev, TxCCTL(2)) & ~CCIS0);
+	assert_not(read_timer(dev, TxCCTL(2)) & CCI);
+	assert_not(read_timer(dev, TxCCTL(2)) & COV);
+	assert(read_timer(dev, TxCCTL(2)) & CCIFG);
+	assert(read_timer(dev, TxCCR(2)) == 50);
+}
+
+
+static void test_timer_capture_by_signal()
 {
 	dev = create_timer("");
 
@@ -685,6 +757,7 @@ int main(int argc, char **argv)
 	RUN_TEST(test_timer_up_change_period);
 	RUN_TEST(test_timer_updown_change_period);
 	RUN_TEST(test_timer_divider);
-	RUN_TEST(test_timer_capture);
+	RUN_TEST(test_timer_capture_by_software);
+	RUN_TEST(test_timer_capture_by_signal);
 	RUN_TEST(test_timer_compare);
 }

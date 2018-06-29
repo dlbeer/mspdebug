@@ -168,14 +168,40 @@ static int config_irq(int *irq, char **arg_text)
 	return 0;
 }
 
+static void trigger_capture(struct timer *tr, int which, int oldval, int value)
+{
+	uint16_t edge_flags = 0;
+
+	tr->ctls[which] &= ~CCI;
+	if (value)
+		tr->ctls[which] |= CCI;
+
+	if (oldval && !value)
+		edge_flags |= CM1;
+	if (!oldval && value)
+		edge_flags |= CM0;
+
+	printc_dbg("Timer channel %d: %s => %s\n",
+		   which, oldval ? "H" : "L", value ? "H" : "L");
+
+	if ((tr->ctls[which] & edge_flags) && (tr->ctls[which] & CAP)) {
+		if (tr->ctls[which] & CCIFG) {
+			printc_dbg("Timer capture overflow\n");
+			tr->ctls[which] |= COV;
+		} else {
+			printc_dbg("Timer capture interrupt triggered\n");
+			tr->ccrs[which] = tr->tar;
+			tr->ctls[which] |= CCIFG;
+		}
+	}
+}
+
 static int config_channel(struct timer *tr, char **arg_text)
 {
 	char *which_text = get_arg(arg_text);
 	char *value_text = get_arg(arg_text);
 	address_t which;
 	address_t value;
-	int oldval;
-	uint16_t edge_flags = 0;
 
 	if (!(which_text && value_text)) {
 		printc_err("timer: config: expected channel and value\n");
@@ -199,29 +225,7 @@ static int config_channel(struct timer *tr, char **arg_text)
 		return -1;
 	}
 
-	oldval = tr->ctls[which] & CCI;
-	tr->ctls[which] &= ~CCI;
-	if (value)
-		tr->ctls[which] |= CCI;
-
-	if (oldval && !value)
-		edge_flags |= CM1;
-	if (!oldval && value)
-		edge_flags |= CM0;
-
-	printc_dbg("Timer channel %d: %s => %s\n",
-		   which, oldval ? "H" : "L", value ? "H" : "L");
-
-	if ((tr->ctls[which] & edge_flags) && (tr->ctls[which] & CAP)) {
-		if (tr->ctls[which] & CCIFG) {
-			printc_dbg("Timer capture overflow\n");
-			tr->ctls[which] |= COV;
-		} else {
-			printc_dbg("Timer capture interrupt triggered\n");
-			tr->ccrs[which] = tr->tar;
-			tr->ctls[which] |= CCIFG;
-		}
-	}
+	trigger_capture(tr, which, tr->ctls[which] & CCI, value);
 
 	return 0;
 }
@@ -311,9 +315,12 @@ static int timer_write(struct simio_device *dev,
 	if (addr >= tr->base_addr + 2 &&
 	    addr < tr->base_addr + (tr->size << 1) + 2) {
 		int index = ((addr & 0xf) - 2) >> 1;
+		uint16_t oldval = tr->ctls[index];
 
-		tr->ctls[index] = (data & 0xf9f7) |
-			(tr->ctls[index] & 0x0608);
+		tr->ctls[index] = (data & 0xf9f7) | (oldval & 0x0608);
+		/* Check capture initiated by Software */
+		if ((data & (CAP | CCIS1)) == (CAP | CCIS1))
+			trigger_capture(tr, index, oldval & CCI, data & CCIS0);
 		return 0;
 	}
 
