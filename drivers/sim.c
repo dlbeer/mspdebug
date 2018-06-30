@@ -619,7 +619,7 @@ static int sim_readmem(device_t dev_base, address_t addr,
 	}
 
 	/* Read word IO addresses */
-	while (len > 2 && (addr < 0x200)) {
+	while (len >= 2 && addr < 0x200) {
 		uint16_t data = 0;
 
 		simio_read(addr, &data);
@@ -654,7 +654,14 @@ static int sim_writemem(device_t dev_base, address_t addr,
 	}
 
 	/* Write word IO addresses */
-	while (len > 2 && (addr < 0x200)) {
+	if (len == 1 && addr < 0x200) {
+		printc_err("sim: memory write on word IO, "
+                   "at least 2 bytes data are necessary.\n");
+	} else if (len % 2 != 0 && addr < 0x200) {
+		printc_err("sim: memory write on word IO, "
+                   "the last byte is ignored.\n");
+	}
+	while (len >= 2 && addr < 0x200) {
 		simio_write(addr, ((uint16_t)mem[1] << 8) | mem[0]);
 		mem += 2;
 		len -= 2;

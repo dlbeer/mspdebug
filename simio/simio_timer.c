@@ -88,6 +88,7 @@ static struct simio_device *timer_create(char **arg_text)
 				   size_text);
 			return NULL;
 		}
+		size = value;
 
 		if (size < 2 || size > MAX_CCRS) {
 			printc_err("timer: invalid size: %d\n", size);
@@ -282,7 +283,7 @@ static int timer_info(struct simio_device *dev)
 	printc("\n");
 
 	for (i = 0; i < tr->size; i++)
-		printc("Channel %2d, TACTL = 0x%04x, TACCR = 0x%04x\n",
+		printc("Channel %2d, TACCTL = 0x%04x, TACCR = 0x%04x\n",
 		       i, tr->ctls[i], tr->ccrs[i]);
 
 	return 0;
@@ -307,7 +308,7 @@ static int timer_write(struct simio_device *dev,
 	}
 
 	if (addr >= tr->base_addr + 2 &&
-	    addr < tr->base_addr + tr->size + 2) {
+	    addr < tr->base_addr + (tr->size << 1) + 2) {
 		int index = ((addr & 0xf) - 2) >> 1;
 
 		tr->ctls[index] = (data & 0xf9f7) |
@@ -316,7 +317,7 @@ static int timer_write(struct simio_device *dev,
 	}
 
 	if (addr >= tr->base_addr + 0x12 &&
-	    addr < tr->base_addr + tr->size + 0x12) {
+	    addr < tr->base_addr + (tr->size << 1) + 0x12) {
 		int index = ((addr & 0xf) - 2) >> 1;
 
 		tr->ccrs[index] = data;
@@ -348,13 +349,13 @@ static int timer_read(struct simio_device *dev,
 	}
 
 	if (addr >= tr->base_addr + 2 &&
-	    addr < tr->base_addr + tr->size + 2) {
+	    addr < tr->base_addr + (tr->size << 1) + 2) {
 		*data = tr->ctls[((addr & 0xf) - 2) >> 1];
 		return 0;
 	}
 
 	if (addr >= tr->base_addr + 0x12 &&
-	    addr < tr->base_addr + tr->size + 0x12) {
+	    addr < tr->base_addr + (tr->size << 1) + 0x12) {
 		*data = tr->ccrs[((addr & 0xf) - 2) >> 1];
 		return 0;
 	}
