@@ -399,7 +399,9 @@ int cmd_dis(char **arg)
 				len_text);
 			return -1;
 		}
-	} else if (offset < 0x10000 && offset + length > 0x10000) {
+	}
+	length += (length & 1);
+	if (offset < 0x10000 && offset + length > 0x10000) {
 		length = 0x10000 - offset;
 	}
 
@@ -414,8 +416,8 @@ int cmd_dis(char **arg)
 		return -1;
 	}
 
-	reader_set_repeat("dis 0x%x 0x%x", offset + length, length);
-	disassemble(offset, buf, length, device_default->power_buf);
+	offset = disassemble(offset, buf, length, device_default->power_buf);
+	reader_set_repeat("dis 0x%x 0x%x", offset, length);
 	free(buf);
 	return 0;
 }

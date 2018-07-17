@@ -23,8 +23,11 @@
 #include "util.h"
 #include "powerbuf.h"
 
-/* Print colorized disassembly on command processor standard output */
-void disassemble(address_t addr, const uint8_t *buf, int len,
+/* Print colorized disassembly on command processor standard output.
+ *
+ * Returns the next possible instruction address.
+ */
+address_t disassemble(address_t addr, const uint8_t *buf, int len,
 		 powerbuf_t power);
 
 /* Print colorized hexdump on standard output */

@@ -205,12 +205,13 @@ static int dis_format(const struct msp430_instruction *insn)
 	return len;
 }
 
-void disassemble(address_t offset, const uint8_t *data, int length,
+address_t disassemble(address_t offset, const uint8_t *data, int length,
 		 powerbuf_t power)
 {
 	int first_line = 1;
 	unsigned long long ua_total = 0;
 	int samples_total = 0;
+	address_t next_offset = offset;
 
 	while (length) {
 		struct msp430_instruction insn = {0};
@@ -231,6 +232,8 @@ void disassemble(address_t offset, const uint8_t *data, int length,
 		first_line = 0;
 
 		retval = dis_decode(data, offset, length, &insn);
+		if (retval > 0)
+			next_offset = offset + retval;
 		count = retval > 0 ? retval : 2;
 		if (count > length)
 			count = length;
@@ -279,6 +282,8 @@ void disassemble(address_t offset, const uint8_t *data, int length,
 		       (double)(ua_total * power->interval_us) / 1000000.0,
 		       (double)(samples_total * power->interval_us) / 1000.0,
 		       (double)ua_total / (double)samples_total);
+
+	return next_offset;
 }
 
 void hexdump(address_t addr, const uint8_t *data, int data_len)
