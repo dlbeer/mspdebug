@@ -92,6 +92,8 @@ struct timer {
 	uint16_t		ccrs[MAX_CCRS];
 	/* Compare latch for Timer_B */
 	uint16_t		bcls[MAX_CCRS];
+	/* True if ccrs[index] has a value set. Used for compare latch grouping */
+	bool			valid_ccrs[MAX_CCRS];
 };
 
 static struct simio_device *timer_create(char **arg_text)
@@ -151,6 +153,7 @@ static void timer_reset(struct simio_device *dev)
 	memset(tr->ccrs, 0, sizeof(tr->ccrs));
 	memset(tr->ctls, 0, sizeof(tr->ctls));
 	memset(tr->bcls, 0, sizeof(tr->bcls));
+	memset(tr->valid_ccrs, false, sizeof(tr->valid_ccrs));
 }
 
 static int config_addr(address_t *addr, char **arg_text)
@@ -362,6 +365,49 @@ static uint16_t tar_mask(struct timer *tr)
 	return 0xffff;
 }
 
+static void set_bcl(struct timer *tr, int index)
+{
+	tr->bcls[index] = tr->ccrs[index];
+	tr->valid_ccrs[index] = false;
+}
+
+static bool no_double_buffer(struct timer *tr, int index)
+{
+	uint16_t clgrp = tr->tactl & (TBCLGRP1 | TBCLGRP0);
+
+	if (clgrp == TBCLGRP0 && (index == 2 || index == 4 || index == 6))
+		return (tr->ctls[index - 1] & (CLLD1 | CLLD0)) == 0;
+	if (clgrp == TBCLGRP1 && (index == 2 || index == 5))
+		return (tr->ctls[index - 1] & (CLLD1 | CLLD0)) == 0;
+	if (clgrp == TBCLGRP1 && (index == 3 || index == 6))
+		return (tr->ctls[index - 2] & (CLLD1 | CLLD0)) == 0;
+	if (clgrp == (TBCLGRP1 | TBCLGRP0))
+		return (tr->ctls[1] & (CLLD1 | CLLD0)) == 0;
+	return (tr->ctls[index] & (CLLD1 | CLLD0)) == 0;
+}
+
+static void set_ccr(struct timer *tr, int index, uint16_t data)
+{
+	tr->ccrs[index] = data;
+	tr->valid_ccrs[index] = true;
+
+	if (tr->timer_type == TIMER_TYPE_A) {
+		/* When CCR[0] set is less than TAR in up mode, TAR rolls to
+		 * 0. */
+		if (index == 0 && data < tr->tar &&
+		    (tr->tactl & (MC1 | MC0)) == MC0) {
+			tr->go_down = true;
+		}
+	}
+	if (tr->timer_type == TIMER_TYPE_B) {
+		/* Writing TBCCRx triggers update TBCLx immediately.  No
+		 * grouping. */
+		if (no_double_buffer(tr, index)) {
+			set_bcl(tr, index);
+		}
+	}
+}
+
 static int timer_write(struct simio_device *dev,
 		       address_t addr, uint16_t data)
 {
@@ -401,20 +447,7 @@ static int timer_write(struct simio_device *dev,
 	    addr < tr->base_addr + (tr->size << 1) + 0x12) {
 		int index = ((addr & 0xf) - 2) >> 1;
 
-		tr->ccrs[index] = data;
-		if (tr->timer_type == TIMER_TYPE_A &&
-		    index == 0 && data < tr->tar &&
-		    (tr->tactl & (MC1 | MC0)) == MC0) {
-			/* When CCR[0] is set less than current TAR in up
-			 * mode, TAR rolls to 0. */
-			tr->go_down = true;
-		}
-		if (tr->timer_type == TIMER_TYPE_B &&
-		    (tr->ctls[index] & (CLLD1 | CLLD0)) == 0) {
-			/* Writing TBCCRx triggers update TBCLx immediately.
-			 * No grouping. */
-			tr->bcls[index] = tr->ccrs[index];
-		}
+		set_ccr(tr, index, data);
 		return 0;
 	}
 
@@ -545,6 +578,48 @@ static void tar_step(struct timer *tr)
 	}
 }
 
+static void update_bcls(struct timer *tr, int start, int n)
+{
+	int index;
+	const int end = start + n;
+
+	for (index = start; index < end; index++) {
+		if (!tr->valid_ccrs[index])
+			return;
+	}
+
+	for (index = start; index < end; index++)
+		set_bcl(tr, index);
+}
+
+static void update_bcl_group(struct timer *tr, int index)
+{
+	switch (tr->tactl & (TBCLGRP1 | TBCLGRP0)) {
+	case 0: /* Individual */
+		set_bcl(tr, index);
+		return;
+	case TBCLGRP0: /* 0, 1&2, 3&4, 5&6 */
+		if (index == 0) {
+			update_bcls(tr, index, 1);
+		} else if (index == 1 || index == 3 || index == 5) {
+			update_bcls(tr, index, 2);
+		}
+		return;
+	case TBCLGRP1: /* 0, 1&2&3, 4&5&6 */
+		if (index == 0) {
+			update_bcls(tr, index, 1);
+		} else if (index == 1 || index == 4) {
+			update_bcls(tr, index, 3);
+		}
+		return;
+	case TBCLGRP1 | TBCLGRP0: /* All at once */
+		if (index == 1) {
+			update_bcls(tr, 0, tr->size);
+		}
+		return;
+	}
+}
+
 static void comparator_step(struct timer *tr, int index)
 {
 	if (tr->timer_type == TIMER_TYPE_A) {
@@ -562,14 +637,14 @@ static void comparator_step(struct timer *tr, int index)
 		const uint16_t clld = tr->ctls[index] & (CLLD1 | CLLD0);
 		if (tr->tar == 0) {
 			if (clld == CLLD0 || (clld == CLLD1 && mc != 0)) {
-				tr->bcls[index] = tr->ccrs[index];
+				update_bcl_group(tr, index);
 			}
 		}
 		if (tr->tar == get_ccr(tr, index)) {
 			tr->ctls[index] |= CCIFG;
 			if ((clld == CLLD1 && mc == (MC1 | MC0)) ||
 			    clld == (CLLD1 | CLLD0)) {
-				tr->bcls[index] = tr->ccrs[index];
+				update_bcl_group(tr, index);
 			}
 		}
 	}

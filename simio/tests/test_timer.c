@@ -1223,6 +1223,263 @@ static void test_timer_b_compare_latch_3_up()
 	assert(check_noirq(dev));
 }
 
+static void test_timer_b_grouping_1()
+{
+	dev = create_timer("7");
+	config_timer(dev, "type", "B");
+
+	/* Continuous mode, SMCLK, pair grouping */
+	write_timer(dev, TxCTL, MC1 | TASSEL1 | TBCLGRP0);
+	write_timer(dev, TxCCR(0), 2);
+	write_timer(dev, TxCCR(1), 4);
+	write_timer(dev, TxCCR(2), 5);
+	write_timer(dev, TxCCR(3), 6);
+	write_timer(dev, TxCCR(4), 7);
+	write_timer(dev, TxCCR(5), 8);
+	write_timer(dev, TxCCR(6), 9);
+	/* Load TBCL when TBR reaches old TBCL value, compare interrupt */
+	write_timer(dev, TxCCTL(0), CLLD1 | CLLD0 | CCIE);
+	write_timer(dev, TxCCR(0), 10);
+	// Both CCR[1] and CCR[2] are set.
+	write_timer(dev, TxCCTL(1), CLLD1 | CLLD0 | CCIE);
+	write_timer(dev, TxCCTL(2), CCIE);
+	write_timer(dev, TxCCR(1), 12);
+	write_timer(dev, TxCCR(2), 13);
+	// CCR[3] is set but CCR[4] keep unset.
+	write_timer(dev, TxCCTL(3), CLLD1 | CLLD0 | CCIE);
+	write_timer(dev, TxCCTL(4), CCIE);
+	write_timer(dev, TxCCR(3), 14);
+	// Both CCR[5] and CCR[6] are set, but CCTL[5] has CCLD=0.
+	write_timer(dev, TxCCTL(5), CCIE);
+	write_timer(dev, TxCCTL(6), CLLD1 | CLLD0 | CCIE);
+	write_timer(dev, TxCCR(5), 16);
+	write_timer(dev, TxCCR(6), 17);
+
+	step_smclk(dev, 2);
+
+	// TBCL[0] becomes 10.
+	assert(read_timer(dev, TxR) == 2);
+	step_smclk(dev, 1);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+
+	// TBCL[1] and TBCL[2] becomes 12 and 13.
+	assert(read_timer(dev, TxR) == 3);
+	step_smclk(dev, 2);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+
+	// TBCL[3] and TBCL[4] keep previous value.
+	// because TBCCR[4] has no valid value set.
+	assert(read_timer(dev, TxR) == 5);
+	step_smclk(dev, 2);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(3));
+	assert(check_noirq(dev));
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(4));
+	assert(check_noirq(dev));
+
+	// TBCL[5] and TBCL[6] is already 16 and 17 because TBCTL[5]
+	// has CLLD=0 set, thus no interrupts at TBR=8,9.
+	assert(read_timer(dev, TxR) == 8);
+	step_smclk(dev, 1);
+	assert(check_noirq(dev));
+	step_smclk(dev, 1);
+	assert(check_noirq(dev));
+
+	// TBCL[0] will match.
+	step_smclk(dev, 1);
+	assert(check_irq0(dev));
+	assert(read_timer(dev, TxCCTL(0)) & CCIFG);
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(0)) & CCIFG);
+
+	// TBCL[1]will match.
+	step_smclk(dev, 2);
+	assert(check_irq1(dev));
+	assert(read_timer(dev, TxCCTL(1)) & CCIFG);
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(1)) & CCIFG);
+	// Because TBCL[2] is also loaded as group with TBCL[1].
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_timer(dev, TxCCTL(2)) & CCIFG);
+	assert(read_iv(dev) == TxIV_TxIFG(2));
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(2)) & CCIFG);
+
+	// TBCL[3] and TBCL[4] didn't updated since TBCCR[4] has
+	// no value set, thus no compare interrupts at TBR=14,15.
+	assert(read_timer(dev, TxR) == 14);
+	step_smclk(dev, 1);
+	assert(check_noirq(dev));
+	step_smclk(dev, 1);
+	assert(check_noirq(dev));
+
+	// TBCL[5] and TBCL[6] have set to 16 and 17, thus two compare
+	// interrupts at TBR=16,17
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_timer(dev, TxCCTL(5)) & CCIFG);
+	assert(read_iv(dev) == TxIV_TxIFG(5));
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(5)) & CCIFG);
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_timer(dev, TxCCTL(6)) & CCIFG);
+	assert(read_iv(dev) == TxIV_TxIFG(6));
+	assert(check_noirq(dev));
+	assert_not(read_timer(dev, TxCCTL(6)) & CCIFG);
+}
+
+static void test_timer_b_grouping_2()
+{
+	dev = create_timer("7");
+	config_timer(dev, "type", "B");
+
+	/* Continuous mode, SMCLK, triplet grouping */
+	write_timer(dev, TxCTL, MC1 | TASSEL1 | TBCLGRP1);
+	write_timer(dev, TxCCR(0), 2);
+	write_timer(dev, TxCCR(1), 4);
+	write_timer(dev, TxCCR(2), 5);
+	write_timer(dev, TxCCR(3), 6);
+	write_timer(dev, TxCCR(4), 7);
+	write_timer(dev, TxCCR(5), 8);
+	write_timer(dev, TxCCR(6), 9);
+	/* Load TBCL when TBR reaches old TBCL value, compare interrupt */
+	write_timer(dev, TxCCTL(0), CLLD1 | CLLD0 | CCIE);
+	write_timer(dev, TxCCR(0), 10);
+	// All CCR[1], CCR[2], and CCR[3] are set.
+	write_timer(dev, TxCCTL(1), CLLD1 | CLLD0 | CCIE);
+	write_timer(dev, TxCCTL(2), CCIE);
+	write_timer(dev, TxCCTL(3), CCIE);
+	write_timer(dev, TxCCR(1), 12);
+	write_timer(dev, TxCCR(2), 6);
+	write_timer(dev, TxCCR(3), 5);
+	// CCR[4] and CCR[6] are set but CCR[5] keep unset.
+	write_timer(dev, TxCCTL(4), CLLD1 | CLLD0 | CCIE);
+	write_timer(dev, TxCCTL(5), CCIE);
+	write_timer(dev, TxCCTL(6), CCIE);
+	write_timer(dev, TxCCR(4), 14);
+	write_timer(dev, TxCCR(6), 8);
+
+	step_smclk(dev, 2);
+
+	// TBCL[0] becomes 10.
+	assert(read_timer(dev, TxR) == 2);
+	step_smclk(dev, 1);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+
+	// TBCL[1], TBCL[2], and TBCL[3] becomes 12, 6, and 5.
+	assert(read_timer(dev, TxR) == 3);
+	step_smclk(dev, 2);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxR) == 5);
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(3));
+	assert(check_noirq(dev));
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(2));
+	assert(check_noirq(dev));
+
+	
+	// TBCL[4], TBCL[5] and TBC[6] keep previous value.
+	// because TBCCR[5] has no valid value set.
+	assert(read_timer(dev, TxR) == 7);
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(4));
+	assert(check_noirq(dev));
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(5));
+	assert(check_noirq(dev));
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(6));
+	assert(check_noirq(dev));
+
+	// TBCL[0] is updated to 10 and TBCL[1] has 12.
+	assert(read_timer(dev, TxR) == 10);
+	step_smclk(dev, 1);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	assert(check_noirq(dev));
+	step_smclk(dev, 2);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+}
+
+static void test_timer_b_grouping_3()
+{
+	dev = create_timer("7");
+	config_timer(dev, "type", "B");
+
+	/* Continuous mode, SMCLK, triplet grouping */
+	write_timer(dev, TxCTL, MC1 | TASSEL1 | TBCLGRP1 | TBCLGRP0);
+	write_timer(dev, TxCCR(0), 3);
+	write_timer(dev, TxCCR(1), 2);
+	write_timer(dev, TxCCR(2), 4);
+	write_timer(dev, TxCCR(3), 5);
+	write_timer(dev, TxCCR(4), 6);
+	write_timer(dev, TxCCR(5), 7);
+	write_timer(dev, TxCCR(6), 8);
+	/* Load TBCL when TBR reaches old TBCL value, compare interrupt */
+	write_timer(dev, TxCCTL(0), CCIE);
+	write_timer(dev, TxCCTL(1), CLLD1 | CLLD0 | CCIE);
+	write_timer(dev, TxCCTL(6), CCIE);
+	write_timer(dev, TxCCR(0), 9);
+	write_timer(dev, TxCCR(1), 10);
+	write_timer(dev, TxCCR(2), 11);
+	write_timer(dev, TxCCR(3), 12);
+	write_timer(dev, TxCCR(4), 13);
+	write_timer(dev, TxCCR(5), 14);
+	write_timer(dev, TxCCR(6), 15);
+
+	step_smclk(dev, 2);
+
+	// TBCL[1] becomes 10.
+	assert(read_timer(dev, TxR) == 2);
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	assert(check_noirq(dev));
+
+	// The least valued TBCL is TBCL[9].
+	step_smclk(dev, 6);
+	assert(read_timer(dev, TxR) == 9);
+	assert(check_noirq(dev));
+	step_smclk(dev, 1);
+	assert(check_irq0(dev));
+	ack_irq0(dev);
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(1));
+	step_smclk(dev, 4);
+	assert(check_noirq(dev));
+	assert(read_timer(dev, TxCCTL(2)) & CCIFG);
+	assert(read_timer(dev, TxCCTL(3)) & CCIFG);
+	assert(read_timer(dev, TxCCTL(4)) & CCIFG);
+	assert(read_timer(dev, TxCCTL(5)) & CCIFG);
+	step_smclk(dev, 1);
+	assert(check_irq1(dev));
+	assert(read_iv(dev) == TxIV_TxIFG(6));
+	assert(check_noirq(dev));
+}
+
 
 /*
  * Test runner.
@@ -1277,4 +1534,7 @@ int main(int argc, char **argv)
 	RUN_TEST(test_timer_b_compare_latch_2_up);
 	RUN_TEST(test_timer_b_compare_latch_2_updown);
 	RUN_TEST(test_timer_b_compare_latch_3_up);
+	RUN_TEST(test_timer_b_grouping_1);
+	RUN_TEST(test_timer_b_grouping_2);
+	RUN_TEST(test_timer_b_grouping_3);
 }
