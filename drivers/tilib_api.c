@@ -17,6 +17,8 @@
  */
 
 #include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include "util/output.h"
 #include "tilib_api.h"
@@ -759,8 +761,16 @@ static int init_old_api(void)
 int tilib_api_init(void)
 {
 	int ret;
+	char *path, *libpath;
 
-	lib_handle = dynload_open(tilib_filename);
+	if ((path = getenv("MSP430_PATH")) == NULL)
+		asprintf(&libpath, "%s", tilib_filename);
+	else
+		asprintf(&libpath, "%s/%s", path, tilib_filename);
+
+	lib_handle = dynload_open(libpath);
+	free(libpath);
+
 	if (!lib_handle) {
 		printc_err("tilib_api: can't find %s: %s\n",
 			   tilib_filename, dynload_error());
