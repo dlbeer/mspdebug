@@ -178,7 +178,9 @@ option.
 .IP "\fBtilib\fR"
 Use the Texas Instruments MSP430.DLL to access the device. The library
 file (MSP430.DLL for Windows, libmsp430.so for Unix-like systems) must
-be present in the dynamic loader search path.
+be present in the dynamic loader search path, unless the
+\fBMSPDEBUG_TILIB_PATH\fR environment variable is present in which
+case it will look there.
 
 USB connection is not supported for this driver. This driver supports
 watchpoints. Note that the \fB-d\fR option for this driver passes its
@@ -809,6 +811,8 @@ command-line option.
 Specifies the location of TI3410 firmware, for raw USB access to FET430UIF
 or eZ430 devices. This variable should contain the path to an Intel HEX
 file containing suitable firmware for the TI3410.
+.IP "\fBMSPDEBUG_TILIB_PATH\fI"
+Specifies the directory to find the Texas Instruments MSP430.DLL library.
 .SH FILES
 .IP "~/.mspdebug"
 File containing commands to be executed on startup.
