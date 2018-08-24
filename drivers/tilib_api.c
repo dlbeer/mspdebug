@@ -764,7 +764,7 @@ int tilib_api_init(void)
 	char libpath[PATH_MAX], *path;
 
 	libpath[0] = '\0';
-	if ((path = getenv("MSP430_PATH")) != NULL) {
+	if ((path = getenv("MSPDEBUG_TILIB_PATH")) != NULL) {
 		if (strlen(path) + strlen(tilib_filename) + 2 < PATH_MAX) {
 			strcat(libpath, path);
 			strcat(libpath, "/");
