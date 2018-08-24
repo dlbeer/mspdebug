@@ -16,9 +16,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <limits.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include "util/output.h"
 #include "tilib_api.h"
@@ -761,15 +761,19 @@ static int init_old_api(void)
 int tilib_api_init(void)
 {
 	int ret;
-	char *path, *libpath;
+	char libpath[PATH_MAX], *path;
 
-	if ((path = getenv("MSP430_PATH")) == NULL)
-		asprintf(&libpath, "%s", tilib_filename);
-	else
-		asprintf(&libpath, "%s/%s", path, tilib_filename);
+	libpath[0] = '\0';
+	if ((path = getenv("MSP430_PATH")) != NULL) {
+		if (strlen(path) + strlen(tilib_filename) + 2 < PATH_MAX) {
+			strcat(libpath, path);
+			strcat(libpath, "/");
+		} else
+			printc_err("Contents of MSP430_PATH variable are too long, ignoring\n");
+	}
+	strcat(libpath, tilib_filename);
 
 	lib_handle = dynload_open(libpath);
-	free(libpath);
 
 	if (!lib_handle) {
 		printc_err("tilib_api: can't find %s: %s\n",
