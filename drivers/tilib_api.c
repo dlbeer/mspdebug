@@ -18,6 +18,7 @@
 
 #include <limits.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "util/output.h"
@@ -760,18 +761,21 @@ static int init_old_api(void)
 
 int tilib_api_init(void)
 {
-	int ret;
+	int ret, res;
 	char libpath[PATH_MAX], *path;
 
 	libpath[0] = '\0';
 	if ((path = getenv("MSPDEBUG_TILIB_PATH")) != NULL) {
-		if (strlen(path) + strlen(tilib_filename) + 2 < PATH_MAX) {
-			strcat(libpath, path);
-			strcat(libpath, "/");
-		} else
-			printc_err("Contents of MSP430_PATH variable are too long, ignoring\n");
+		res = snprintf(libpath, sizeof(libpath), "%s/%s", path, tilib_filename);
+	} else {
+		res = snprintf(libpath, sizeof(libpath), "%s", tilib_filename);
 	}
-	strcat(libpath, tilib_filename);
+
+	if(res == -1 || res >= sizeof(libpath)) {
+		printc_err("MSPDEBUG_TILIB_PATH specifies too long a path\n");
+
+		return -1;
+	}
 
 	lib_handle = dynload_open(libpath);
 
