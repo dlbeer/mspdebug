@@ -19,7 +19,7 @@
 #ifndef USBUTIL_H_
 #define USBUTIL_H_
 
-#ifndef __Windows__
+#if !defined(__Windows__) || defined(__MINGW32__)
 #include <usb.h>
 #else
 #include <lusb0_usb.h>

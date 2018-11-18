@@ -49,6 +49,11 @@ ifeq ($(OS),Windows_NT)
 	OS_CFLAGS = -D__Windows__ -DNO_SHELLCMD
 	RM = del
     endif
+	ifneq (, $findstring(MINGW, $(UNAME_S)))
+		PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
+		PORTS_LDFLAGS := $(shell pkg-config --libs libusb)
+		RM = rm -rf
+	endif
 else
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug
@@ -105,10 +110,13 @@ all: $(BINARY)
 
 ifeq ($(OS),Windows_NT)
 clean:
-    ifeq ($(UNAME_O),Cygwin)
+ifeq ($(UNAME_O),Cygwin)
 	$(RM) */*.o
 	$(RM) $(BINARY)
-    else
+else ifneq (, $findstring(MINGW, $(UNAME_S)))
+	$(RM) */*.o
+	$(RM) $(BINARY)
+else
 	$(RM) drivers\*.o
 	$(RM) formats\*.o
 	$(RM) simio\*.o
@@ -116,7 +124,7 @@ clean:
 	$(RM) ui\*.o
 	$(RM) util\*.o
 	$(RM) $(BINARY)
-    endif
+endif
 else
 clean:
 	$(RM) */*.o

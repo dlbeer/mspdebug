@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __Windows__
+#if !defined(__Windows__) || defined(__MINGW32__)
 #include <usb.h>
 #else
 #include <lusb0_usb.h>
