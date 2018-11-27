@@ -344,9 +344,22 @@ int name(address_t addr, datatype data) { \
 	static IO_REQUEST_FUNC(name, method, datatype)
 
 IO_REQUEST_FUNC(simio_write, write, uint16_t)
-IO_REQUEST_FUNC(simio_read, read, uint16_t *)
+IO_REQUEST_FUNC(simio_read_device, read, uint16_t *)
 IO_REQUEST_FUNC_S(simio_write_b_device, write_b, uint8_t)
 IO_REQUEST_FUNC_S(simio_read_b_device, read_b, uint8_t *)
+
+int simio_read(address_t addr, uint16_t *data)
+{
+	addr &= ~1;
+	if (addr < 16) {
+		*data = ((uint16_t)sfr_data[addr]) |
+			(((uint16_t)sfr_data[addr + 1]) << 8);
+		return 0;
+	}
+
+	*data = 0;
+	return simio_read_device(addr, data);
+}
 
 int simio_write_b(address_t addr, uint8_t data)
 {
@@ -365,6 +378,7 @@ int simio_read_b(address_t addr, uint8_t *data)
 		return 0;
 	}
 
+	*data = 0;
 	return simio_read_b_device(addr, data);
 }
 
