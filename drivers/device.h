@@ -86,6 +86,7 @@ struct device_args {
 	int			bsl_gpio_used;
 	int			bsl_gpio_rts;
 	int			bsl_gpio_dtr;
+	uint8_t                 bsl_entry_password[32];
 };
 
 struct device_class {

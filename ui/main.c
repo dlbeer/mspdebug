@@ -154,6 +154,8 @@ static void usage(const char *progname)
 "        On some host (say RaspberryPi) defines a GPIO pin# to be used as RTS\n"
 "    --bsl-gpio-dtr\n"
 "        On some host (say RaspberryPi) defines a GPIO pin# to be used as DTR\n"
+"    --bsl-entry-password <hex string>\n"
+"        Use the given hex byte string as a BSL entry password.\n"
 "\n"
 "Most drivers connect by default via USB, unless told otherwise via the\n"
 "-d option. By default, the first USB device found is opened.\n"
@@ -168,6 +170,51 @@ static void usage(const char *progname)
 
 		printc("    %s\n        %s\n", drv->name, drv->help);
 	}
+}
+
+static int parse_hex_string(uint8_t *buf, size_t len, const char *text)
+{
+	unsigned int ptr = 0;
+	uint8_t b = 0;
+
+	while (*text) {
+		char d = *(text++);
+		int digit = 0;
+
+		if (d >= '0' && d <= '9')
+			digit = d - '0';
+		else if (d >= 'A' && d <= 'F')
+			digit = d - 'A' + 10;
+		else if (d >= 'a' && d <= 'f')
+			digit = d - 'a' + 10;
+		else {
+			fprintf(stderr, "invalid hex digit: %c\n", d);
+			return -1;
+		}
+
+		b = (b << 4) | digit;
+		ptr++;
+
+		if (!(ptr & 1)) {
+			unsigned int pos = (ptr >> 1) - 1;
+
+			if (pos >= len) {
+				fprintf(stderr,
+					"maximum length exceeded (%d)\n",
+					(int)len);
+				return -1;
+			}
+
+			buf[pos] = b;
+		}
+	}
+
+	if (ptr & 1) {
+		fprintf(stderr, "odd number of hex digits encountered\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 static void process_rc_file(const char *config)
@@ -255,6 +302,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		LOPT_BSL_ENTRY_SEQUENCE,
 		LOPT_BSL_GPIO_RTS,
 		LOPT_BSL_GPIO_DTR,
+		LOPT_BSL_ENTRY_PASSWORD,
 	};
 
 	static const struct option longopts[] = {
@@ -272,6 +320,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"bsl-entry-sequence",	1, 0, LOPT_BSL_ENTRY_SEQUENCE},
 		{"bsl-gpio-rts",	1, 0, LOPT_BSL_GPIO_RTS},
 		{"bsl-gpio-dtr",	1, 0, LOPT_BSL_GPIO_DTR},
+		{"bsl-entry-password",  1, 0, LOPT_BSL_ENTRY_PASSWORD},
 		{NULL, 0, 0, 0}
 	};
 
@@ -292,6 +341,16 @@ static int parse_cmdline_args(int argc, char **argv,
 				};
 
 				opdb_set("quiet", &v);
+			}
+			break;
+
+		case LOPT_BSL_ENTRY_PASSWORD:
+			if (parse_hex_string
+			    (args->devarg.bsl_entry_password,
+			     sizeof(args->devarg.bsl_entry_password),
+			     optarg) < 0) {
+				fprintf(stderr, "invalid BSL password\n");
+				return -1;
 			}
 			break;
 
@@ -465,6 +524,9 @@ int main(int argc, char **argv)
 
 	args.devarg.vcc_mv = 3000;
 	args.devarg.requested_serial = NULL;
+	memset(args.devarg.bsl_entry_password, 0xff,
+	       sizeof(args.devarg.bsl_entry_password));
+
 	if (parse_cmdline_args(argc, argv, &args) < 0)
 		goto fail_parse;
 

@@ -384,7 +384,8 @@ static int flash_bsl_erase(device_t dev_base, device_erase_type_t type,
 	return 0;
 }
 
-static int flash_bsl_unlock(struct flash_bsl_device *dev)
+static int flash_bsl_unlock(struct flash_bsl_device *dev,
+			    const uint8_t *password)
 {
 	/*
 	 * after erase, the password will be 0xff * (16 or 32)
@@ -400,6 +401,8 @@ static int flash_bsl_unlock(struct flash_bsl_device *dev)
 
 	uint8_t response_buffer[16];
 	int ret;
+
+	memcpy(rx_password_cmd + 1, password, 32);
 
 	/* mass erase - this might wipe Information Memory on some devices */
         /* (according to the documentation it should not) */
@@ -625,7 +628,7 @@ static device_t flash_bsl_open(const struct device_args *args)
 	delay_ms(500);
 
 	/* unlock device (erase then send password) */
-	if (flash_bsl_unlock(dev) < 0) {
+	if (flash_bsl_unlock(dev, args->bsl_entry_password) < 0) {
 		goto fail;
 	}
 

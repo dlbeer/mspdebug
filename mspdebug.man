@@ -100,6 +100,11 @@ line transition (R: RTS on, r: RTS off, D: DTR on, d: DTR off). A comma
 indicates a delay. The entry and exit sequences are separated by a
 colon. The default value is \fBdR,r,R,r,R,D:dR,DR\fR, for the
 \fBflash-bsl\fR driver.
+.IP "\-\-bsl\-entry\-password \fIhex\-string\fR"
+Specify a BSL unlock password as a hexadecimal byte string. This
+option affects both the flash and ROM BSL drivers. The password will
+be padded with 0xff bytes, and the default password is a sequence
+consisting of only 0xff bytes.
 .SH DRIVERS
 For drivers supporting both USB and tty access, USB is the default,
 unless specified otherwise (see \fB-d\fR above).
