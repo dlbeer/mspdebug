@@ -416,8 +416,7 @@ static int unlock_device(struct rom_bsl_device *dev,
 
 	printc_dbg("Sending password...\n");
 
-	if (rom_bsl_xfer(dev, CMD_RX_PASSWORD, 0,
-			 password, sizeof(password)) < 0) {
+	if (rom_bsl_xfer(dev, CMD_RX_PASSWORD, 0, password, 32) < 0) {
 		printc_err("rom_bsl: RX password failed\n");
 		return -1;
 	}
