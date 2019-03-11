@@ -74,6 +74,7 @@ struct device_breakpoint {
 #define DEVICE_FLAG_FORCE_RESET	0x08
 #define DEVICE_FLAG_DO_FWUPDATE 0x10
 #define DEVICE_FLAG_SKIP_CLOSE	0x20
+#define DEVICE_FLAG_BSL_NME     0x40 /* BSL no-mass-erase */
 
 struct device_args {
 	int			flags;

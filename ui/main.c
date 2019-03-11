@@ -352,6 +352,7 @@ static int parse_cmdline_args(int argc, char **argv,
 				fprintf(stderr, "invalid BSL password\n");
 				return -1;
 			}
+			args->devarg.flags |= DEVICE_FLAG_BSL_NME;
 			break;
 
 		case LOPT_BSL_ENTRY_SEQUENCE:

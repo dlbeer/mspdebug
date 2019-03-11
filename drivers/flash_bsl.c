@@ -404,12 +404,6 @@ static int flash_bsl_unlock(struct flash_bsl_device *dev,
 
 	memcpy(rx_password_cmd + 1, password, 32);
 
-	/* mass erase - this might wipe Information Memory on some devices */
-        /* (according to the documentation it should not) */
-	if (flash_bsl_erase((device_t)dev, DEVICE_ERASE_MAIN, 0) < 0) {
-		printc_err("flash_bsl_unlock: warning: erase failed\n");
-	}
-
 	/* send password (which is now erased FLASH) */
 	if (dev->long_password) {
 #if defined(FLASH_BSL_VERBOSE)
@@ -626,6 +620,16 @@ static device_t flash_bsl_open(const struct device_args *args)
 	}
 
 	delay_ms(500);
+
+	/* mass erase - this might wipe Information Memory on some devices */
+	/* (according to the documentation it should not) */
+	if (!(args->flags & DEVICE_FLAG_BSL_NME)) {
+		printc("Performing initial mass erase...\n");
+		if (flash_bsl_erase((device_t)dev, DEVICE_ERASE_MAIN, 0) < 0) {
+			printc_err("flash_bsl_unlock: warning: erase failed\n");
+			goto fail;
+		}
+	}
 
 	/* unlock device (erase then send password) */
 	if (flash_bsl_unlock(dev, args->bsl_entry_password) < 0) {

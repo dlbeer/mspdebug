@@ -404,8 +404,7 @@ static int rom_bsl_erase(device_t dev_base, device_erase_type_t type,
 	return 0;
 }
 
-static int unlock_device(struct rom_bsl_device *dev,
-			 const uint8_t *password)
+static int mass_erase(struct rom_bsl_device *dev)
 {
 	printc_dbg("Performing mass erase...\n");
 
@@ -414,6 +413,12 @@ static int unlock_device(struct rom_bsl_device *dev,
 		return -1;
 	}
 
+	return 0;
+}
+
+static int unlock_device(struct rom_bsl_device *dev,
+			 const uint8_t *password)
+{
 	printc_dbg("Sending password...\n");
 
 	if (rom_bsl_xfer(dev, CMD_RX_PASSWORD, 0, password, 32) < 0) {
@@ -481,10 +486,12 @@ static device_t rom_bsl_open(const struct device_args *args)
 			   dev->reply_buf[15],
 			   dev->reply_buf[16]);
 
-	if (unlock_device(dev, args->bsl_entry_password) < 0) {
-		printc_err("rom_bsl: failed to unlock\n");
+	if (!(args->flags & DEVICE_FLAG_BSL_NME) &&
+	    mass_erase(dev) < 0)
 		goto fail;
-	}
+
+	if (unlock_device(dev, args->bsl_entry_password) < 0)
+		goto fail;
 
 	return (device_t)dev;
 
