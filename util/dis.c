@@ -256,7 +256,7 @@ static int decode_single(const uint8_t *code, address_t offset,
 
 	insn->itype = MSP430_ITYPE_SINGLE;
 	insn->op = op & 0xff80;
-	insn->dsize = (op & 0x0400) ? MSP430_DSIZE_BYTE : MSP430_DSIZE_WORD;
+	insn->dsize = (op & 0x0040) ? MSP430_DSIZE_BYTE : MSP430_DSIZE_WORD;
 
 	insn->dst_mode = (op >> 4) & 0x3;
 	insn->dst_reg = op & 0xf;
