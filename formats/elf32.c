@@ -32,8 +32,8 @@ static const uint8_t elf32_id[] = {
 	ELFMAG0, ELFMAG1, ELFMAG2, ELFMAG3, ELFCLASS32
 };
 
-#define MAX_PHDRS	32
-#define MAX_SHDRS	128
+#define MAX_PHDRS	128
+#define MAX_SHDRS	512
 
 struct elf32_info {
 	Elf32_Ehdr              file_ehdr;
