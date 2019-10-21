@@ -129,18 +129,26 @@ static int monitor_command(struct gdb_data *data, char *buf)
 static int write_registers(struct gdb_data *data, char *buf)
 {
 	address_t regs[DEVICE_NUM_REGS];
-	int i;
+	int nibbles = 4;
+	size_t len = strlen(buf);
 
-	if (strlen(buf) < DEVICE_NUM_REGS * 4)
+	if (len >= DEVICE_NUM_REGS * 8)
+		nibbles = 8;
+
+	if (len < DEVICE_NUM_REGS * nibbles) {
+		printc_err("write_registers: short argument\n");
 		return gdb_send(data, "E00");
+	}
 
-	printc("Writing registers\n");
-	for (i = 0; i < DEVICE_NUM_REGS; i++) {
-		regs[i] = (hexval(buf[2]) << 12) |
-			(hexval(buf[3]) << 8) |
-			(hexval(buf[0]) << 4) |
-			hexval(buf[1]);
-		buf += 4;
+	printc("Writing registers (%d bits each)\n", nibbles * 4);
+	for (int i = 0; i < DEVICE_NUM_REGS; i++) {
+		uint32_t r = 0;
+
+		for (int j = 0; j < nibbles; j++)
+			r = (r << 4) |
+				hexval(buf[i * nibbles +
+					nibbles - 1 - (j ^ 1)]);
+		regs[i] = r;
 	}
 
 	if (device_setregs(regs) < 0)
