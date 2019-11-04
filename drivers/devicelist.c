@@ -324,6 +324,8 @@ const struct device_table sdeviceID[] =
 	{{0x65, 0x81,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, DT_MSP430FR5959,	"MSP430FR5959"},  // MSP430FR5959
 	{{0x67, 0x81,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, DT_MSP430FR5967,	"MSP430FR5967"},  // MSP430FR5967
 	{{0x68, 0x81,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, DT_MSP430FR5968,	"MSP430FR5968"},  // MSP430FR5968
+	{{0xA1, 0x82,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, DT_MSP430FR5994,	"MSP430FR5994"},  // MSP430FR5994
+	{{0xA4, 0x82,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, DT_MSP430FR5964,	"MSP430FR5964"},  // MSP430FR5964
 	// end of device table default return value	
 	{{ 0  ,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  ,   -1 }, -1,	NULL}
 };

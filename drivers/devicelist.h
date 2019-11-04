@@ -319,6 +319,8 @@ typedef enum {
 	DT_MSP430FR5959,
 	DT_MSP430FR5967,
 	DT_MSP430FR5968,
+	DT_MSP430FR5994,
+	DT_MSP430FR5964
 } devicetype_t;
 
 /* Mapping between device types and identification bytes. */
