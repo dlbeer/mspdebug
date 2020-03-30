@@ -140,6 +140,10 @@ install: $(BINARY) mspdebug.man
 	$(INSTALL) -m 0644 ti_3410.fw.ihex \
 		$(DESTDIR)$(LIBDIR)/mspdebug/ti_3410.fw.ihex
 
+uninstall:
+	$(RM) $(DESTDIR)$(BINDIR)$(BINARY) $(DESTDIR)$(MANDIR)/mspdebug.1\
+ $(DESTDIR)$(LIBDIR)/mspdebug/ti_3410.fw.ihex
+
 .SUFFIXES: .c .o
 
 OBJ=\
