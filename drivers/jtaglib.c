@@ -18,7 +18,7 @@
  */
 
 /* jtag functions are taken from TIs SLAA149–September 2002
-  *
+ *
  * breakpoint implementation influenced by a posting of Ruisheng Lin
  * to Travis Goodspeed at 2012-09-20 found at:
  * http://sourceforge.net/p/goodfet/mailman/message/29860790/
@@ -30,6 +30,8 @@
  *              jtag_write_reg   corrected
  * 2015-02-21   jtag_set_breakpoint added    Peter Bägel (DF5EQ)
  *              jtag_cpu_state      added
+ * 2020-06-01   jtag_read_reg    corrected   Gabor Mayer (HG5OAP)
+ *              jtag_write_reg   corrected
  */
 
 #include <stdlib.h>
@@ -953,12 +955,12 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 {
 	unsigned int value;
 
+	/* Set CPU into instruction fetch mode */
+	jtag_set_instruction_fetch(p);
+
 	/* CPU controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 	jtag_dr_shift_16(p, 0x3401);
-
-	/* Set CPU into instruction fetch mode */
-	jtag_set_instruction_fetch(p);
 
 	jtag_ir_shift(p, IR_DATA_16BIT);
 
@@ -966,10 +968,10 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 	/* PC - 4 -> PC          */
 	/* needs 2 clock cycles  */
 	jtag_dr_shift_16(p, 0x3ffd);
-	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
+	jtag_tclk_set(p);
 
 	/* "mov Rn,&0x01fe" instruction
 	 * Rn -> &0x01fe
@@ -979,15 +981,15 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 	 * the registers value is placed on the databus
 	 */
 	jtag_dr_shift_16(p, 0x4082 | (((unsigned int)reg << 8) & 0x0f00) );
-	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
+	jtag_tclk_set(p);
 	jtag_dr_shift_16(p, 0x01fe);
-	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
+	jtag_tclk_set(p);
 
 	/* Read databus which contains the registers value */
 	jtag_ir_shift(p, IR_DATA_CAPTURE);
@@ -997,8 +999,6 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 	jtag_dr_shift_16(p, 0x2401);
 
-	jtag_tclk_set(p);
-
 	/* Return value read from register */
 	return value;
 }
@@ -1006,12 +1006,12 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 /* Writes a value into a register of the target CPU */
 void jtag_write_reg(struct jtdev *p, int reg, address_t value)
 {
+	/* Set CPU into instruction fetch mode */
+	jtag_set_instruction_fetch(p);
+
 	/* CPU controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 	jtag_dr_shift_16(p, 0x3401);
-
-	/* Set CPU into instruction fetch mode */
-	jtag_set_instruction_fetch(p);
 
 	jtag_ir_shift(p, IR_DATA_16BIT);
 
@@ -1019,10 +1019,10 @@ void jtag_write_reg(struct jtdev *p, int reg, address_t value)
 	/* PC - 4 -> PC          */
 	/* needs 4 clock cycles  */
 	jtag_dr_shift_16(p, 0x3ffd);
-	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
+	jtag_tclk_set(p);
 
 	/* "mov #value,Rn" instruction
 	 * value -> Rn
@@ -1030,17 +1030,15 @@ void jtag_write_reg(struct jtdev *p, int reg, address_t value)
 	 * needs 2 clock cycles
 	 */
 	jtag_dr_shift_16(p, 0x4030 | (reg & 0x000f) );
-	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
+	jtag_tclk_set(p);
 	jtag_dr_shift_16(p, value);
-	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
+	jtag_tclk_set(p);
 
 	/* JTAG controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 	jtag_dr_shift_16(p, 0x2401);
-
-	jtag_tclk_set(p);
 }
 
 /*----------------------------------------------------------------------------*/
