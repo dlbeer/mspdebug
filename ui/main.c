@@ -80,6 +80,7 @@ static const struct device_class *const driver_table[] = {
 	&device_olimex_iso,
 	&device_olimex_iso_mk2,
 	&device_sim,
+	&device_simx,
 	&device_uif,
 	&device_bsl,
 	&device_flash_bsl,
@@ -550,10 +551,10 @@ int main(int argc, char **argv)
 		goto fail_driver;
 	}
 
+	simio_init();
+
 	if (device_probe_id(device_default, args.devarg.forced_chip_id) < 0)
 		printc_err("warning: device ID probe failed\n");
-
-	simio_init();
 
 	if (!(args.flags & OPT_NO_RC))
 		process_rc_file(args.alt_config);

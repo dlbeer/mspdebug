@@ -202,6 +202,9 @@ static int dis_format(const struct msp430_instruction *insn)
 	else if (insn->rep_index)
 		len += printc(" [repeat %d]", insn->rep_index + 1);
 
+	if (insn->ignore_cy)
+		len += printc(" [ignore carry]");
+
 	return len;
 }
 

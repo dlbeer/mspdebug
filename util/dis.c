@@ -249,14 +249,24 @@ static int decode_14xx(const uint8_t *code,
  * valid single-operand instruction could not be found.
  */
 static int decode_single(const uint8_t *code, address_t offset,
-			 address_t size, struct msp430_instruction *insn)
+			 address_t size, struct msp430_instruction *insn,
+			 uint16_t ex_word)
 {
 	uint16_t op = (code[1] << 8) | code[0];
 	int need_arg = 0;
 
 	insn->itype = MSP430_ITYPE_SINGLE;
 	insn->op = op & 0xff80;
-	insn->dsize = (op & 0x0040) ? MSP430_DSIZE_BYTE : MSP430_DSIZE_WORD;
+
+	/* length encoding is based on AL bit (if ex_word present) and BW bit;
+	   SWPB and SXT have non-standard encodings */
+	insn->dsize = (insn->op != MSP430_OP_SWPB && insn->op != MSP430_OP_SXT)
+		? ((!ex_word || (ex_word & 0x0040))
+			? ((op & 0x0040) ? MSP430_DSIZE_BYTE : MSP430_DSIZE_WORD)
+			: ((op & 0x0040) ? MSP430_DSIZE_AWORD : MSP430_DSIZE_UNKNOWN))
+		: ((op & 0x0040)
+			? MSP430_DSIZE_UNKNOWN
+			: (!ex_word || (ex_word & 0x0040)) ? MSP430_DSIZE_WORD : MSP430_DSIZE_AWORD);
 
 	insn->dst_mode = (op >> 4) & 0x3;
 	insn->dst_reg = op & 0xf;
@@ -317,7 +327,9 @@ static int decode_double(const uint8_t *code, address_t offset,
 	/* Decode and consume opcode */
 	insn->itype = MSP430_ITYPE_DOUBLE;
 	insn->op = op & 0xf000;
-	insn->dsize = (op & 0x0040) ? MSP430_DSIZE_BYTE : MSP430_DSIZE_WORD;
+	insn->dsize = (!ex_word || (ex_word & 0x0040))
+		? ((op & 0x0040) ? MSP430_DSIZE_BYTE : MSP430_DSIZE_WORD)
+		: ((op & 0x0040) ? MSP430_DSIZE_AWORD : MSP430_DSIZE_UNKNOWN);
 
 	insn->src_mode = (op >> 4) & 0x3;
 	insn->src_reg = (op >> 8) & 0xf;
@@ -785,7 +797,7 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 		if ((op & 0xf000) >= 0x4000)
 			ret = decode_double(code, offset, len, insn, ex_word);
 		else if ((op & 0xf000) == 0x1000 && (op & 0xfc00) < 0x1280)
-			ret = decode_single(code, offset, len, insn);
+			ret = decode_single(code, offset, len, insn, ex_word);
 		else
 			return -1;
 
@@ -796,16 +808,15 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 		    (insn->itype == MSP430_ITYPE_SINGLE ||
 		     insn->src_mode == MSP430_AMODE_REGISTER)) {
 			if ((ex_word >> 8) & 1) {
-				if (insn->op != MSP430_OP_RRCX)
-					return -1;
-				insn->op = MSP430_OP_RRUX;
+				if (insn->op == MSP430_OP_RRCX)
+					insn->op = MSP430_OP_RRUX;
+				else
+					insn->ignore_cy = 1;
 			}
 			insn->rep_register = (ex_word >> 7) & 1;
 			insn->rep_index = ex_word & 0xf;
 		}
 
-		if (!(ex_word & 0x40))
-			insn->dsize |= 2;
 	} else {
 		if ((op & 0xf000) == 0x0000)
 			ret = decode_00xx(code, len, insn);
@@ -814,7 +825,7 @@ int dis_decode(const uint8_t *code, address_t offset, address_t len,
 		else if ((op & 0xff00) == 0x1300)
 			ret = decode_13xx(code, len, insn);
 		else if ((op & 0xf000) == 0x1000)
-			ret = decode_single(code, offset, len, insn);
+			ret = decode_single(code, offset, len, insn, 0);
 		else if ((op & 0xf000) >= 0x2000 && (op & 0xf000) < 0x4000)
 			ret = decode_jump(code, offset, insn);
 		else if ((op & 0xf000) >= 0x4000)

@@ -87,3 +87,6 @@ Paolo Zebelloni <p.zebelloni@c-labs.it>:
 
 Jan Willeke <willeke@smartmote.de>:
 	* GPIO JTAG driver.
+
+Bruce Burns <bgb@alum.mit.edu>
+	* CPUX support in simulation driver (simx)

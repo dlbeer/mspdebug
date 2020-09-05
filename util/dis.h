@@ -270,6 +270,7 @@ struct msp430_instruction {
 
 	int			rep_index;
 	int			rep_register;
+	int			ignore_cy;
 };
 
 /* Decode a single instruction.

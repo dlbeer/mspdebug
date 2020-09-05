@@ -24,20 +24,22 @@
 #include "output.h"
 #include "expr.h"
 
-/* Multiplier register addresses - taken from mspgcc */
-#define MPY            0x0130  /* Multiply Unsigned/Operand 1 */
-#define MPYS           0x0132  /* Multiply Signed/Operand 1 */
-#define MAC            0x0134  /* Multiply Unsigned and Accumulate/Operand 1 */
-#define MACS           0x0136  /* Multiply Signed and Accumulate/Operand 1 */
-#define OP2            0x0138  /* Operand 2 */
-#define RESLO          0x013A  /* Result Low Word */
-#define RESHI          0x013C  /* Result High Word */
-#define SUMEXT         0x013E  /* Sum Extend */
+/* Multiplier register offsets from base addr */
+#define MPY            0x0  /* Multiply Unsigned/Operand 1 */
+#define MPYS           0x2  /* Multiply Signed/Operand 1 */
+#define MAC            0x4  /* Multiply Unsigned and Accumulate/Operand 1 */
+#define MACS           0x6  /* Multiply Signed and Accumulate/Operand 1 */
+#define OP2            0x8  /* Operand 2 */
+#define RESLO          0xA  /* Result Low Word */
+#define RESHI          0xC  /* Result High Word */
+#define SUMEXT         0xE  /* Sum Extend */
 
 struct hwmult {
 	struct simio_device		base;
 
 	int				mode;
+
+	address_t			base_addr;
 
 	uint16_t			op1;
 	uint16_t			op2;
@@ -59,12 +61,52 @@ struct simio_device *hwmult_create(char **arg_text)
 	memset(h, 0, sizeof(*h));
 	h->base.type = &simio_hwmult;
 
+	h->base_addr = 0x130;
+
 	return (struct simio_device *)h;
 }
 
 static void hwmult_destroy(struct simio_device *dev)
 {
 	free(dev);
+}
+
+static int config_addr(address_t *addr, char **arg_text)
+{
+	char *text = get_arg(arg_text);
+
+	if (!text) {
+		printc_err("hwmult: config: expected address\n");
+		return -1;
+	}
+
+	if (expr_eval(text, addr) < 0) {
+		printc_err("hwmult: can't parse address: %s\n", text);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int hwmult_config(struct simio_device *dev,
+			const char *param, char **arg_text)
+{
+	struct hwmult *h = (struct hwmult *)dev;
+
+	if (!strcasecmp(param, "base"))
+		return config_addr(&h->base_addr, arg_text);
+
+	printc_err("hwmult: config: unknown parameter: %s\n", param);
+	return -1;
+}
+
+static int hwmult_info(struct simio_device *dev)
+{
+	struct hwmult *h = (struct hwmult *)dev;
+
+	printc("Base address: 0x%04x\n\n", h->base_addr);
+
+	return 0;
 }
 
 static void do_multiply(struct hwmult *h)
@@ -100,6 +142,10 @@ static int hwmult_write(struct simio_device *dev, address_t addr, uint16_t data)
 {
 	struct hwmult *h = (struct hwmult *)dev;
 
+	if (addr < h->base_addr) return 1;
+
+	addr -= h->base_addr;
+
 	switch (addr) {
 	case RESHI:
 		h->result = (h->result & 0xffff) | ((uint32_t)data << 16);
@@ -129,6 +175,10 @@ static int hwmult_write(struct simio_device *dev, address_t addr, uint16_t data)
 static int hwmult_read(struct simio_device *dev, address_t addr, uint16_t *data)
 {
 	struct hwmult *h = (struct hwmult *)dev;
+
+	if (addr < h->base_addr) return 1;
+
+	addr -= h->base_addr;
 
 	switch (addr) {
 	case MPY:
@@ -161,9 +211,14 @@ static int hwmult_read(struct simio_device *dev, address_t addr, uint16_t *data)
 const struct simio_class simio_hwmult = {
 	.name = "hwmult",
 	.help =
-"This module simulates the hardware multiplier.\n",
+"This module simulates the hardware multiplier.\n"
+"Config arguments are:\n"
+"    base <address>\n"
+"        Set the peripheral base address.\n",
 	.create			= hwmult_create,
 	.destroy		= hwmult_destroy,
+	.config			= hwmult_config,
+	.info			= hwmult_info,
 	.write			= hwmult_write,
 	.read			= hwmult_read
 };

@@ -355,6 +355,12 @@ int simio_read(address_t addr, uint16_t *data)
 		*data = ((uint16_t)sfr_data[addr]) |
 			(((uint16_t)sfr_data[addr + 1]) << 8);
 		return 0;
+
+	} else if (addr >= 0x100 && addr < 0x110) {
+		/* most MSPs map SFR at 0x100 */
+		*data = ((uint16_t)sfr_data[addr - 0x100]) |
+			(((uint16_t)sfr_data[addr - 0x100 + 1]) << 8);
+		return 0;
 	}
 
 	*data = 0;
@@ -366,6 +372,11 @@ int simio_write_b(address_t addr, uint8_t data)
 	if (addr < 16) {
 		sfr_data[addr] = data;
 		return 0;
+
+	} else if (addr >= 0x100 && addr < 0x110) {
+		/* most MSPs map SFR at 0x100 */
+		sfr_data[addr - 0x100] = data;
+		return 0;
 	}
 
 	return simio_write_b_device(addr, data);
@@ -375,6 +386,11 @@ int simio_read_b(address_t addr, uint8_t *data)
 {
 	if (addr < 16) {
 		*data = sfr_data[addr];
+		return 0;
+
+	} else if (addr >= 0x100 && addr < 0x110) {
+		/* most MSPs map SFR at 0x100 */
+		*data = sfr_data[addr - 0x100];
 		return 0;
 	}
 

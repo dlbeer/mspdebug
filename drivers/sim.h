@@ -23,5 +23,6 @@
 
 /* Dummy/simulation implementation. */
 extern const struct device_class device_sim;
+extern const struct device_class device_simx;
 
 #endif
