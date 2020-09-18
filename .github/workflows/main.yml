@@ -31,6 +31,7 @@ jobs:
         uses: Surgo/docker-smart-tag-action@v1
         with:
           docker_image: sylwekrapala/mspdebug
+          default_branch: ${{ github.event.repository.default_branch }}
       -
         name: Build and push
         uses: docker/build-push-action@v2
