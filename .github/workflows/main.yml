@@ -3,6 +3,8 @@ on:
     branches:
       - master
       - docker-images
+    tags:
+      - v*
 
 jobs:
   multi:
@@ -24,6 +26,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
+        name: Get smart tag
+        id: prepare
+        uses: Surgo/docker-smart-tag-action@v1
+        with:
+          docker_image: sylwekrapala/mspdebug
+      -
         name: Build and push
         uses: docker/build-push-action@v2
         with:
@@ -31,5 +39,4 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm
           push: true
-          tags: |
-            sylwekrapala/mspdebug:latest
+          tags: ${{ steps.prepare.outputs.tag }}
