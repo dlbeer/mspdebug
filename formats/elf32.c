@@ -330,7 +330,8 @@ int elf32_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 	for (i = 0; i < info.file_ehdr.e_shnum; i++) {
 		Elf32_Shdr *s = &info.file_shdrs[i];
 
-		if (s->sh_type == SHT_PROGBITS && s->sh_flags & SHF_ALLOC &&
+		if ((s->sh_type == SHT_PROGBITS || s->sh_type == SHT_INIT_ARRAY) &&
+		    s->sh_flags & SHF_ALLOC &&
 		    feed_section(&info, in, s, cb, user_data) < 0) {
 			ret = -1;
 			break;
