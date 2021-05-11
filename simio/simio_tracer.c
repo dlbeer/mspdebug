@@ -236,7 +236,7 @@ static int tracer_info(struct simio_device *dev)
 
 	printc("Instruction count: %" LLFMT "\n", tr->inscount);
 	printc("MCLK:              %" LLFMT "\n", tr->cycles[SIMIO_MCLK]);
-	printc("SMCLK              %" LLFMT "\n", tr->cycles[SIMIO_SMCLK]);
+	printc("SMCLK:             %" LLFMT "\n", tr->cycles[SIMIO_SMCLK]);
 	printc("ACLK:              %" LLFMT "\n", tr->cycles[SIMIO_ACLK]);
 
 	if (tr->irq_request >= 0)
