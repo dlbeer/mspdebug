@@ -234,6 +234,13 @@ There are reports of this operation causing an erase of info A in some
 devices. Use at your own risk.
 .IP "\fBbus-pirate\fR"
 Raw JTAG using Bus Pirate devices.
+.IP "\fBmehfet\fR"
+Connect to a MehFET USB-based debugging protocol-capable device. It can
+support both JTAG and Spy-Bi-Wire. For now, only 16-bit CPUs (that is,
+non-430X or Xv2) are suppored, as with the \fBpif\fR, \fBgpio\fR,
+\fBbus-pirate\fR and \fBgoodfet\fR rivers.
+
+For documentation on the USB protocol, see the \fBSEE ALSO\fR section.
 .SH COMMANDS
 MSPDebug can accept commands either through an interactive prompt, or
 non-interactively when specified on the command line. The supported
@@ -830,6 +837,9 @@ Firmware image for the TI3410 USB interface chip. This file is only
 required for raw USB access to FET430UIF or eZ430 devices.
 .SH SEE ALSO
 \fBnm\fR(1), \fBgdb\fR(1), \fBobjcopy\fR(1)
+
+\fBmehfet\fR protocol documentation can be found at the following URL:
+https://git.lain.faith/sys64738/DragonProbe/wiki/MehFET-USB-protocol
 .SH BUGS
 If you find any bugs, you should report them to the author at
 dlbeer@gmail.com. It would help if you could include a transcript

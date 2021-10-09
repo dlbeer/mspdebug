@@ -58,6 +58,7 @@
 #include "fet3.h"
 #include "rom_bsl.h"
 #include "chipinfo.h"
+#include "mehfet.h"
 
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
@@ -92,7 +93,8 @@ static const struct device_class *const driver_table[] = {
 	&device_loadbsl,
 	&device_ezfet,
 	&device_rom_bsl,
-	&device_bp
+	&device_bp,
+	&device_mehfet
 };
 
 static const char *version_text =

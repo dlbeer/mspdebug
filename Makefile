@@ -171,6 +171,7 @@ OBJ=\
     transport/cp210x.o \
     transport/cdc_acm.o \
     transport/ftdi.o \
+    transport/mehfet_xport.o \
     transport/ti3410.o \
     transport/comport.o \
     $(BSLHID_OBJ) \
@@ -194,6 +195,8 @@ OBJ=\
     drivers/jtdev_bus_pirate.o \
     drivers/jtdev_gpio.o \
     drivers/jtaglib.o \
+    drivers/mehfet_proto.o \
+    drivers/mehfet.o \
     drivers/pif.o \
     drivers/loadbsl.o \
     drivers/loadbsl_fw.o \
