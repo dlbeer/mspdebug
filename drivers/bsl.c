@@ -364,7 +364,8 @@ static device_t bsl_open(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		dev->serial = comport_open(args->path, 460800);
 	else
-		dev->serial = ti3410_open(args->path, args->requested_serial);
+		dev->serial = ti3410_open(args->path, args->requested_serial,
+				(args->flags & DEVICE_FLAG_HAS_VID_PID), args->vid, args->pid);
 
 	if (!dev->serial) {
 		free(dev);

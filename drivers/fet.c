@@ -44,9 +44,11 @@ static device_t fet_open_rf2500(const struct device_args *args)
 	}
 
 #if defined(__APPLE__)
-	trans = rf2500hidapi_open(args->path, args->requested_serial);
+	trans = rf2500hidapi_open(args->path, args->requested_serial,
+			(args->flags & DEVICE_FLAG_HAS_VID_PID), args->vid, args->pid);
 #else
-	trans = rf2500_open(args->path, args->requested_serial);
+	trans = rf2500_open(args->path, args->requested_serial,
+			(args->flags & DEVICE_FLAG_HAS_VID_PID), args->vid, args->pid);
 #endif
 	if (!trans)
 		return NULL;
@@ -79,8 +81,9 @@ static device_t fet_open_olimex_iso_mk2(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = comport_open(args->path, 115200);
 	else
-		trans = cdc_acm_open(args->path, args->requested_serial,
-				     115200, 0x15ba, 0x0100);
+		trans = cdc_acm_open(args->path, args->requested_serial, 115200,
+				(args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->vid : 0x15ba,
+				(args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->pid : 0x0100);
 
 	if (!trans)
 		return NULL;
@@ -100,9 +103,9 @@ static device_t fet_open_olimex_iso_mk2(const struct device_args *args)
 		if (args->flags & DEVICE_FLAG_TTY)
 			trans = comport_open(args->path, 115200);
 		else
-			trans = cdc_acm_open(args->path,
-				    args->requested_serial,
-				    115200, 0x15ba, 0x0100);
+			trans = cdc_acm_open(args->path, args->requested_serial, 115200,
+				(args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->vid : 0x15ba,
+				(args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->pid : 0x0100);
 
 		if (!trans)
 			return NULL;
@@ -141,8 +144,9 @@ static device_t fet_open_olimex(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = comport_open(args->path, 115200);
 	else
-		trans = cdc_acm_open(args->path, args->requested_serial,
-				     115200, 0x15ba, 0x0031);
+		trans = cdc_acm_open(args->path, args->requested_serial, 115200,
+				 (args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->vid : 0x15ba,
+				 (args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->pid : 0x0031);
 
 	if (!trans)
 		return NULL;
@@ -177,8 +181,9 @@ static device_t fet_open_olimex_v1(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = comport_open(args->path, 500000);
 	else
-		trans = cp210x_open(args->path, args->requested_serial,
-				    500000, 0x15ba, 0x0002);
+		trans = cp210x_open(args->path, args->requested_serial, 500000,
+				(args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->vid : 0x15ba,
+				(args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->pid : 0x0002);
 
         if (!trans)
                 return NULL;
@@ -213,7 +218,9 @@ static device_t fet_open_olimex_iso(const struct device_args *args)
 		trans = comport_open(args->path, 200000);
 	else
 		trans = ftdi_open(args->path, args->requested_serial,
-				  0x15ba, 0x0008, 200000);
+				  (args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->vid : 0x15ba,
+				  (args->flags & DEVICE_FLAG_HAS_VID_PID) ? args->pid : 0x0008,
+				  200000);
 
 	if (!trans)
 		return NULL;
@@ -248,7 +255,8 @@ static device_t fet_open_uif(const struct device_args *args)
 	if (args->flags & DEVICE_FLAG_TTY)
 		trans = comport_open(args->path, 460800);
 	else
-		trans = ti3410_open(args->path, args->requested_serial);
+		trans = ti3410_open(args->path, args->requested_serial,
+			(args->flags & DEVICE_FLAG_HAS_VID_PID), args->vid, args->pid);
 
 	if (!trans)
 		return NULL;

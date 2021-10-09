@@ -559,7 +559,8 @@ static const struct transport_class ti3410_transport = {
 	.set_modem	= ti3410_set_modem
 };
 
-transport_t ti3410_open(const char *devpath, const char *requested_serial)
+transport_t ti3410_open(const char *devpath, const char *requested_serial,
+		int has_vid_pid, uint16_t vid, uint16_t pid)
 {
 	struct ti3410_transport *tr = malloc(sizeof(*tr));
 	struct usb_device *dev;
@@ -578,8 +579,9 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial)
 	if (devpath)
 		dev = usbutil_find_by_loc(devpath);
 	else
-		dev = usbutil_find_by_id(USB_FET_VENDOR, USB_FET_PRODUCT,
-					 requested_serial);
+		dev = usbutil_find_by_id(has_vid_pid ? vid : USB_FET_VENDOR,
+								 has_vid_pid ? pid : USB_FET_PRODUCT,
+								 requested_serial);
 
 	if (!dev) {
 		free(tr);

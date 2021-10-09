@@ -24,6 +24,8 @@
 /* This function is for opening an eZ430-F2013 or FET430UIF device via
  * libusb.
  */
-transport_t ti3410_open(const char *dev_path, const char *requested_serial);
+transport_t ti3410_open(const char *dev_path, const char *requested_serial,
+		int has_vid_pid, uint16_t vid, uint16_t pid);
+
 
 #endif

@@ -75,6 +75,7 @@ struct device_breakpoint {
 #define DEVICE_FLAG_DO_FWUPDATE 0x10
 #define DEVICE_FLAG_SKIP_CLOSE	0x20
 #define DEVICE_FLAG_BSL_NME     0x40 /* BSL no-mass-erase */
+#define DEVICE_FLAG_HAS_VID_PID 0x80
 
 struct device_args {
 	int			flags;
@@ -88,6 +89,7 @@ struct device_args {
 	int			bsl_gpio_rts;
 	int			bsl_gpio_dtr;
 	uint8_t                 bsl_entry_password[32];
+	uint16_t vid, pid;
 };
 
 struct device_class {

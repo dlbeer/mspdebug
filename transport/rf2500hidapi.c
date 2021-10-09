@@ -161,7 +161,8 @@ static const wchar_t * get_wc(const char *c)
     return wc;
 }
 
-transport_t rf2500hidapi_open(const char *devpath, const char *requested_serial)
+transport_t rf2500hidapi_open(const char *devpath, const char *requested_serial,
+		int has_vid_pid, uint16_t vid, uint16_t pid)
 {
 	struct rf2500_transport *tr = malloc(sizeof(*tr));
 	hid_device *handle;
@@ -186,7 +187,9 @@ transport_t rf2500hidapi_open(const char *devpath, const char *requested_serial)
 		} else {
 			wc_serial = NULL;
 		}
-		handle = hid_open(USB_FET_VENDOR, USB_FET_PRODUCT, wc_serial);
+		handle = hid_open(has_vid_pid ? vid : USB_FET_VENDOR,
+						has_vid_pid ? pid : USB_FET_PRODUCT, wc_serial);
+
 		if ( wc_serial ) {
 			free((wchar_t *)wc_serial);
 		}

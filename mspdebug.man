@@ -52,6 +52,10 @@ section \fBDRIVERS\fR below for details.
 .IP "\-U \fIbus\fR:\fIdevice\fR"
 Specify a particular USB device to connect to. Without this option,
 the first device of the appropriate type is opened.
+.IP "\-V \fIvid\fR:\fIpid\fR"
+Specify a VID and PID of the USB device to connect to, or override the
+default VID and PID. Some drives, such as \fBmehfet\fR, require this option,
+while others have a default VID and PID which can be overridden.
 .IP "\-s \fIserial\fR"
 Specify a particular USB device serial number to connect to. Use this
 option to distinguish between multiple devices of the same type.

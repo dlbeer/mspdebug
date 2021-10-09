@@ -114,6 +114,9 @@ static void usage(const char *progname)
 "        Connect via the given tty device, rather than USB.\n"
 "    -U bus:dev\n"
 "        Specify a particular USB device to connect to.\n"
+"    -V vid:pid\n"
+"        Specify a particular vid:pid par of a USB to connect to, instead of\n"
+"        a driver-specific default.\n"
 "    -s serial\n"
 "        Specify a particular device serial number to connect to.\n"
 "    -j\n"
@@ -328,7 +331,7 @@ static int parse_cmdline_args(int argc, char **argv,
 	int opt;
 	int want_usb = 0;
 
-	while ((opt = getopt_long(argc, argv, "d:jv:nU:s:qC:",
+	while ((opt = getopt_long(argc, argv, "d:jv:nUV:s:qC:",
 				  longopts, NULL)) >= 0)
 		switch (opt) {
 		case 'C':
@@ -396,6 +399,18 @@ static int parse_cmdline_args(int argc, char **argv,
 		case 'U':
 			args->devarg.path = optarg;
 			want_usb = 1;
+			break;
+
+		case 'V':
+			/* optarg is in "vid:pid" format, which we now need to parse */
+			if (sscanf(optarg, "%04hx:%04hx", &args->devarg.vid, &args->devarg.pid) == 2) {
+				args->devarg.flags |= DEVICE_FLAG_HAS_VID_PID;
+				want_usb = 1;
+			} else {
+				printc("Invalid -V option specified: %s."
+					   "Format should be '<vid>:<pid>'\n", optarg);
+				exit(1);
+			}
 			break;
 
 		case 's':

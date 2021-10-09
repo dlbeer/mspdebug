@@ -27,7 +27,9 @@
  *
  * A particular device may be specified in bus:dev form.
  */
-transport_t rf2500_open(const char *dev_path, const char *requested_serial);
-transport_t rf2500hidapi_open(const char *dev_path, const char *requested_serial);
+transport_t rf2500_open(const char *dev_path, const char *requested_serial,
+		int has_vid_pid, uint16_t vid, uint16_t pid);
+transport_t rf2500hidapi_open(const char *dev_path, const char *requested_serial,
+		int has_vid_pid, uint16_t vid, uint16_t pid);
 
 #endif
