@@ -89,11 +89,18 @@
 #define jtag_led_red_on(p)	p->f->jtdev_led_red(p, 1)
 #define jtag_led_red_off(p)	p->f->jtdev_led_red(p, 0)
 
+#define jtag_ir_shift(p, ir) p->f->jtdev_ir_shift(p, ir)
+#define jtag_dr_shift_8(p, dr) p->f->jtdev_dr_shift_8(p, dr)
+#define jtag_dr_shift_16(p, dr) p->f->jtdev_dr_shift_16(p, dr)
+#define jtag_tms_sequence(p, bits, tms) p->f->jtdev_tms_sequence(p, bits, tms)
+#define jtag_init_dap(p) p->f->jtdev_init_dap(p)
+
 /* Reset target JTAG interface and perform fuse-HW check */
-static void jtag_reset_tap(struct jtdev *p)
+static void jtag_default_reset_tap(struct jtdev *p)
 {
 	int loop_counter;
 
+	/* TODO: replace with tms_sequence()? */
 	jtag_tms_set(p);
 	jtag_tck_set(p);
 
@@ -121,7 +128,7 @@ static void jtag_reset_tap(struct jtdev *p)
 /* This function sets the target JTAG state machine
  * back into the Run-Test/Idle state after a shift access
  */
-static void jtag_tclk_prep (struct jtdev *p)
+static void jtag_default_tclk_prep (struct jtdev *p)
 {
 	/* JTAG state = Exit-DR */
 	jtag_tck_clr(p);
@@ -141,7 +148,7 @@ static void jtag_tclk_prep (struct jtdev *p)
  * data_out: data to be shifted out
  * return  : scanned TDO value
  */
-static unsigned int jtag_shift( struct jtdev *p,
+static unsigned int jtag_default_shift( struct jtdev *p,
 				unsigned char num_bits,
 				unsigned int  data_out )
 {
@@ -171,7 +178,7 @@ static unsigned int jtag_shift( struct jtdev *p,
 	p->f->jtdev_tclk(p, tclk_save);
 
 	/* Set JTAG state back to Run-Test/Idle */
-	jtag_tclk_prep(p);
+	jtag_default_tclk_prep(p);
 
 	return data_in;
 }
@@ -181,7 +188,7 @@ static unsigned int jtag_shift( struct jtdev *p,
  * instruction: 8 bit instruction
  * return     : scanned TDO value
  */
-static unsigned int jtag_ir_shift(struct jtdev *p, unsigned int instruction)
+uint8_t jtag_default_ir_shift(struct jtdev *p, uint8_t instruction)
 {
 	/* JTAG state = Run-Test/Idle */
 	jtag_tms_set(p);
@@ -202,7 +209,7 @@ static unsigned int jtag_ir_shift(struct jtdev *p, unsigned int instruction)
 	jtag_tck_set(p);
 
 	/* JTAG state = Shift-IR, Shift in TDI (8-bit) */
-	return jtag_shift(p, 8, instruction);
+	return jtag_default_shift(p, 8, instruction);
 
 	/* JTAG state = Run-Test/Idle */
 }
@@ -211,7 +218,7 @@ static unsigned int jtag_ir_shift(struct jtdev *p, unsigned int instruction)
  * data  : 8 bit data
  * return: scanned TDO value
  */
-static unsigned int jtag_dr_shift_8(struct jtdev *p, unsigned int data)
+uint8_t jtag_default_dr_shift_8(struct jtdev *p, uint8_t data)
 {
 	/* JTAG state = Run-Test/Idle */
 	jtag_tms_set(p);
@@ -228,7 +235,7 @@ static unsigned int jtag_dr_shift_8(struct jtdev *p, unsigned int data)
 	jtag_tck_set(p);
 
 	/* JTAG state = Shift-DR, Shift in TDI (16-bit) */
-	return jtag_shift(p, 8, data);
+	return jtag_default_shift(p, 8, data);
 
 	/* JTAG state = Run-Test/Idle */
 }
@@ -237,7 +244,7 @@ static unsigned int jtag_dr_shift_8(struct jtdev *p, unsigned int data)
  * data  : 16 bit data
  * return: scanned TDO value
  */
-static unsigned int jtag_dr_shift_16(struct jtdev *p, unsigned int data)
+uint16_t jtag_default_dr_shift_16(struct jtdev *p, uint16_t data)
 {
 	/* JTAG state = Run-Test/Idle */
 	jtag_tms_set(p);
@@ -254,9 +261,44 @@ static unsigned int jtag_dr_shift_16(struct jtdev *p, unsigned int data)
 	jtag_tck_set(p);
 
 	/* JTAG state = Shift-DR, Shift in TDI (16-bit) */
-	return jtag_shift(p, 16, data);
+	return jtag_default_shift(p, 16, data);
 
 	/* JTAG state = Run-Test/Idle */
+}
+
+void jtag_default_tms_sequence(struct jtdev *p, int bits, unsigned int value)
+{
+	for (int i = 0; i < bits; ++i) {
+		jtag_tck_clr(p);
+		if (value & (1u << i))
+			jtag_tms_set(p);
+		 else
+			jtag_tms_clr(p);
+		jtag_tck_set(p);
+	}
+}
+
+void jtag_default_init_dap(struct jtdev *p)
+{
+	jtag_rst_clr(p);
+	p->f->jtdev_power_on(p);
+	jtag_tdi_set(p);
+	jtag_tms_set(p);
+	jtag_tck_set(p);
+	jtag_tclk_set(p);
+
+	jtag_rst_set(p);
+	jtag_tst_clr(p);
+
+	jtag_tst_set(p);
+	jtag_rst_clr(p);
+	jtag_tst_clr(p);
+
+	jtag_tst_set(p);
+
+	p->f->jtdev_connect(p);
+	jtag_rst_set(p);
+	jtag_default_reset_tap(p);
 }
 
 /* Set target CPU JTAG state machine into the instruction fetch state
@@ -378,22 +420,10 @@ static int jtag_verify_psa(struct jtdev *p,
 
 		/* Clock through the PSA */
 		jtag_tclk_set(p);
-		jtag_tck_clr(p);
-		jtag_tms_set(p);
-		jtag_tck_set(p); /* Select DR scan */
-		jtag_tck_clr(p);
-		jtag_tms_clr(p);
-		jtag_tck_set(p); /* Capture DR */
-		jtag_tck_clr(p);
-		jtag_tck_set(p); /* Shift DR */
-		jtag_tck_clr(p);
-		jtag_tms_set(p);
-		jtag_tck_set(p); /* Exit DR */
-		jtag_tck_clr(p);
-		jtag_tck_set(p);
-		jtag_tms_clr(p);
-		jtag_tck_clr(p);
-		jtag_tck_set(p);
+
+		/* Go through DR path without shifting data in/out */
+		jtag_tms_sequence(p, 6, 0x19); /* TMS=1 0 0 1 1 0 ; 6 clocks */
+
 		jtag_tclk_clr(p);
 	}
 
@@ -414,25 +444,7 @@ unsigned int jtag_init(struct jtdev *p)
 {
 	unsigned int jtag_id;
 
-	jtag_rst_clr(p);
-	p->f->jtdev_power_on(p);
-	jtag_tdi_set(p);
-	jtag_tms_set(p);
-	jtag_tck_set(p);
-	jtag_tclk_set(p);
-
-	jtag_rst_set(p);
-	jtag_tst_clr(p);
-
-	jtag_tst_set(p);
-	jtag_rst_clr(p);
-	jtag_tst_clr(p);
-
-	jtag_tst_set(p);
-
-	p->f->jtdev_connect(p);
-	jtag_rst_set(p);
-	jtag_reset_tap(p);
+	jtag_init_dap(p);
 
 	/* Check fuse */
 	if (jtag_is_fuse_blown(p)) {
@@ -1151,7 +1163,44 @@ unsigned int jtag_cpu_state( struct jtdev *p )
 /*----------------------------------------------------------------------------*/
 int jtag_get_config_fuses( struct jtdev *p )
 {
-    jtag_ir_shift(p, IR_CONFIG_FUSES);
+	jtag_ir_shift(p, IR_CONFIG_FUSES);
 
-    return jtag_dr_shift_8(p, 0);
+	return jtag_dr_shift_8(p, 0);
+}
+
+/*----------------------------------------------------------------------------*/
+int jtag_refresh_bps(const char *module, device_t dev, struct jtdev *p)
+{
+	int i;
+	int ret;
+	struct device_breakpoint *bp;
+	address_t addr;
+	ret = 0;
+
+	for (i = 0; i < dev->max_breakpoints; i++) {
+		bp = &dev->breakpoints[i];
+
+		printc_dbg("%s: refresh breakpoint %d: type=%d "
+			   "addr=%04x flags=%04x\n", module,
+			   i, bp->type, bp->addr, bp->flags);
+
+		if ( (bp->flags &  DEVICE_BP_DIRTY) &&
+		     (bp->type  == DEVICE_BPTYPE_BREAK) ) {
+			addr = bp->addr;
+
+			if ( !(bp->flags & DEVICE_BP_ENABLED) ) {
+				addr = 0;
+			}
+
+			if ( jtag_set_breakpoint (p, i, addr) == 0) {
+				printc_err("%s: failed to refresh "
+					   "breakpoint #%d\n", module, i);
+				ret = -1;
+			} else {
+				bp->flags &= ~DEVICE_BP_DIRTY;
+			}
+		}
+	}
+
+	return ret;
 }

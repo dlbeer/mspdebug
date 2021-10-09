@@ -22,7 +22,7 @@
  */
 
 #include <stdint.h>
-#include "jtdev.h"
+#include "jtaglib.h"
 #include "output.h"
 
 #if defined(__linux__)
@@ -186,7 +186,8 @@ static void jtbp_close(struct jtdev *p)
 
 	out_buff = 0x0f;
 	// Don't care if this fails, user can just power cycle the bus pirate
-	if(write(p->port, &out_buff, 1));
+	if(write(p->port, &out_buff, 1))
+		;
 
 	close(p->port);
 }
@@ -351,6 +352,12 @@ const struct jtdev_func jtdev_func_bp = {
   .jtdev_tclk_get    = jtbp_tclk_get,
   .jtdev_tclk_strobe = jtbp_tclk_strobe,
   .jtdev_led_green   = jtbp_led_green,
-  .jtdev_led_red     = jtbp_led_red
+  .jtdev_led_red     = jtbp_led_red,
+
+  .jtdev_ir_shift    = jtag_default_ir_shift,
+  .jtdev_dr_shift_8  = jtag_default_dr_shift_8,
+  .jtdev_dr_shift_16 = jtag_default_dr_shift_16,
+  .jtdev_tms_sequence= jtag_default_tms_sequence,
+  .jtdev_init_dap    = jtag_default_init_dap
 };
 

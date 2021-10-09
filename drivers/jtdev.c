@@ -22,7 +22,7 @@
  */
 
 #include <stdint.h>
-#include "jtdev.h"
+#include "jtaglib.h"
 #include "output.h"
 
 #if defined(__linux__) || \
@@ -354,6 +354,12 @@ const struct jtdev_func jtdev_func_pif = {
   .jtdev_tclk_get    = jtpif_tclk_get,
   .jtdev_tclk_strobe = jtpif_tclk_strobe,
   .jtdev_led_green   = jtpif_led_green,
-  .jtdev_led_red     = jtpif_led_red
+  .jtdev_led_red     = jtpif_led_red,
+
+  .jtdev_ir_shift    = jtag_default_ir_shift,
+  .jtdev_dr_shift_8  = jtag_default_dr_shift_8,
+  .jtdev_dr_shift_16 = jtag_default_dr_shift_16,
+  .jtdev_tms_sequence= jtag_default_tms_sequence,
+  .jtdev_init_dap    = jtag_default_init_dap
 };
 

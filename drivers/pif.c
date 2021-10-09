@@ -145,43 +145,6 @@ static int init_device(struct jtdev *p)
 /*===== MSPDebug Device interface ============================================*/
 
 /*----------------------------------------------------------------------------*/
-static int refresh_bps(struct pif_device *dev)
-{
-	int i;
-	int ret;
-	struct device_breakpoint *bp;
-	address_t addr;
-	ret = 0;
-
-	for (i = 0; i < dev->base.max_breakpoints; i++) {
-		bp = &dev->base.breakpoints[i];
-
-		printc_dbg("refresh breakpoint %d: type=%d "
-			   "addr=%04x flags=%04x\n",
-			   i, bp->type, bp->addr, bp->flags);
-
-		if ( (bp->flags &  DEVICE_BP_DIRTY) &&
-		     (bp->type  == DEVICE_BPTYPE_BREAK) ) {
-			addr = bp->addr;
-
-			if ( !(bp->flags & DEVICE_BP_ENABLED) ) {
-				addr = 0;
-			}
-
-			if ( jtag_set_breakpoint (&dev->jtag, i, addr) == 0) {
-				printc_err("pif: failed to refresh "
-					   "breakpoint #%d\n", i);
-				ret = -1;
-			} else {
-				bp->flags &= ~DEVICE_BP_DIRTY;
-			}
-		}
-	}
-
-	return ret;
-}
-
-/*----------------------------------------------------------------------------*/
 static int pif_readmem( device_t  dev_base,
 			address_t addr,
 			uint8_t*  mem,
@@ -246,7 +209,7 @@ static int pif_ctl(device_t dev_base, device_ctl_t type)
 
     case DEVICE_CTL_RUN:
       /* transfer changed breakpoints to device */
-      if (refresh_bps(dev) < 0) {
+      if (jtag_refresh_bps("pif", &dev->base, &dev->jtag) < 0) {
 	return -1;
       }
       /* start program execution at current PC */

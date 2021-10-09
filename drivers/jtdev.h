@@ -64,6 +64,12 @@ struct jtdev_func{
 	void (*jtdev_led_green)(struct jtdev *p, int out);
 	void (*jtdev_led_red)(struct jtdev *p, int out);
 
+/* Optional functions implementing higher-level stuff */
+	uint8_t (*jtdev_ir_shift)(struct jtdev *p, uint8_t ir);
+	uint8_t (*jtdev_dr_shift_8)(struct jtdev *p, uint8_t dr);
+	uint16_t (*jtdev_dr_shift_16)(struct jtdev *p, uint16_t dr);
+	void (*jtdev_tms_sequence)(struct jtdev *p, int bits, unsigned int value);
+	void (*jtdev_init_dap)(struct jtdev *p);
 };
 
 extern const struct jtdev_func jtdev_func_pif;

@@ -36,6 +36,7 @@
 
 #include <stdint.h>
 
+#include "device.h"
 #include "jtdev.h"
 #include "util.h"
 
@@ -116,5 +117,15 @@ unsigned int jtag_set_breakpoint(struct jtdev *p,
 				 int bp_num, address_t bp_addr);
 unsigned int jtag_cpu_state(struct jtdev *p);
 int jtag_get_config_fuses(struct jtdev *p);
+
+/* Default low-level JTAG routines for jtdev implementations that don't have
+ * their own implementations of these routines */
+uint8_t jtag_default_ir_shift(struct jtdev *p, uint8_t ir);
+uint8_t jtag_default_dr_shift_8(struct jtdev *p, uint8_t dr);
+uint16_t jtag_default_dr_shift_16(struct jtdev *p, uint16_t dr);
+void jtag_default_tms_sequence(struct jtdev *p, int bits, unsigned int value);
+void jtag_default_init_dap(struct jtdev *p);
+
+int jtag_refresh_bps(const char *driver, device_t dev, struct jtdev *p);
 
 #endif
