@@ -272,7 +272,7 @@ void jtag_default_tms_sequence(struct jtdev *p, int bits, unsigned int value)
 		jtag_tck_clr(p);
 		if (value & (1u << i))
 			jtag_tms_set(p);
-		 else
+		else
 			jtag_tms_clr(p);
 		jtag_tck_set(p);
 	}
@@ -1000,16 +1000,24 @@ address_t jtag_read_reg(struct jtdev *p, int reg)
 	jtag_tclk_set(p);
 	jtag_tclk_clr(p);
 	jtag_tclk_set(p);
-	jtag_tclk_clr(p);
-	jtag_tclk_set(p);
+	/* older code did an extra clock cycle -- don't do this! will put the
+	 * current instruction word on the data bus instead of the register value
+	 * on the G2452, making it useless. the clock cycles are still required to
+	 * move to the next instruction, but those should be done later. */
+	/*jtag_tclk_clr(p);
+	jtag_tclk_set(p);*/
 
 	/* Read databus which contains the registers value */
 	jtag_ir_shift(p, IR_DATA_CAPTURE);
 	value = jtag_dr_shift_16(p, 0x0000);
 
+	jtag_tclk_clr(p);
+
 	/* JTAG controls RW & BYTE */
 	jtag_ir_shift(p, IR_CNTRL_SIG_16BIT);
 	jtag_dr_shift_16(p, 0x2401);
+
+	jtag_tclk_set(p);
 
 	/* Return value read from register */
 	return value;
@@ -1163,9 +1171,9 @@ unsigned int jtag_cpu_state( struct jtdev *p )
 /*----------------------------------------------------------------------------*/
 int jtag_get_config_fuses( struct jtdev *p )
 {
-	jtag_ir_shift(p, IR_CONFIG_FUSES);
+    jtag_ir_shift(p, IR_CONFIG_FUSES);
 
-	return jtag_dr_shift_8(p, 0);
+    return jtag_dr_shift_8(p, 0);
 }
 
 /*----------------------------------------------------------------------------*/
