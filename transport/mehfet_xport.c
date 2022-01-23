@@ -155,7 +155,6 @@ static int tr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 		if (r <= 0) {
 			printc_err("mehfet transport: usb_bulk_read: %s\n",
 				   usb_strerror());
-			asm volatile("int3");
 			return -1;
 		}
 
