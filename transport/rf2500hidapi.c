@@ -200,7 +200,7 @@ transport_t rf2500hidapi_open(const char *devpath, const char *requested_serial,
 		free(tr);
 		hid_exit();
 		printc_err("rf2500: fallback to libusb backend\n");
-		return rf2500_open(devpath, requested_serial);
+		return rf2500_open(devpath, requested_serial, has_vid_pid, vid, pid);
 	}
 
 	tr->handle = handle;
