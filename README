@@ -33,7 +33,8 @@ Compiling from source
 
 Ensure that you have the necessary packages to compile programs that use
 libusb (on Debian or Ubuntu systems, you might need to do apt-get
-install libusb-dev). After that, unpack and compile the source code
+install libusb-dev | on Arch systems, you might need to do sudo 
+pacman -S libusb-compact). After that, unpack and compile the source code 
 with:
 
     tar xvfz mspdebug-version.tar.gz
@@ -41,8 +42,8 @@ with:
     make
 
 On Debian Ubuntu systems sudo apt-get install libreadline-dev may be 
-required. If you don't want GNU readline support, you can invoke make 
-with:
+required. On Arch systems sudo pacman -S readline may be required.
+If you don't want GNU readline support, you can invoke make with:
 
     make WITHOUT_READLINE=1
 
