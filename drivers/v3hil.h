@@ -44,6 +44,9 @@ struct v3hil {
 	/* Lower 8 bits of saved WDTCTL */
 	uint8_t			wdtctl;
 
+	/* Is this a v2 or v3 firmware running on the eZ-FET? */
+	uint16_t		proto_ver;
+
 	/* Register cache: this must be flushed before restoring context
 	 * and updated after saving context.
 	 */

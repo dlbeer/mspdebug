@@ -170,12 +170,30 @@ typedef enum {
 	HAL_PROTO_CONFIG_JTAG_LOCK_5XX			= 0x17,
 } hal_proto_config_t;
 
+static hal_proto_fid_t map_ver(const struct v3hil *h, hal_proto_fid_t src)
+{
+	hal_proto_fid_t dst;
+
+	if (h->proto_ver < 0x0300 && src > HAL_PROTO_FID_GET_DEVICE_ID_PTR) {
+		dst = src - 1;
+	} else {
+		dst = src;
+	}
+
+	dbg_printc("map ver: %02x -> %02x\n", src, dst);
+	return dst;
+}
+
 static hal_proto_fid_t map_fid(const struct v3hil *h, hal_proto_fid_t src)
 {
 	hal_proto_fid_t dst = h->chip->v3_functions[src];
 
+	if (dst == 0) {
+		dst = src;
+	}
+
 	dbg_printc("map fid: %02x -> %02x\n", src, dst);
-	return dst;
+	return map_ver(h, dst);
 }
 
 void v3hil_init(struct v3hil *h, transport_t trans,
@@ -191,7 +209,7 @@ int v3hil_set_vcc(struct v3hil *h, int vcc_mv)
 
 	w16le(data, vcc_mv);
 	dbg_printc("Setting VCC...\n");
-	return hal_proto_execute(&h->hal, HAL_PROTO_FID_SET_VCC, data, 2);
+	return hal_proto_execute(&h->hal, map_ver(h, HAL_PROTO_FID_SET_VCC), data, 2);
 }
 
 int v3hil_comm_init(struct v3hil *h)
@@ -206,6 +224,43 @@ int v3hil_comm_init(struct v3hil *h)
 		return -1;
 	if (h->hal.length < 8) {
 		printc_err("warning: v3hil: short reply to version request\n");
+	} else if (h->hal.length == 40) {
+#ifdef DEBUG_V3HIL
+		printc_dbg("v3hil: Version:");
+		for (int i = 0; i < h->hal.length; i++)
+			printc_dbg(" %02x", h->hal.payload[i]);
+		printc_dbg("\n");
+#endif
+		const uint16_t sw_version = r32le(h->hal.payload + 0);
+		const uint16_t sw_build = r32le(h->hal.payload + 2);
+		const uint32_t hw_thing = r32le(h->hal.payload + 4);
+		const uint32_t tool_id = r16le(h->hal.payload + 8);
+		const uint16_t core_version = r16le(h->hal.payload + 10);
+		const uint16_t hil_version = r16le(h->hal.payload + 12);
+		const uint16_t dcdc_layer_version = r16le(h->hal.payload + 14);
+		const uint16_t dcdc_mcu_version = r16le(h->hal.payload + 16);
+		const uint16_t com_version = r16le(h->hal.payload + 18);
+
+		const uint16_t hil_crc = r16le(h->hal.payload + 20);
+		const uint16_t hal_crc = r16le(h->hal.payload + 22);
+		const uint16_t dcdc_crc = r16le(h->hal.payload + 24);
+		const uint16_t core_crc = r16le(h->hal.payload + 26);
+		const uint16_t com_crc = r16le(h->hal.payload + 28);
+
+		const uint16_t fpga_version = r16le(h->hal.payload + 30);
+		const uint16_t n_rx_queues = r16le(h->hal.payload + 32);
+		const uint16_t rx_queue_size = r16le(h->hal.payload + 34);
+
+		const uint8_t major = (sw_version >> 14) + 1;
+		const uint8_t minor = (sw_version >> 8) & 0x3f;
+		const uint8_t patch = sw_version & 0xff;
+		const uint8_t build = sw_build;
+
+		printc_dbg("Version: %d.%d.%d.%d Core version: 0x%02x, HIL version: 0x%02x, HW: 0x%04x\n",
+				major, minor, patch, build,
+				core_version, hil_version, hw_thing);
+
+		h->proto_ver = (major << 8) | minor;
 	} else {
 		const uint8_t major = h->hal.payload[1] >> 6;
 		const uint8_t minor = h->hal.payload[1] & 0x3f;
@@ -215,11 +270,13 @@ int v3hil_comm_init(struct v3hil *h)
 		printc_dbg("Version: %d.%d.%d.%d, HW: 0x%04x\n",
 			   major, minor, patch, flavour,
 			   r32le(h->hal.payload + 4));
+
+		h->proto_ver = (major << 8) | minor;
 	}
 
 	printc_dbg("Reset firmware...\n");
 	if (hal_proto_execute(&h->hal,
-			HAL_PROTO_FID_RESET_STATIC_GLOBAL_VARS, NULL, 0) < 0)
+			map_ver(h, HAL_PROTO_FID_RESET_STATIC_GLOBAL_VARS), NULL, 0) < 0)
 		return -1;
 
 	return 0;
@@ -231,7 +288,7 @@ int v3hil_start_jtag(struct v3hil *h, v3hil_jtag_type_t type)
 	uint8_t chain_id[2] = {0, 0};
 
 	dbg_printc("Start JTAG...\n");
-	if (hal_proto_execute(&h->hal, HAL_PROTO_FID_START_JTAG,
+	if (hal_proto_execute(&h->hal, map_ver(h, HAL_PROTO_FID_START_JTAG),
 			      &data, 1) < 0)
 		return -1;
 
@@ -246,19 +303,30 @@ int v3hil_start_jtag(struct v3hil *h, v3hil_jtag_type_t type)
 	}
 
 	printc_dbg("Device count: %d\n", h->hal.payload[0]);
-	return hal_proto_execute(&h->hal, HAL_PROTO_FID_SET_DEVICE_CHAIN_INFO,
-				 chain_id, 2);
+	return hal_proto_execute(&h->hal,
+			map_ver(h, HAL_PROTO_FID_SET_DEVICE_CHAIN_INFO), chain_id, 2);
 }
 
 int v3hil_stop_jtag(struct v3hil *h)
 {
 	dbg_printc("Stop JTAG...\n");
-	return hal_proto_execute(&h->hal, HAL_PROTO_FID_STOP_JTAG, NULL, 0);
+	if (hal_proto_execute(&h->hal, map_ver(h, HAL_PROTO_FID_STOP_JTAG), NULL, 0) < 0)
+		return -1;
+
+	dbg_printc("Reset communications...\n");
+	h->hal.ref_id = 0;
+	if (hal_proto_send(&h->hal, HAL_PROTO_TYPE_EXCEPTION, NULL, 0) < 0) {
+		h->hal.ref_id = 0;
+		return -1;
+	}
+	h->hal.ref_id = 0;
+
+	return 0;
 }
 
 int v3hil_sync(struct v3hil *h)
 {
-	uint8_t data[32];
+	uint8_t data[32], datalen = 21;
 
 	h->cal.is_cal = 0;
 
@@ -273,8 +341,21 @@ int v3hil_sync(struct v3hil *h)
 	if (h->chip) {
 		int i;
 
-		for (i = 0; i < 16; i++)
-			data[i + 20 - i] = h->chip->clock_map[i].value;
+		for (i = 0; i < 16; i++) {
+			dbg_printc("clock map %d = %02x -> %d\n",
+					i, h->chip->clock_map[i].value, 20-i);
+			data[16 + 4 - i] = h->chip->clock_map[i].value;
+		}
+
+		if (h->proto_ver >= 0x0308) {
+			datalen = 21+16;
+
+			for (i = 16; i < 32; i++) {
+				dbg_printc("clock map2 %d = %02x -> %d\n",
+						i, h->chip->clock_map[i].value, 16+4+16*2 - i);
+				data[16+4+16*2 - i] = h->chip->clock_map[i].value;
+			}
+		}
 	} else {
 		data[5] = 1;
 		data[15] = 40;
@@ -283,13 +364,36 @@ int v3hil_sync(struct v3hil *h)
 	/* We can't use map_fid() because h->chip might be NULL -- this
 	 * function will be called before identification is complete.
 	 */
+	hal_proto_fid_t cmdid = (h->jtag_id == 0x89/*0x90*/)
+		? HAL_PROTO_FID_SJ_ASSERT_POR_SC
+		: HAL_PROTO_FID_SJ_ASSERT_POR_SC_XV2;
+
 	dbg_printc("Sync: assert POR\n");
-	if (hal_proto_execute(&h->hal,
-		(h->jtag_id == 0x89)
-			? HAL_PROTO_FID_SJ_ASSERT_POR_SC
-			: HAL_PROTO_FID_SJ_ASSERT_POR_SC_XV2,
-		    data, 21) < 0)
-		return -1;
+	if (h->chip) {
+		if (hal_proto_execute(&h->hal, map_fid(h, cmdid), data, datalen) < 0) {
+			return -1;
+		}
+	} else {
+		/* Need to do something for X/Xv2 devices, so try each in turn... */
+		cmdid = map_ver(h, cmdid);
+		if (hal_proto_execute(&h->hal, cmdid, data, datalen) < 0) {
+			cmdid = map_ver(h, HAL_PROTO_FID_SJ_ASSERT_POR_SC_X);
+			if (hal_proto_execute(&h->hal, cmdid, data, datalen) < 0) {
+				cmdid = map_ver(h, HAL_PROTO_FID_SJ_ASSERT_POR_SC_XV2);
+				if (hal_proto_execute(&h->hal, cmdid, data, datalen) < 0) {
+					return -1;
+				}
+			}
+		}
+	}
+
+#ifdef DEBUG_V3HIL
+	printc_dbg("v3hil: POR result: (len %d) ", h->hal.length);
+	for (int i = 0; i < h->hal.length; ++i) {
+		printc_dbg("%02x%s", h->hal.payload[i],
+			(i == h->hal.length - 1) ? "\n" : " ");
+	}
+#endif
 
 	if (h->hal.length < 8) {
 		printc_err("v3hil: short reply: %d\n", h->hal.length);
@@ -599,17 +703,24 @@ static int write_ram(struct v3hil *h, const struct chipinfo_memory *m,
 		     address_t addr, const uint8_t *mem, address_t size)
 {
 	uint8_t data[256];
+	bool fram = false;
+	if (h->chip->features & CHIPINFO_FEATURE_FRAM) {
+		if (!strcmp(m->name, "Main") || !strcmp(m->name, "Info")) {
+			dbg_printc("write ram: to FRAM!\n");
+			fram = true;
+		}
+	}
 
 	w32le(data, addr);
-	w32le(data + 4, (m->bits == 8) ? size : (size >> 1));
+	w32le(data + 4, (m->bits == 8 || fram) ? size : (size >> 1));
 
 	memcpy(data + 8, mem, size);
 
 	dbg_printc("write ram\n");
-	if (hal_proto_execute(&h->hal,
-		map_fid(h, (m->bits == 8) ? HAL_PROTO_FID_WRITE_MEM_BYTES
-					  : HAL_PROTO_FID_WRITE_MEM_WORDS),
-		    data, size + 8) < 0) {
+	hal_proto_fid_t fid = (m->bits == 8) ? HAL_PROTO_FID_WRITE_MEM_BYTES
+			: HAL_PROTO_FID_WRITE_MEM_WORDS;
+	if (fram) fid = HAL_PROTO_FID_WRITE_FRAM_QUICK_XV2;
+	if (hal_proto_execute(&h->hal, map_fid(h, fid), data, size + 8) < 0) {
 		printc_err("v3hil: failed writing %d bytes to 0x%05x\n",
 			   size, addr);
 		return -1;
@@ -632,11 +743,12 @@ int v3hil_write(struct v3hil *h, address_t addr,
 	if (size > 128)
 		size = 128;
 
-	dbg_printc("write: call write flash\n");
-	if (m->type == CHIPINFO_MEMTYPE_FLASH)
+	if (m->type == CHIPINFO_MEMTYPE_FLASH) {
+		dbg_printc("write: call write flash\n");
 		return write_flash(h, addr, mem, size);
+	}
 
-	dbg_printc("call write ram\n");
+	dbg_printc("write: call write ram\n");
 	return write_ram(h, m, addr, mem, size);
 }
 
@@ -729,9 +841,11 @@ int v3hil_erase(struct v3hil *h, address_t segment)
 
 int v3hil_update_regs(struct v3hil *h)
 {
-	const hal_proto_fid_t fid =
-		map_fid(h, HAL_PROTO_FID_READ_ALL_CPU_REGS);
-	const int reg_size = (fid == HAL_PROTO_FID_READ_ALL_CPU_REGS) ? 2 : 3;
+	const hal_proto_fid_t fid = map_fid(h, HAL_PROTO_FID_READ_ALL_CPU_REGS);
+	const int reg_size = (fid == HAL_PROTO_FID_READ_ALL_CPU_REGS
+							|| fid == HAL_PROTO_FID_READ_ALL_CPU_REGS - 1)
+						? 2 : 3;
+
 	int i;
 	int sptr = 0;
 
@@ -767,9 +881,10 @@ int v3hil_update_regs(struct v3hil *h)
 
 int v3hil_flush_regs(struct v3hil *h)
 {
-	const hal_proto_fid_t fid =
-		map_fid(h, HAL_PROTO_FID_WRITE_ALL_CPU_REGS);
-	const int reg_size = (fid == HAL_PROTO_FID_WRITE_ALL_CPU_REGS) ? 2 : 3;
+	const hal_proto_fid_t fid = map_fid(h, HAL_PROTO_FID_WRITE_ALL_CPU_REGS);
+	const int reg_size = (fid == HAL_PROTO_FID_WRITE_ALL_CPU_REGS
+							|| fid == HAL_PROTO_FID_WRITE_ALL_CPU_REGS - 1)
+						? 2 : 3;
 	int i;
 	int dptr = 0;
 	uint8_t data[64];
@@ -905,7 +1020,7 @@ static int set_param(struct v3hil *fet, hal_proto_config_t cfg,
 	data[0] = cfg;
 
 	dbg_printc("Set param 0x%02x to 0x%08x\n", cfg, value);
-	if (hal_proto_execute(&fet->hal, HAL_PROTO_FID_CONFIGURE,
+	if (hal_proto_execute(&fet->hal, map_ver(fet, HAL_PROTO_FID_CONFIGURE),
 			      data, 8) < 0) {
 		printc_err("v3hil: can't set param 0x%02x to 0x%08x\n",
 			   cfg, value);
@@ -925,7 +1040,7 @@ static int idproc_89(struct v3hil *fet, uint32_t id_data_addr,
 	memset(data, 0, 8);
 	w32le(data, id_data_addr);
 	data[4] = 8;
-	if (hal_proto_execute(&fet->hal, HAL_PROTO_FID_READ_MEM_WORDS,
+	if (hal_proto_execute(&fet->hal, map_ver(fet, HAL_PROTO_FID_READ_MEM_WORDS),
 			      data, 8) < 0)
 		return -1;
 	if (fet->hal.length < 16) {
@@ -941,7 +1056,7 @@ static int idproc_89(struct v3hil *fet, uint32_t id_data_addr,
 	id->config = fet->hal.payload[13] & 0x7f;
 
 	printc_dbg("Read fuses...\n");
-	if (hal_proto_execute(&fet->hal, HAL_PROTO_FID_GET_FUSES, NULL, 0) < 0)
+	if (hal_proto_execute(&fet->hal, map_ver(fet, HAL_PROTO_FID_GET_FUSES), NULL, 0) < 0)
 		return -1;
 	if (!fet->hal.length) {
 		printc_err("v3hil: short reply: %d\n", fet->hal.length);
@@ -965,7 +1080,7 @@ static int idproc_9x(struct v3hil *fet, uint32_t dev_id_ptr,
 	memset(data, 0, 8);
 	w32le(data, dev_id_ptr);
 	data[4] = 4;
-	if (hal_proto_execute(&fet->hal, HAL_PROTO_FID_READ_MEM_QUICK_XV2,
+	if (hal_proto_execute(&fet->hal, map_ver(fet, HAL_PROTO_FID_READ_MEM_QUICK_XV2),
 			      data, 8) < 0)
 		return -1;
 	if (fet->hal.length < 8) {
@@ -989,7 +1104,7 @@ static int idproc_9x(struct v3hil *fet, uint32_t dev_id_ptr,
 	w32le(data, dev_id_ptr);
 	w32le(data + 4, tlv_size >> 1);
 	w32le(data + 8, fet->regs[MSP430_REG_PC]);
-	if (hal_proto_execute(&fet->hal, HAL_PROTO_FID_READ_MEM_QUICK_XV2,
+	if (hal_proto_execute(&fet->hal, map_ver(fet, HAL_PROTO_FID_READ_MEM_QUICK_XV2),
 			      data, 8) < 0)
 		return -1;
 	if (fet->hal.length < tlv_size) {
@@ -1023,26 +1138,56 @@ int v3hil_identify(struct v3hil *fet)
 	int i;
 
 	printc_dbg("Fetching JTAG ID...\n");
-	if (hal_proto_execute(&fet->hal, HAL_PROTO_FID_GET_JTAG_ID,
+	if (hal_proto_execute(&fet->hal, map_ver(fet, HAL_PROTO_FID_GET_JTAG_ID),
 			      NULL, 0) < 0)
 		return -1;
-
-	if (fet->hal.length < 12) {
-		printc_err("v3hil: short reply: %d\n", fet->hal.length);
-		return -1;
-	}
 
 	printc_dbg("ID:");
 	for (i = 0; i < fet->hal.length; i++)
 		printc_dbg(" %02x", fet->hal.payload[i]);
 	printc_dbg("\n");
 
-	/* Byte at 0 is JTAG ID. 0x91, 0x95, 0x99 means CPUxV2. 0x89
-	 * means old CPU.
-	 */
-	fet->jtag_id = fet->hal.payload[0];
-	dev_id_ptr = r32le(fet->hal.payload + 4);
-	id_data_addr = r32le(fet->hal.payload + 8);
+	if (fet->hal.length < 12) {
+		if (fet->hal.length == 2) {
+			fet->jtag_id = fet->hal.payload[0];
+
+			if (hal_proto_execute(&fet->hal, map_ver(fet, HAL_PROTO_FID_GET_DEVICE_ID_PTR),
+						  NULL, 0) < 0)
+				return -1;
+
+#ifdef DEBUG_V3HIL
+			dbg_printc("len: %d\n", fet->hal.length);
+			printc_dbg("v3hil: IDPtr:");
+			for (i = 0; i < fet->hal.length; i++)
+				printc_dbg(" %02x", fet->hal.payload[i]);
+			printc_dbg("\n");
+#endif
+
+			if (fet->hal.length < 10) {
+				printc_err("v3hil: short reply: %d\n", fet->hal.length);
+				return -1;
+			} else {
+				dev_id_ptr = r32le(fet->hal.payload + 0);
+
+				if (dev_id_ptr == 0) {
+					/* welp sometimes it's this instead (JTAG ID == 0x89?) */
+					dev_id_ptr = r32le(fet->hal.payload + 4);
+				}
+
+				id_data_addr = dev_id_ptr; /* idk */
+			}
+		} else {
+			printc_err("v3hil: short reply: %d\n", fet->hal.length);
+			return -1;
+		}
+	} else {
+		/* Byte at 0 is JTAG ID. 0x91, 0x95, 0x99 means CPUxV2. 0x89
+		 * means old CPU.
+		 */
+		fet->jtag_id = fet->hal.payload[0];
+		dev_id_ptr = r32le(fet->hal.payload + 4);
+		id_data_addr = r32le(fet->hal.payload + 8);
+	}
 
 	/* Pick fail-safe configuration */
 	printc_dbg("Reset parameters...\n");
@@ -1053,12 +1198,12 @@ int v3hil_identify(struct v3hil *fet)
 	    set_param(fet, HAL_PROTO_CONFIG_PSA_TCKL_HIGH, 0) < 0 ||
 	    set_param(fet, HAL_PROTO_CONFIG_POWER_TESTREG_MASK, 0) < 0 ||
 	    set_param(fet, HAL_PROTO_CONFIG_POWER_TESTREG3V_MASK, 0) < 0 ||
-	    set_param(fet, HAL_PROTO_CONFIG_NO_BSL, 0) < 0 ||
 	    set_param(fet, HAL_PROTO_CONFIG_ALT_ROM_ADDR_FOR_CPU_READ, 0) < 0)
 		return -1;
+	set_param(fet, HAL_PROTO_CONFIG_NO_BSL, 0); /* is allowed to fail */
 
 	printc_dbg("Check JTAG fuse...\n");
-	if (hal_proto_execute(&fet->hal, HAL_PROTO_FID_IS_JTAG_FUSE_BLOWN,
+	if (hal_proto_execute(&fet->hal, map_ver(fet, HAL_PROTO_FID_IS_JTAG_FUSE_BLOWN),
 			      NULL, 0) < 0)
 		return -1;
 	if ((fet->hal.length >= 2) &&
@@ -1127,13 +1272,13 @@ int v3hil_configure(struct v3hil *fet)
 		      fet->chip->power.enable_lpm5_3v) < 0 ||
 	    set_param(fet, HAL_PROTO_CONFIG_TESTREG3V_DISABLE_LPMX5,
 		      fet->chip->power.disable_lpm5_3v) < 0 ||
-	    set_param(fet, HAL_PROTO_CONFIG_NO_BSL,
-		      (fet->chip->features &
-		       CHIPINFO_FEATURE_NO_BSL) ? 1 : 0) < 0 ||
 	    set_param(fet, HAL_PROTO_CONFIG_ALT_ROM_ADDR_FOR_CPU_READ,
 		      (fet->chip->features &
 		       CHIPINFO_FEATURE_1337) ? 1 : 0) < 0)
 		return -1;
+	/* is allowed to fail */
+	set_param(fet, HAL_PROTO_CONFIG_NO_BSL,
+		  (fet->chip->features & CHIPINFO_FEATURE_NO_BSL) ? 1 : 0);
 
 	return 0;
 }
