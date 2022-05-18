@@ -31,6 +31,35 @@ void hal_proto_init(struct hal_proto *p, transport_t trans,
 	p->ref_id = 0;
 }
 
+static int hal_proto_send_common(struct hal_proto *p, hal_proto_type_t type,
+		uint8_t* buf, size_t len)
+{
+	if (len & 1)
+		buf[len++] = 0;
+
+	if (p->flags & HAL_PROTO_CHECKSUM) {
+		size_t i;
+		uint8_t sum_l = 0xff;
+		uint8_t sum_h = 0xff;
+
+		for (i = 0; i < len; i += 2) {
+			sum_l ^= buf[i];
+			sum_h ^= buf[i + 1];
+		}
+
+		buf[len++] = sum_l;
+		buf[len++] = sum_h;
+	}
+
+	if (p->trans->ops->send(p->trans, buf, len) < 0) {
+		printc_err("hal_proto_send_common: type: 0x%02x\n", type);
+		return -1;
+	}
+
+	return 0;
+}
+
+
 int hal_proto_send(struct hal_proto *p, hal_proto_type_t type,
 		   const uint8_t *data, int length)
 {
@@ -52,30 +81,34 @@ int hal_proto_send(struct hal_proto *p, hal_proto_type_t type,
 	memcpy(buf + len, data, length);
 	len += length;
 
-	if (len & 1)
-		buf[len++] = 0;
+	return hal_proto_send_common(p, type, buf, len);
+}
 
-	if (p->flags & HAL_PROTO_CHECKSUM) {
-		size_t i;
-		uint8_t sum_l = 0xff;
-		uint8_t sum_h = 0xff;
 
-		for (i = 0; i < len; i += 2) {
-			sum_l ^= buf[i];
-			sum_h ^= buf[i + 1];
-		}
+static int hal_proto_send_ack(struct hal_proto *p, hal_proto_type_t type,
+		const uint8_t *data, int length)
+{
+	uint8_t buf[512];
+	size_t len = 0;
 
-		buf[len++] = sum_l;
-		buf[len++] = sum_h;
-	}
-
-	if (p->trans->ops->send(p->trans, buf, len) < 0) {
-		printc_err("hal_proto_send: type: 0x%02x\n", type);
+	if (length > HAL_MAX_PAYLOAD) {
+		printc_err("hal_proto_send_ack: payload too long: %d\n", length);
 		return -1;
 	}
 
-	return 0;
+	buf[len++] = length + 3;
+	buf[len++] = type;
+	buf[len++] = (p->ref_id - 1) & 0xff;
+	buf[len++] = 0;
+
+	/*p->ref_id = (p->ref_id + 1) & 0x7f;*/
+
+	memcpy(buf + len, data, length);
+	len += length;
+
+	return hal_proto_send_common(p, type, buf, len);
 }
+
 
 int hal_proto_receive(struct hal_proto *p, uint8_t *buf, int max_len)
 {
@@ -147,7 +180,8 @@ int hal_proto_execute(struct hal_proto *p, uint8_t fid,
 	uint8_t fdata[HAL_MAX_PAYLOAD];
 
 	if (len + 2 > HAL_MAX_PAYLOAD) {
-		printc_err("hal_proto_execute: payload too big: %d\n", len);
+		printc_err("hal_proto_execute: fid 0x%02x: payload too big: %d\n",
+				fid, len);
 		return -1;
 	}
 
@@ -168,8 +202,8 @@ int hal_proto_execute(struct hal_proto *p, uint8_t fid,
 			goto fail;
 
 		if ((p->type == HAL_PROTO_TYPE_EXCEPTION) && (r >= 2)) {
-			printc_err("hal_proto_execute: HAL exception: 0x%04x\n",
-				   LE_WORD(p->payload, p->length));
+			printc_err("hal_proto_execute: fid 0x%02x: HAL exception: 0x%04x\n",
+				   fid, LE_WORD(p->payload, p->length));
 			goto fail;
 		}
 
@@ -177,12 +211,12 @@ int hal_proto_execute(struct hal_proto *p, uint8_t fid,
 			break;
 
 		if (p->type != HAL_PROTO_TYPE_DATA) {
-			printc_err("hal_proto_execute: no data "
-				   "(got type 0x%02x)\n", p->type);
+			printc_err("hal_proto_execute: fid 0x%02x: no data "
+				   "(got type 0x%02x)\n", fid, p->type);
 			goto fail;
 		}
 
-		if (hal_proto_send(p, HAL_PROTO_TYPE_ACKNOWLEDGE, NULL, 0) < 0)
+		if (hal_proto_send_ack(p, HAL_PROTO_TYPE_ACKNOWLEDGE, NULL, 0) < 0)
 			goto fail;
 
 		p->length += r;
