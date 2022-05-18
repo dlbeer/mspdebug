@@ -16,12 +16,19 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stdbool.h>
 #include <string.h>
 #include "bytes.h"
 #include "v3hil.h"
 #include "dis.h"
 #include "output.h"
 #include "opdb.h"
+
+#ifdef DEBUG_V3HIL
+#define dbg_printc(fmt, ...) printc_dbg("v3hil: " fmt, ##__VA_ARGS__)
+#else
+#define dbg_printc(fmt, ...) do{}while(0)
+#endif
 
 /* HAL function IDs */
 typedef enum {
@@ -167,7 +174,8 @@ static hal_proto_fid_t map_fid(const struct v3hil *h, hal_proto_fid_t src)
 {
 	hal_proto_fid_t dst = h->chip->v3_functions[src];
 
-	return dst ? dst : src;
+	dbg_printc("map fid: %02x -> %02x\n", src, dst);
+	return dst;
 }
 
 void v3hil_init(struct v3hil *h, transport_t trans,
@@ -182,6 +190,7 @@ int v3hil_set_vcc(struct v3hil *h, int vcc_mv)
 	uint8_t data[2];
 
 	w16le(data, vcc_mv);
+	dbg_printc("Setting VCC...\n");
 	return hal_proto_execute(&h->hal, HAL_PROTO_FID_SET_VCC, data, 2);
 }
 
@@ -221,6 +230,7 @@ int v3hil_start_jtag(struct v3hil *h, v3hil_jtag_type_t type)
 	uint8_t data = type;
 	uint8_t chain_id[2] = {0, 0};
 
+	dbg_printc("Start JTAG...\n");
 	if (hal_proto_execute(&h->hal, HAL_PROTO_FID_START_JTAG,
 			      &data, 1) < 0)
 		return -1;
@@ -242,6 +252,7 @@ int v3hil_start_jtag(struct v3hil *h, v3hil_jtag_type_t type)
 
 int v3hil_stop_jtag(struct v3hil *h)
 {
+	dbg_printc("Stop JTAG...\n");
 	return hal_proto_execute(&h->hal, HAL_PROTO_FID_STOP_JTAG, NULL, 0);
 }
 
@@ -272,6 +283,7 @@ int v3hil_sync(struct v3hil *h)
 	/* We can't use map_fid() because h->chip might be NULL -- this
 	 * function will be called before identification is complete.
 	 */
+	dbg_printc("Sync: assert POR\n");
 	if (hal_proto_execute(&h->hal,
 		(h->jtag_id == 0x89)
 			? HAL_PROTO_FID_SJ_ASSERT_POR_SC
@@ -308,6 +320,7 @@ int v3hil_read(struct v3hil *h, address_t addr,
 	w32le(req + 4, (m->bits == 8) ? size : (size >> 1));
 	w32le(req + 8, h->regs[MSP430_REG_PC]);
 
+	dbg_printc("do read\n");
 	if (hal_proto_execute(&h->hal,
 		map_fid(h, (m->bits == 8) ? HAL_PROTO_FID_READ_MEM_BYTES :
 					    HAL_PROTO_FID_READ_MEM_WORDS),
@@ -366,6 +379,7 @@ static int calibrate_dco(struct v3hil *h, uint8_t max_bcs)
 	w16le(data, ram->offset);
 	w16le(data + 2, max_bcs);
 
+	dbg_printc("calibrate dco: get freq\n");
 	if (hal_proto_execute(&h->hal,
 		map_fid(h, HAL_PROTO_FID_GET_DCO_FREQUENCY),
 		data, 6) < 0)
@@ -384,6 +398,7 @@ static int calibrate_dco(struct v3hil *h, uint8_t max_bcs)
 	mem_write[9] = data[2]; /* BCS1 */
 	mem_write[10] = data[4]; /* BCS2 */
 	mem_write[11] = 0; /* pad */
+	dbg_printc("calibrate dco: write\n");
 	if (hal_proto_execute(&h->hal,
 		    map_fid(h, HAL_PROTO_FID_WRITE_MEM_BYTES),
 		    mem_write, 12) < 0) {
@@ -412,6 +427,7 @@ static int calibrate_fll(struct v3hil *h)
 	w16le(data, ram->offset);
 	w16le(data + 2, 0);
 
+	dbg_printc("calibrate fll: get dco freq\n");
 	if (hal_proto_execute(&h->hal,
 		map_fid(h, HAL_PROTO_FID_GET_DCO_FREQUENCY),
 		data, 10) < 0)
@@ -433,6 +449,7 @@ static int calibrate_fll(struct v3hil *h)
 	mem_write[12] = data[8]; /* FLLCTL1 */
 	mem_write[13] = 0; /* pad */
 
+	dbg_printc("calibrate fll: write\n");
 	if (hal_proto_execute(&h->hal,
 		    map_fid(h, HAL_PROTO_FID_WRITE_MEM_BYTES),
 		    mem_write, 14) < 0) {
@@ -504,6 +521,7 @@ static int upload_funclet(struct v3hil *h,
 		for (i = 0; i < n; i++)
 			w16le(data + 8 + i * 2, code[i]);
 
+		dbg_printc("upload funclet: %d\n", n);
 		if (hal_proto_execute(&h->hal,
 				map_fid(h, HAL_PROTO_FID_WRITE_MEM_WORDS),
 				data, n * 2 + 8) < 0) {
@@ -537,8 +555,10 @@ static int write_flash(struct v3hil *h, address_t addr,
 		return -1;
 	}
 
+	dbg_printc("write flash: calibrate\n");
 	if (calibrate(h) < 0)
 		return -1;
+	dbg_printc("write flash: upload funclet\n");
 	if (upload_funclet(h, ram, f) < 0)
 		return -1;
 
@@ -563,6 +583,7 @@ static int write_flash(struct v3hil *h, address_t addr,
 	w16le(data + 20, h->cal.cal1);
 	memcpy(data + 22, mem, size);
 
+	dbg_printc("exec write flash funclet\n");
 	if (hal_proto_execute(&h->hal,
 		    map_fid(h, HAL_PROTO_FID_EXECUTE_FUNCLET),
 		    data, size + 22) < 0) {
@@ -584,6 +605,7 @@ static int write_ram(struct v3hil *h, const struct chipinfo_memory *m,
 
 	memcpy(data + 8, mem, size);
 
+	dbg_printc("write ram\n");
 	if (hal_proto_execute(&h->hal,
 		map_fid(h, (m->bits == 8) ? HAL_PROTO_FID_WRITE_MEM_BYTES
 					  : HAL_PROTO_FID_WRITE_MEM_WORDS),
@@ -610,9 +632,11 @@ int v3hil_write(struct v3hil *h, address_t addr,
 	if (size > 128)
 		size = 128;
 
+	dbg_printc("write: call write flash\n");
 	if (m->type == CHIPINFO_MEMTYPE_FLASH)
 		return write_flash(h, addr, mem, size);
 
+	dbg_printc("call write ram\n");
 	return write_ram(h, m, addr, mem, size);
 }
 
@@ -637,6 +661,7 @@ static int call_erase(struct v3hil *h,
 	w16le(data + 20, h->cal.cal1);
 	w32le(data + 22, 0xdeadbeef);
 
+	dbg_printc("erase: call funclet\n");
 	if (hal_proto_execute(&h->hal,
 			map_fid(h, HAL_PROTO_FID_EXECUTE_FUNCLET),
 			data, 26) < 0) {
@@ -670,8 +695,10 @@ int v3hil_erase(struct v3hil *h, address_t segment)
 	if (!flash)
 		printc_err("v3hil: can't find appropriate flash region\n");
 
+	dbg_printc("erase: calibrate\n");
 	if (calibrate(h) < 0)
 		return -1;
+	dbg_printc("erase: upload funclet\n");
 	if (upload_funclet(h, ram, f) < 0)
 		return -1;
 
@@ -682,10 +709,13 @@ int v3hil_erase(struct v3hil *h, address_t segment)
 		if (flash->banks)
 			bank_size /= flash->banks;
 
-		for (i = flash->banks; i >= 0; i--)
+		for (i = flash->banks; i >= 0; i--) {
+			dbg_printc("Erase bank %d\n", i);
+
 			if (call_erase(h, ram, f,
 				flash->offset + i * bank_size - 2, 0xa502) < 0)
 				return -1;
+		}
 	} else {
 		segment &= ~(flash->seg_size - 1);
 		segment |= flash->seg_size - 2;
@@ -705,6 +735,7 @@ int v3hil_update_regs(struct v3hil *h)
 	int i;
 	int sptr = 0;
 
+	dbg_printc("Read regs\n");
 	if (hal_proto_execute(&h->hal, fid, NULL, 0) < 0) {
 		printc_err("v3hil: can't read CPU registers\n");
 		return -1;
@@ -758,6 +789,7 @@ int v3hil_flush_regs(struct v3hil *h)
 		}
 	}
 
+	dbg_printc("Write regs\n");
 	if (hal_proto_execute(&h->hal, fid, data, reg_size * 13) < 0) {
 		printc_err("v3hil: can't write CPU registers\n");
 		return -1;
@@ -781,6 +813,7 @@ int v3hil_context_restore(struct v3hil *h, int free)
 	data[10] = free ? 7 : 6;
 	data[14] = free ? 1 : 0;
 
+	dbg_printc("Context restore\n");
 	if (hal_proto_execute(&h->hal,
 		    map_fid(h, HAL_PROTO_FID_RC_RELEASE_JTAG),
 		    data, 18) < 0) {
@@ -803,6 +836,7 @@ int v3hil_context_save(struct v3hil *h)
 	data[2] = h->wdtctl | 0x80;
 	data[3] = 0x5a; /* WDTPW */
 
+	dbg_printc("Context save\n");
 	if (hal_proto_execute(&h->hal,
 		map_fid(h, HAL_PROTO_FID_SJ_CONDITIONAL_SC),
 		    data, 8) < 0)
@@ -834,6 +868,7 @@ int v3hil_single_step(struct v3hil *h)
 	data[9] = h->regs[MSP430_REG_SR] >> 8;
 	data[10] = 7;
 
+	dbg_printc("Single-stepping...\n");
 	if (hal_proto_execute(&h->hal,
 		    map_fid(h, HAL_PROTO_FID_SINGLE_STEP),
 		    data, 18) < 0) {
@@ -868,6 +903,8 @@ static int set_param(struct v3hil *fet, hal_proto_config_t cfg,
 	}
 
 	data[0] = cfg;
+
+	dbg_printc("Set param 0x%02x to 0x%08x\n", cfg, value);
 	if (hal_proto_execute(&fet->hal, HAL_PROTO_FID_CONFIGURE,
 			      data, 8) < 0) {
 		printc_err("v3hil: can't set param 0x%02x to 0x%08x\n",

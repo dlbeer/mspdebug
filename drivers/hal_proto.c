@@ -225,6 +225,6 @@ int hal_proto_execute(struct hal_proto *p, uint8_t fid,
 	return 0;
 
 fail:
-	printc_err("hal_proto_execute: fid: 0x%02x\n", fid);
+	printc_err("hal_proto_execute: fid: 0x%02x: failed\n", fid);
 	return -1;
 }
