@@ -54,7 +54,7 @@ static int addr_exp_data(struct addr_exp_state *s, const char *text)
 	}
 
 	/* Hex value */
-	if (*text == '0' && text[1] == 'x') {
+	if (*text == '0' && (text[1] == 'x' || text[1] == 'X')) {
 		value = strtoul(text + 2, NULL, 16);
 	} else if (*text == '0' && text[1] == 'd') {
 		value = atoi(text + 2);
