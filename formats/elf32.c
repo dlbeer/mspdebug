@@ -247,8 +247,10 @@ static int feed_section(struct elf32_info *info,
 		ch.data = buf;
 		ch.len = len;
 
-		if (cb(user_data, &ch) < 0)
+		if (cb(user_data, &ch) < 0) {
+			pr_error("elf32: misc error");
 			return -1;
+		}
 
 		size -= len;
 		offset += len;
@@ -331,7 +333,7 @@ int elf32_extract(FILE *in, binfile_imgcb_t cb, void *user_data)
 		Elf32_Shdr *s = &info.file_shdrs[i];
 
 		if ((s->sh_type == SHT_PROGBITS || s->sh_type == SHT_INIT_ARRAY) &&
-		    s->sh_flags & SHF_ALLOC &&
+		    (s->sh_flags & SHF_ALLOC) && s->sh_size > 0 &&
 		    feed_section(&info, in, s, cb, user_data) < 0) {
 			ret = -1;
 			break;
