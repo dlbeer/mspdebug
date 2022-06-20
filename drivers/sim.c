@@ -955,7 +955,18 @@ static int step_0xxx_addr(struct sim_device *dev, uint16_t ins)
 	switch (info->src_amode) {
 
 	case MSP430_AMODE_REGISTER:
-		src_data = dev->regs[src];
+		if((ins&0xffc0)==0x03c0)
+		{
+			switch(ins&0x0030)
+			{
+			case 0x00:src_data=0;break;
+			case 0x10:src_data=0;break;
+			case 0x20:src_data=2;break;
+			case 0x30:src_data=2;break;
+			}
+		}
+		else
+			src_data = dev->regs[src];
 		break;
 
 	case MSP430_AMODE_IMMEDIATE:
