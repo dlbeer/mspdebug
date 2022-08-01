@@ -20,7 +20,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "ftdi.h"
+#include "ftdi_serial.h"
 #include "util.h"
 #include "usbutil.h"
 #include "output.h"

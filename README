@@ -33,13 +33,18 @@ Compiling from source
 
 Ensure that you have the necessary packages to compile programs that use
 libusb (on Debian or Ubuntu systems, you might need to do apt-get
-install libusb-dev | on Arch systems, you might need to do sudo 
-pacman -S libusb-compact). After that, unpack and compile the source code 
-with:
+install libusb-dev libftdi-dev | on Arch systems, you might need to do sudo 
+pacman -S libusb-compact). As libusb-0.1 is used, you may also need to
+install a compatibility layer for libusb-1.0 (for example,
+libusb-compat-git on MSYS). After that, unpack and compile the source
+code with:
 
     tar xvfz mspdebug-version.tar.gz
     cd mspdebug-version
     make
+
+On Windows systems with MSYS, you may also need to install a regex
+implementation such as libgnurx.
 
 On Debian Ubuntu systems sudo apt-get install libreadline-dev may be 
 required. On Arch systems sudo pacman -S readline may be required.
