@@ -21,10 +21,16 @@
 #define JTDEV_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct jtdev_func;
 struct jtdev {
-	int		port;
+	union {
+		// anything that uses a file descriptor
+		int		port;
+		// anything that uses an opaque pointer
+		void *handle;
+	};
 	uint8_t		data_register;
 	uint8_t		control_register;
 	int		failed;
@@ -39,6 +45,7 @@ struct jtdev_func{
  * field in the jtdev structure.
  */
 	int (*jtdev_open)(struct jtdev *p, const char *device);
+	int (*jtdev_open_ex)(struct jtdev *p, const char *device, const uint16_t *vid, const uint16_t *pid);
 	void (*jtdev_close)(struct jtdev *p);
 
 /* Connect/release JTAG */
@@ -70,10 +77,12 @@ struct jtdev_func{
 	uint16_t (*jtdev_dr_shift_16)(struct jtdev *p, uint16_t dr);
 	void (*jtdev_tms_sequence)(struct jtdev *p, int bits, unsigned int value);
 	void (*jtdev_init_dap)(struct jtdev *p);
+	int (*jtdev_set_fast_baud)(struct jtdev *p, bool fast);
 };
 
 extern const struct jtdev_func jtdev_func_pif;
 extern const struct jtdev_func jtdev_func_gpio;
 extern const struct jtdev_func jtdev_func_bp;
+extern const struct jtdev_func jtdev_func_ftdi_bitbang;
 
 #endif

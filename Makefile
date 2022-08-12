@@ -45,13 +45,13 @@ ifeq ($(OS),Windows_NT)
     MSPDEBUG_CC = $(CC)
     BINARY = mspdebug.exe
     ifneq ($(UNAME_O),Cygwin)
-	OS_LIBS = -lws2_32 -lregex
+	OS_LIBS = -lws2_32 -lregex -lftdi1
 	OS_CFLAGS = -D__Windows__ -DNO_SHELLCMD
 	RM = del
     endif
 	ifneq (, $findstring(MINGW, $(UNAME_S)))
-		PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
-		PORTS_LDFLAGS := $(shell pkg-config --libs libusb)
+		PORTS_CFLAGS := $(shell pkg-config --cflags libusb libftdi1)
+		PORTS_LDFLAGS := $(shell pkg-config --libs libusb libftdi1)
 		RM = rm -rf
 	endif
 else
@@ -72,14 +72,14 @@ else
 
     ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
       ifeq ($(shell fink -V > /dev/null 2>&1 && echo ok),ok)
-	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -ltermcap -pthread
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb libftdi1)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb libftdi1) -ltermcap -pthread
       else ifeq ($(shell brew --version > /dev/null 2>&1 && echo ok),ok)
-	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -framework IOKit -framework CoreFoundation
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb libftdi1)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb libftdi1) -framework IOKit -framework CoreFoundation
       else ifeq ($(shell port version > /dev/null 2>&1 && echo ok),ok)
-	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -framework IOKit -framework CoreFoundation
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb libftdi1)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb libftdi1) -framework IOKit -framework CoreFoundation
       else
 	PORTS_CFLAGS := -I/opt/local/include
 	PORTS_LDFLAGS := -L/opt/local/lib -lhidapi -framework IOKit -framework CoreFoundation
@@ -88,8 +88,8 @@ else
       RF25000_OBJ += transport/rf2500hidapi.o
       LDFLAGS =
     else ifneq ($(filter $(UNAME_S),OpenBSD NetBSD DragonFly),)
-	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
+	PORTS_CFLAGS := $(shell pkg-config --cflags libusb libftdi1)
+	PORTS_LDFLAGS := $(shell pkg-config --libs libusb libftdi1) -ltermcap -pthread
     else
 	PORTS_CFLAGS :=
 	PORTS_LDFLAGS :=
@@ -170,7 +170,7 @@ OBJ=\
     util/gpio.o \
     transport/cp210x.o \
     transport/cdc_acm.o \
-    transport/ftdi.o \
+    transport/ftdi_serial.o \
     transport/mehfet_xport.o \
     transport/ti3410.o \
     transport/comport.o \
@@ -193,6 +193,7 @@ OBJ=\
     drivers/fet_olimex_db.o \
     drivers/jtdev.o \
     drivers/jtdev_bus_pirate.o \
+    drivers/jtdev_ftdi_bitbang.o \
     drivers/jtdev_gpio.o \
     drivers/jtaglib.o \
     drivers/mehfet_proto.o \

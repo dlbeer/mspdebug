@@ -27,7 +27,7 @@
 #include "fet_core.h"
 #include "output.h"
 #include "comport.h"
-#include "ftdi.h"
+#include "ftdi_serial.h"
 #include "rf2500.h"
 #include "ti3410.h"
 #include "cp210x.h"
