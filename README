@@ -32,10 +32,16 @@ Compiling from source
 ---------------------
 
 Ensure that you have the necessary packages to compile programs that use
-libusb (on Debian or Ubuntu systems, you might need to do apt-get
-install libusb-dev | on Arch systems, you might need to do sudo 
-pacman -S libusb-compact). After that, unpack and compile the source code 
-with:
+libusb. Note that mspdebug depends on the libusb 0.1 API. If your distro
+provides libusb 1.0 instead of 0.1, you can probably use libusb-compat
+to provide backwards compatible usb.h and libusb.so files.
+
+On Debian or Ubuntu systems, you might need to do `apt-get install
+libusb-dev` | on Arch systems, you might need to do `sudo pacman -S
+libusb-compat` | on Gentoo systems, you might need to do
+`sudo emerge libusb-compat`.
+
+After that, unpack and compile the source code with:
 
     tar xvfz mspdebug-version.tar.gz
     cd mspdebug-version
