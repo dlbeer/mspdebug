@@ -1059,7 +1059,8 @@ static int step_pushm_popm(struct sim_device *dev, uint16_t ins)
 	/* PUSHM/POPM */
 
 	uint16_t opcode = ins & 0xfe00;
-	int is_aword = ins & 0x0100;
+	//int is_aword = ins & 0x0100;
+	int is_aword = ins & 0x0100 ? 0 : 1;
 	int reg = ins & 0x000f;
 	int rept = ((ins >> 4) & 0xf) + 1;
 
@@ -1069,16 +1070,27 @@ static int step_pushm_popm(struct sim_device *dev, uint16_t ins)
 
 	case MSP430_OP_PUSHM:
 		while (rept--) {
-			dev->regs[MSP430_REG_SP] -= 2;
-			if (mem_setw(dev, dev->regs[MSP430_REG_SP], dev->regs[reg--]) < 0)
-				return -1;
+      if (is_aword) {
+        dev->regs[MSP430_REG_SP] -= 4;
+        if(mem_seta(dev, dev->regs[MSP430_REG_SP], dev->regs[reg--]) < 0)
+          return -1;
+      }else{
+			  dev->regs[MSP430_REG_SP] -= 2;
+			  if (mem_setw(dev, dev->regs[MSP430_REG_SP], dev->regs[reg--]) < 0)
+			  	return -1;
+      }
 		}
 		break;
 
 	case MSP430_OP_POPM:
 		while (rept--) {
-			dev->regs[reg++] = mem_getw(dev, dev->regs[MSP430_REG_SP]);
-			dev->regs[MSP430_REG_SP] += 2;
+      if (is_aword) {
+        dev->regs[reg++] = mem_geta(dev, dev->regs[MSP430_REG_SP]);
+        dev->regs[MSP430_REG_SP] += 4;
+      }else{
+			  dev->regs[reg++] = mem_getw(dev, dev->regs[MSP430_REG_SP]);
+			  dev->regs[MSP430_REG_SP] += 2;
+      }
 		}
 		break;
 
