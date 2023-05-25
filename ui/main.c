@@ -137,6 +137,8 @@ static void usage(const char *progname)
 "        Show a list of devices supported by the FET driver.\n"
 "    --fet-force-id string\n"
 "        Override the device ID returned by the FET.\n"
+"    --expect-id string\n"
+"        Abort if the MCU detected is not matching the given string.\n"
 "    --fet-skip-close\n"
 "        Skip the JTAG close procedure when using the FET driver.\n"
 "    --usb-list\n"
@@ -297,6 +299,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		LOPT_HELP = 0x100,
 		LOPT_FET_LIST,
 		LOPT_FET_FORCE_ID,
+		LOPT_EXPECT_ID,
 		LOPT_FET_SKIP_CLOSE,
 		LOPT_USB_LIST,
 		LOPT_VERSION,
@@ -315,6 +318,7 @@ static int parse_cmdline_args(int argc, char **argv,
 		{"help",                0, 0, LOPT_HELP},
 		{"fet-list",            0, 0, LOPT_FET_LIST},
 		{"fet-force-id",        1, 0, LOPT_FET_FORCE_ID},
+		{"expect-id",           1, 0, LOPT_EXPECT_ID},
 		{"fet-skip-close",      0, 0, LOPT_FET_SKIP_CLOSE},
 		{"usb-list",            0, 0, LOPT_USB_LIST},
 		{"version",             0, 0, LOPT_VERSION},
@@ -424,6 +428,10 @@ static int parse_cmdline_args(int argc, char **argv,
 
 		case LOPT_FET_FORCE_ID:
 			args->devarg.forced_chip_id = optarg;
+			break;
+
+		case LOPT_EXPECT_ID:
+			args->devarg.expect_chip_id = optarg;
 			break;
 
 		case LOPT_FET_SKIP_CLOSE:
@@ -573,6 +581,15 @@ int main(int argc, char **argv)
 	if (device_probe_id(device_default, args.devarg.forced_chip_id) < 0)
 		printc_err("warning: device ID probe failed\n");
 
+	if (args.devarg.expect_chip_id) {
+		if (strcmp(args.devarg.expect_chip_id, device_default->chip->name)) {
+			printf("Detected %s, but %s was expected\n",
+			       device_default->chip->name, args.devarg.expect_chip_id);
+			ret = -1;
+			goto fail_expect_id;
+		}
+	}
+
 	if (!(args.flags & OPT_NO_RC))
 		process_rc_file(args.alt_config);
 
@@ -588,6 +605,7 @@ int main(int argc, char **argv)
 		reader_loop();
 	}
 
+fail_expect_id:
 	simio_exit();
 	device_destroy();
 	stab_exit();
