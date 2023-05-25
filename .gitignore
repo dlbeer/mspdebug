@@ -4,3 +4,6 @@ mspdebug
 mspdebug.exe
 inst/
 config.mk
+# temporary data for better code insight, e.g. when using bear and clangd
+/compile_commands.json
+/.cache
