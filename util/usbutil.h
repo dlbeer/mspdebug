@@ -19,20 +19,16 @@
 #ifndef USBUTIL_H_
 #define USBUTIL_H_
 
-#if !defined(__Windows__) || defined(__MINGW32__)
-#include <usb.h>
-#else
-#include <lusb0_usb.h>
-#endif
+#include <libusb.h>
 
 /* List all available USB devices. */
 void usbutil_list(void);
 
 /* Search for the first device matching the given Vendor:Product */
-struct usb_device *usbutil_find_by_id(int vendor, int product,
+libusb_device *usbutil_find_by_id(int vendor, int product,
 				      const char *requested_serial);
 
 /* Search for a device using a bus:dev location string */
-struct usb_device *usbutil_find_by_loc(const char *loc);
+libusb_device *usbutil_find_by_loc(const char *loc);
 
 #endif

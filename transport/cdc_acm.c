@@ -19,13 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#if !defined(__Windows__) || defined(__MINGW32__)
-#include <usb.h>
-#else
-#include <lusb0_usb.h>
-#endif
-
+#include <libusb.h>
 #include "cdc_acm.h"
 #include "util.h"
 #include "usbutil.h"
@@ -37,7 +31,7 @@ struct cdc_acm_transport {
 	struct transport        base;
 
 	int                     int_number;
-	struct usb_dev_handle   *handle;
+	libusb_device_handle   *handle;
 
 	int			in_ep;
 	int			out_ep;
@@ -47,7 +41,7 @@ struct cdc_acm_transport {
 	 */
 	int			rbuf_len;
 	int			rbuf_ptr;
-	char			rbuf[READ_BUFFER_SIZE];
+	unsigned char	rbuf[READ_BUFFER_SIZE];
 };
 
 #define CDC_INTERFACE_CLASS		10
@@ -72,9 +66,8 @@ static int usbtr_send(transport_t tr_base, const uint8_t *data, int len)
 	debug_hexdump(__FILE__ ": USB transfer out", data, len);
 #endif
 	while (len) {
-		sent = usb_bulk_write(tr->handle, tr->out_ep,
-				      (char *)data, len, TIMEOUT);
-		if (sent <= 0) {
+		if (libusb_bulk_transfer(tr->handle, tr->out_ep,
+				                 (unsigned char *) data, len, &sent, TIMEOUT)) {
 			pr_error(__FILE__": can't send data");
 			return -1;
 		}
@@ -92,12 +85,12 @@ static int usbtr_recv(transport_t tr_base, uint8_t *databuf, int len)
 
 	if (tr->rbuf_ptr >= tr->rbuf_len) {
 		tr->rbuf_ptr = 0;
-		tr->rbuf_len = usb_bulk_read(tr->handle, tr->in_ep,
-					     tr->rbuf, sizeof(tr->rbuf),
-					     TIMEOUT);
 
-		if (tr->rbuf_len <= 0) {
+		if (libusb_bulk_transfer(tr->handle, tr->in_ep,
+					     tr->rbuf, sizeof(tr->rbuf), &tr->rbuf_len,
+					     TIMEOUT)) {
 			pr_error(__FILE__": can't receive data");
+			tr->rbuf_len = -1;
 			return -1;
 		}
 
@@ -120,20 +113,20 @@ static void usbtr_destroy(transport_t tr_base)
 {
 	struct cdc_acm_transport *tr = (struct cdc_acm_transport *)tr_base;
 
-	usb_release_interface(tr->handle, tr->int_number);
-	usb_close(tr->handle);
+	libusb_release_interface(tr->handle, tr->int_number);
+	libusb_close(tr->handle);
 	free(tr);
 }
 
 static int usbtr_flush(transport_t tr_base)
 {
 	struct cdc_acm_transport *tr = (struct cdc_acm_transport *)tr_base;
-	char buf[64];
+	unsigned char buf[64];
+	int rlen;
 
 	/* Flush out lingering data */
-	while (usb_bulk_read(tr->handle, tr->in_ep,
-			     buf, sizeof(buf),
-			     100) > 0);
+	while (!libusb_bulk_transfer(tr->handle, tr->in_ep,
+			     buf, sizeof(buf), &rlen, 100) && rlen > 0);
 
 	tr->rbuf_len = 0;
 	tr->rbuf_ptr = 0;
@@ -154,7 +147,7 @@ static int usbtr_set_modem(transport_t tr_base, transport_modem_t state)
 	printc(__FILE__": modem ctrl = 0x%x\n", value);
 #endif
 
-	if (usb_control_msg(tr->handle, CDC_REQTYPE_HOST_TO_DEVICE,
+	if (libusb_control_transfer(tr->handle, CDC_REQTYPE_HOST_TO_DEVICE,
 			    CDC_SET_CONTROL, value, 0,
 			    NULL, 0, 300) < 0) {
 		pr_error("cdc_acm: failed to set modem control lines\n");
@@ -173,76 +166,79 @@ static const struct transport_class cdc_acm_class = {
 };
 
 static int find_interface(struct cdc_acm_transport *tr,
-			  struct usb_device *dev)
+			  libusb_device *dev)
 {
-	struct usb_config_descriptor *c = &dev->config[0];
-	int i;
+	struct libusb_config_descriptor *c;
+	int rv = -1;
 
-	for (i = 0; i < c->bNumInterfaces; i++) {
-		struct usb_interface *intf = &c->interface[i];
-		struct usb_interface_descriptor *desc = &intf->altsetting[0];
-		int j;
+	if (!libusb_get_active_config_descriptor(dev, &c)) {
+		int i;
 
-		if (desc->bInterfaceClass != CDC_INTERFACE_CLASS)
-			continue;
+		for (i = 0; i < c->bNumInterfaces; i++) {
+			const struct libusb_interface *intf = &c->interface[i];
+			const struct libusb_interface_descriptor *desc = &intf->altsetting[0];
+			int j;
 
-		/* Look for bulk in/out endpoints */
-		tr->in_ep = -1;
-		tr->out_ep = -1;
-
-		for (j = 0; j < desc->bNumEndpoints; j++) {
-			struct usb_endpoint_descriptor *ep =
-				&desc->endpoint[j];
-			const int type =
-				ep->bmAttributes & USB_ENDPOINT_TYPE_MASK;
-			const int addr = ep->bEndpointAddress;
-
-			if (type != USB_ENDPOINT_TYPE_BULK)
+			if (desc->bInterfaceClass != CDC_INTERFACE_CLASS)
 				continue;
 
-			if (addr & USB_ENDPOINT_DIR_MASK)
-				tr->in_ep = addr;
-			else
-				tr->out_ep = addr;
-		}
+			/* Look for bulk in/out endpoints */
+			tr->in_ep = -1;
+			tr->out_ep = -1;
 
-		if (tr->in_ep >= 0 && tr->out_ep >= 0) {
-			tr->int_number = i;
-			return 0;
+			for (j = 0; j < desc->bNumEndpoints; j++) {
+				const struct libusb_endpoint_descriptor *ep =
+					&desc->endpoint[j];
+				const int type =
+					ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK;
+				const int addr = ep->bEndpointAddress;
+
+				if (type != LIBUSB_ENDPOINT_TRANSFER_TYPE_BULK)
+					continue;
+
+				if (addr & LIBUSB_ENDPOINT_DIR_MASK)
+					tr->in_ep = addr;
+				else
+					tr->out_ep = addr;
+			}
+
+			if (tr->in_ep >= 0 && tr->out_ep >= 0) {
+				tr->int_number = i;
+				rv = 0;
+				break;
+			}
 		}
 	}
 
-	return -1;
+	return rv;
 }
 
 static int open_interface(struct cdc_acm_transport *tr,
-			  struct usb_device *dev)
+			  libusb_device *dev)
 {
 #if defined(__linux__)
 	int drv;
-	char drName[256];
 #endif
 
-	tr->handle = usb_open(dev);
-	if (!tr->handle) {
+	if (libusb_open(dev, &tr->handle)) {
 		pr_error(__FILE__": can't open device");
 		return -1;
 	}
 
 #if defined(__linux__)
-	drv = usb_get_driver_np(tr->handle, tr->int_number, drName,
-				sizeof(drName));
-	if (drv >= 0) {
-		if (usb_detach_kernel_driver_np(tr->handle,
-						tr->int_number) < 0)
+	drv = libusb_kernel_driver_active(tr->handle, tr->int_number);
+	printc(__FILE__" : driver %d\n", drv);
+	if (drv > 0) {
+		if (libusb_detach_kernel_driver(tr->handle,
+						tr->int_number))
 			pr_error(__FILE__": warning: can't detach "
 			       "kernel driver");
 	}
 #endif
 
-	if (usb_claim_interface(tr->handle, tr->int_number) < 0) {
+	if (libusb_claim_interface(tr->handle, tr->int_number) < 0) {
 		pr_error(__FILE__": can't claim interface");
-		usb_close(tr->handle);
+		libusb_close(tr->handle);
 		return -1;
 	}
 
@@ -261,14 +257,14 @@ static int configure_port(struct cdc_acm_transport *tr, int baud_rate)
 	line_coding[5] = 0; /* no parity */
 	line_coding[6] = 8; /* 8 data bits */
 
-	if (usb_control_msg(tr->handle, CDC_REQTYPE_HOST_TO_DEVICE,
+	if (libusb_control_transfer(tr->handle, CDC_REQTYPE_HOST_TO_DEVICE,
 			    CDC_SET_LINE_CODING, 0, 0,
-			    (char *)line_coding, 7, 300) < 0) {
+			    line_coding, 7, 300) < 0) {
 		pr_error("cdc_acm: failed to set line coding\n");
 		return -1;
 	}
 
-	if (usb_control_msg(tr->handle, CDC_REQTYPE_HOST_TO_DEVICE,
+	if (libusb_control_transfer(tr->handle, CDC_REQTYPE_HOST_TO_DEVICE,
 			    CDC_SET_CONTROL, 0, 0, NULL, 0, 300) < 0) {
 		pr_error("cdc_acm: failed to set modem control lines\n");
 		return -1;
@@ -281,7 +277,7 @@ transport_t cdc_acm_open(const char *devpath, const char *requested_serial,
 			 int baud_rate, uint16_t vendor, uint16_t product)
 {
 	struct cdc_acm_transport *tr = malloc(sizeof(*tr));
-	struct usb_device *dev;
+	libusb_device *dev;
 
 	if (!tr) {
 		pr_error(__FILE__": can't allocate memory");
@@ -291,9 +287,7 @@ transport_t cdc_acm_open(const char *devpath, const char *requested_serial,
 	memset(tr, 0, sizeof(*tr));
 	tr->base.ops = &cdc_acm_class;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	libusb_init(NULL);
 
 	if (devpath)
 		dev = usbutil_find_by_loc(devpath);
@@ -318,8 +312,8 @@ transport_t cdc_acm_open(const char *devpath, const char *requested_serial,
 	}
 
 	if (configure_port(tr, baud_rate) < 0) {
-		usb_release_interface(tr->handle, tr->int_number);
-		usb_close(tr->handle);
+		libusb_release_interface(tr->handle, tr->int_number);
+		libusb_close(tr->handle);
 		free(tr);
 		return NULL;
 	}

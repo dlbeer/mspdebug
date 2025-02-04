@@ -29,7 +29,7 @@
 
 struct mehfet_transport {
 	struct transport        base;
-	struct usb_dev_handle   *handle;
+	libusb_device_handle   *handle;
 	int epin, epout;
 	int buf_size;
 };
@@ -39,40 +39,49 @@ struct mehfet_transport {
 #define REQ_TIMEOUT_MS          100
 
 
-static int open_device(struct mehfet_transport *tr, struct usb_device *dev)
+static int open_device(struct mehfet_transport *tr, libusb_device *dev)
 {
 #ifdef __linux__
-	int driver;
-	char drv_name[128];
+	int drv;
 #endif
+	int rv;
 
 	// first, find the right interface (and associated endpoints) of the USB device
 
-	int config = 0, itf = 0;
+	int config, itf;
 	bool has = false;
+	struct libusb_device_descriptor desc;
 
-	for (config = 0; config < dev->descriptor.bNumConfigurations; ++config) {
-		struct usb_config_descriptor* cd = &dev->config[config];
+	if (libusb_get_device_descriptor(dev, &desc))
+		return -1;
+
+	for (config = 0; config < desc.bNumConfigurations && !has; ++config) {
+		struct libusb_config_descriptor *cd;
+
+		if (libusb_get_config_descriptor(dev, config, &cd))
+			continue;
 
 		for (itf = 0; itf < cd->bNumInterfaces; ++itf) {
-			struct usb_interface_descriptor* id = &cd->interface[itf].altsetting[0];
+			const struct libusb_interface_descriptor* id = &cd->interface[itf].altsetting[0];
 
-			if (id->bInterfaceClass == USB_CLASS_VENDOR_SPEC
+			if (id->bInterfaceClass == LIBUSB_CLASS_VENDOR_SPEC
 					&& id->bInterfaceSubClass == '4'
 					&& id->bInterfaceProtocol == '3') {
+				unsigned i;
 				// here I'd like to check for the "MehFET" substring in the
 				// interface's iInterface string, but I can't really figure out
 				// how to do that, so I'll just assume this is enough checking.
 
-				if (id->bNumEndpoints != 2) continue; // this should be 2
-				for (size_t i = 0; i < id->bNumEndpoints; ++i) {
-					struct usb_endpoint_descriptor* ed = &id->endpoint[i];
+				if (id->bNumEndpoints != 2)
+					continue; // this should be 2
+				for (i = 0; i < id->bNumEndpoints; ++i) {
+					const struct libusb_endpoint_descriptor* ed = &id->endpoint[i];
 
-					if ((ed->bmAttributes & USB_ENDPOINT_TYPE_MASK)
-							!= USB_ENDPOINT_TYPE_BULK)
+					if ((ed->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK)
+							!= LIBUSB_TRANSFER_TYPE_BULK)
 						break;
 
-					if (ed->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+					if (ed->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK)
 						tr->epin = ed->bEndpointAddress; // input endpoint
 					else
 						tr->epout = ed->bEndpointAddress; // output endpoint
@@ -80,50 +89,49 @@ static int open_device(struct mehfet_transport *tr, struct usb_device *dev)
 
 				if (tr->epin != 0 && tr->epout != 0) {
 					has = true;
-					goto break_outer;
+					break;
 				}
 			}
 		}
+
+		libusb_free_config_descriptor(cd);
 	}
-break_outer:
 
 	if (!has) {
-		printc_err("mehfet transport: USB device %s has no MehFET interface.\n",
-				dev->filename);
+		printc_err("mehfet transport: USB device has no MehFET interface.\n");
 		return -1;
 	}
 
-	printc_dbg("mehfet transport: trying to open %s\n", dev->filename);
-	tr->handle = usb_open(dev);
-	if (!tr->handle) {
+	printc_dbg("mehfet transport: trying to open device\n");
+	if ((rv = libusb_open(dev, &tr->handle))) {
 		printc_err("mehfet transport: can't open device: %s\n",
-			   usb_strerror());
+			   libusb_strerror(rv));
 		return -1;
 	}
 
 #ifdef __linux__
-	driver = usb_get_driver_np(tr->handle, itf, drv_name, sizeof(drv_name));
-	if (driver >= 0) {
-		printc_dbg("Detaching kernel driver \"%s\"\n", drv_name);
-		if (usb_detach_kernel_driver_np(tr->handle, itf) < 0)
-			printc_err("warning: mehfet transport: can't detach "
-				   "kernel driver: %s\n", usb_strerror());
+	drv = libusb_kernel_driver_active(tr->handle, itf);
+	printc(__FILE__" : driver %d\n", drv);
+	if (drv > 0) {
+		if (libusb_detach_kernel_driver(tr->handle, itf))
+			pr_error(__FILE__": warning: can't detach "
+			       "kernel driver");
 	}
 #endif
 
 #ifdef __Windows__
-	if (usb_set_configuration(tr->handle, config) < 0) {
+	if ((rv = libusb_set_configuration(tr->handle, config))) {
 		printc_err("mehfet transport: can't set configuration: %s\n",
-			   usb_strerror());
-		usb_close(tr->handle);
+			   libusb_strerror(rv));
+		libusb_close(tr->handle);
 		return -1;
 	}
 #endif
 
-	if (usb_claim_interface(tr->handle, itf) < 0) {
+	if ((rv = libusb_claim_interface(tr->handle, itf))) {
 		printc_err("mehfet transport: can't claim interface: %s\n",
-			   usb_strerror());
-		usb_close(tr->handle);
+			   libusb_strerror(rv));
+		libusb_close(tr->handle);
 		return -1;
 	}
 
@@ -134,7 +142,7 @@ static void tr_destroy(transport_t tr_base)
 {
 	struct mehfet_transport *tr = (struct mehfet_transport *)tr_base;
 
-	usb_close(tr->handle);
+	libusb_close(tr->handle);
 	free(tr);
 }
 
@@ -142,19 +150,18 @@ static int tr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 {
 	struct mehfet_transport *tr = (struct mehfet_transport *)tr_base;
 	time_t deadline = time(NULL) + TIMEOUT_S;
-	char tmpbuf[tr->buf_size];
+	unsigned char tmpbuf[tr->buf_size];
 
 	if (max_len > tr->buf_size)
 		max_len = tr->buf_size;
 
 	while (time(NULL) < deadline) {
-		int r = usb_bulk_read(tr->handle, tr->epin,
-				      tmpbuf, max_len,
-				      TIMEOUT_S * 1000);
+		int r, rv;
 
-		if (r <= 0) {
+		if ((rv = libusb_bulk_transfer(tr->handle, tr->epin, tmpbuf, max_len, &r,
+				                 TIMEOUT_S * 1000))) {
 			printc_err("mehfet transport: usb_bulk_read: %s\n",
-				   usb_strerror());
+				   libusb_strerror(rv));
 			return -1;
 		}
 
@@ -179,13 +186,13 @@ static int tr_send(transport_t tr_base, const uint8_t *databuf, int len)
 	debug_hexdump("mehfet transport: tr_send", databuf, len);
 #endif
 	while (len) {
-		int r = usb_bulk_write(tr->handle, tr->epout,
-				       (char *)databuf, len,
-				       TIMEOUT_S * 1000);
+		int r, rv;
 
-		if (r <= 0) {
+		if ((rv = libusb_bulk_transfer(tr->handle, tr->epout,
+		                         (unsigned char *) databuf, len, &r,
+						         TIMEOUT_S * 1000))) {
 			printc_err("mehfet transport: usb_bulk_write: %s\n",
-				   usb_strerror());
+				   libusb_strerror(rv));
 			return -1;
 		}
 
@@ -221,7 +228,7 @@ transport_t mehfet_transport_open(const char *devpath,
 		      const char *requested_serial)
 {
 	struct mehfet_transport *tr = malloc(sizeof(*tr));
-	struct usb_device *dev = NULL;
+	libusb_device *dev = NULL;
 
 	if (!tr) {
 		pr_error("mehfet transport: can't allocate memory");
@@ -230,9 +237,7 @@ transport_t mehfet_transport_open(const char *devpath,
 
 	tr->base.ops = &mehfet_class;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	libusb_init(NULL);
 
 	if (devpath)
 		dev = usbutil_find_by_loc(devpath);

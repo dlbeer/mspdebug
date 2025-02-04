@@ -23,7 +23,7 @@
 #include "util.h"
 #include "output.h"
 
-static const char *device_help(const struct usb_device *dev)
+static const char *device_help(const struct libusb_device_descriptor *desc)
 {
 	static const struct {
 		int vendor;
@@ -42,98 +42,109 @@ static const char *device_help(const struct usb_device *dev)
 	int i;
 
 	for (i = 0; i < ARRAY_LEN(info); i++)
-		if (dev->descriptor.idProduct == info[i].product &&
-		    dev->descriptor.idVendor == info[i].vendor)
+		if (desc->idProduct == info[i].product &&
+		    desc->idVendor == info[i].vendor)
 			return info[i].help;
 
 	return "";
 }
 
-static int read_serial(struct usb_device *dev, char *buf, int max_len)
+static int read_serial(struct libusb_device *dev, const struct libusb_device_descriptor *desc, unsigned char *buf, int max_len)
 {
-	struct usb_dev_handle *dh = usb_open(dev);
+	libusb_device_handle *dh;
+	int rv;
 
-	if (!dh)
+	if (libusb_open(dev, &dh))
 		return -1;
 
-	if (usb_get_string_simple(dh, dev->descriptor.iSerialNumber,
-				  buf, max_len) < 0) {
-		usb_close(dh);
-		return -1;
-	}
-
-	usb_close(dh);
-	return 0;
+	rv = libusb_get_string_descriptor_ascii(dh, desc->iSerialNumber, buf, max_len);
+	libusb_close(dh);
+	return rv;
 }
 
 void usbutil_list(void)
 {
-	const struct usb_bus *bus;
+	libusb_device **list;
+	ssize_t cnt = libusb_get_device_list(NULL, &list);
+	ssize_t i = 0;
 
-	for (bus = usb_get_busses(); bus; bus = bus->next) {
-		struct usb_device *dev;
-		int busnum = atoi(bus->dirname);
+	for (i = 0; i < cnt; i++) {
+		libusb_device *dev = list[i];
+		struct libusb_device_descriptor desc;
 
-		printc("Devices on bus %03d:\n", busnum);
+		printc("%03d:%03d",
+			libusb_get_bus_number(dev), libusb_get_device_address(dev));
 
-		for (dev = bus->devices; dev; dev = dev->next) {
-			int devnum = atoi(dev->filename);
-			char serial[128];
+		if (!libusb_get_device_descriptor(dev, &desc)) {
+			unsigned char serial[128];
 
-			printc("    %03d:%03d %04x:%04x %s",
-			       busnum, devnum,
-			       dev->descriptor.idVendor,
-			       dev->descriptor.idProduct,
-			       device_help(dev));
+			printc(" %04x:%04x %s",
+		       desc.idVendor,
+		       desc.idProduct,
+		       device_help(&desc));
 
-			if (!read_serial(dev, serial, sizeof(serial)))
+			if (!read_serial(dev, &desc, serial, sizeof(serial)))
 				printc(" [serial: %s]\n", serial);
-			else
-				printc("\n");
 		}
+
+		printc("\n");
 	}
+
+	libusb_free_device_list(list, 1);
 }
 
-struct usb_device *usbutil_find_by_id(int vendor, int product,
+libusb_device *usbutil_find_by_id(int vendor, int product,
 				      const char *requested_serial)
 {
-	struct usb_bus *bus;
+	libusb_device **list;
+	libusb_device *found = NULL;
+	ssize_t cnt = libusb_get_device_list(NULL, &list);
+	ssize_t i = 0;
 
-	for (bus = usb_get_busses(); bus; bus = bus->next) {
-		struct usb_device *dev;
+	for (i = 0; i < cnt; i++) {
+		libusb_device *dev = list[i];
+		struct libusb_device_descriptor desc;
 
-		for (dev = bus->devices; dev; dev = dev->next) {
-			if (dev->descriptor.idVendor == vendor &&
-			    dev->descriptor.idProduct == product) {
-				char buf[128];
+		if (!libusb_get_device_descriptor(dev, &desc)) {
+			if (desc.idVendor == vendor && desc.idProduct == product) {
+				unsigned char buf[128];
 
 				if (!requested_serial ||
-				    (!read_serial(dev, buf, sizeof(buf)) &&
-				     !strcasecmp(requested_serial, buf)))
-					return dev;
+				    (!read_serial(dev, &desc, buf, sizeof(buf)) &&
+				     !strcasecmp(requested_serial, (char *) buf))) {
+					found = dev;
+					libusb_ref_device(found);
+					break;
+				}
 			}
 		}
 	}
 
-	if(requested_serial)
-		printc_err("usbutil: unable to find device matching "
-			"%04x:%04x with serial %s\n", vendor, product,
-			requested_serial);
-	else
-		printc_err("usbutil: unable to find a device matching "
-			"%04x:%04x\n", vendor, product);
+	libusb_free_device_list(list, 1);
 
-	return NULL;
+	if (!found) {
+		if (requested_serial)
+			printc_err("usbutil: unable to find device matching "
+				"%04x:%04x with serial %s\n", vendor, product,
+				requested_serial);
+		else
+			printc_err("usbutil: unable to find a device matching "
+				"%04x:%04x\n", vendor, product);
+	}
+
+	return found;
 }
 
-struct usb_device *usbutil_find_by_loc(const char *loc)
+libusb_device *usbutil_find_by_loc(const char *loc)
 {
 	char buf[64];
 	char *bus_text;
 	char *dev_text;
 	int target_bus;
 	int target_dev;
-	struct usb_bus *bus;
+	libusb_device **list;
+	libusb_device *found = NULL;
+	ssize_t cnt, i = 0;
 
 	strncpy(buf, loc, sizeof(buf));
 	buf[sizeof(buf) - 1] = 0;
@@ -150,22 +161,24 @@ struct usb_device *usbutil_find_by_loc(const char *loc)
 	target_bus = atoi(bus_text);
 	target_dev = atoi(dev_text);
 
-	for (bus = usb_get_busses(); bus; bus = bus->next) {
-		struct usb_device *dev;
-		int busnum = atoi(bus->dirname);
+	cnt = libusb_get_device_list(NULL, &list);
 
-		if (busnum != target_bus)
-			continue;
+	for (i = 0; i < cnt; i++) {
+		libusb_device *dev = list[i];
 
-		for (dev = bus->devices; dev; dev = dev->next) {
-			int devnum = atoi(dev->filename);
-
-			if (devnum == target_dev)
-				return dev;
+		if (target_bus == libusb_get_bus_number(dev) &&
+			target_dev == libusb_get_device_address(dev)) {
+			found = dev;
+			libusb_ref_device(found);
+			break;
 		}
 	}
 
-	printc_err("usbutil: unable to find %03d:%03d\n",
-		target_bus, target_dev);
-	return NULL;
+	libusb_free_device_list(list, 1);
+
+	if (!found)
+		printc_err("usbutil: unable to find %03d:%03d\n",
+			target_bus, target_dev);
+
+	return found;
 }

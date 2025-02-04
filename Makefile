@@ -50,8 +50,8 @@ ifeq ($(OS),Windows_NT)
 	RM = del
     endif
 	ifneq (, $findstring(MINGW, $(UNAME_S)))
-		PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
-		PORTS_LDFLAGS := $(shell pkg-config --libs libusb)
+		PORTS_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
+		PORTS_LDFLAGS := $(shell pkg-config --libs libusb-1.0)
 		RM = rm -rf
 	endif
 else
@@ -72,14 +72,14 @@ else
 
     ifeq ($(UNAME_S),Darwin) # Mac OS X/MacPorts stuff
       ifeq ($(shell fink -V > /dev/null 2>&1 && echo ok),ok)
-	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -ltermcap -pthread
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb-1.0)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb-1.0) -ltermcap -pthread
       else ifeq ($(shell brew --version > /dev/null 2>&1 && echo ok),ok)
-	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -framework IOKit -framework CoreFoundation
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb-1.0)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb-1.0) -framework IOKit -framework CoreFoundation
       else ifeq ($(shell port version > /dev/null 2>&1 && echo ok),ok)
-	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb) -framework IOKit -framework CoreFoundation
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi libusb-1.0)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi libusb-1.0) -framework IOKit -framework CoreFoundation
       else
 	PORTS_CFLAGS := -I/opt/local/include
 	PORTS_LDFLAGS := -L/opt/local/lib -lhidapi -framework IOKit -framework CoreFoundation
@@ -88,11 +88,11 @@ else
       RF25000_OBJ += transport/rf2500hidapi.o
       LDFLAGS =
     else ifneq ($(filter $(UNAME_S),OpenBSD NetBSD DragonFly),)
-	PORTS_CFLAGS := $(shell pkg-config --cflags libusb)
-	PORTS_LDFLAGS := $(shell pkg-config --libs libusb) -ltermcap -pthread
+	PORTS_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
+	PORTS_LDFLAGS := $(shell pkg-config --libs libusb-1.0) -ltermcap -pthread
     else
-	PORTS_CFLAGS :=
-	PORTS_LDFLAGS :=
+	PORTS_CFLAGS := $(shell pkg-config --cflags hidapi-hidraw libusb-1.0)
+	PORTS_LDFLAGS := $(shell pkg-config --libs hidapi-hidraw libusb-1.0)
     endif
 endif
 
@@ -101,7 +101,7 @@ GCC_CFLAGS = -O1 -Wall -Wno-char-subscripts -ggdb
 CONFIG_CFLAGS = -DLIB_DIR=\"$(LIBDIR)\"
 
 MSPDEBUG_LDFLAGS = $(LDFLAGS) $(PORTS_LDFLAGS)
-MSPDEBUG_LIBS = -L. -lusb $(READLINE_LIBS) $(OS_LIBS)
+MSPDEBUG_LIBS = $(READLINE_LIBS) $(OS_LIBS)
 MSPDEBUG_CFLAGS = $(CFLAGS) $(READLINE_CFLAGS) $(PORTS_CFLAGS)\
  $(GCC_CFLAGS) $(INCLUDES) $(CONFIG_CFLAGS) $(OS_CFLAGS)
 

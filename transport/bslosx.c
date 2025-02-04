@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <usb.h>
+#include <libusb.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -185,9 +185,9 @@ static struct usb_bus *find_by_name(const char *name)
 	return NULL;
 }
 
-static struct usb_device *find_first_bsl(struct usb_bus *bus)
+static libusb_device *find_first_bsl(struct usb_bus *bus)
 {
-	struct usb_device *d;
+	libusb_device *d;
 
 	for (d = bus->devices; d; d = d->next)
 		if ((d->descriptor.idVendor == BSLHID_VID) &&

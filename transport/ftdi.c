@@ -27,7 +27,7 @@
 
 struct ftdi_transport {
 	struct transport        base;
-	struct usb_dev_handle   *handle;
+	libusb_device_handle   *handle;
 };
 
 #define USB_INTERFACE           0
@@ -67,20 +67,22 @@ struct ftdi_transport {
 #define FTDI_WRITE_DTR			0x0100
 #define FTDI_WRITE_RTS			0x0200
 
-static int do_cfg(struct usb_dev_handle *handle, const char *what,
+static int do_cfg(libusb_device_handle *handle, const char *what,
 		  int request, int value)
 {
-	if (usb_control_msg(handle, REQTYPE_HOST_TO_DEVICE,
+	int rv = libusb_control_transfer(handle, REQTYPE_HOST_TO_DEVICE,
 			    request, value, 0,
-			    NULL, 0, REQ_TIMEOUT_MS)) {
-		printc_err("ftdi: %s failed: %s\n", what, usb_strerror());
+			    NULL, 0, REQ_TIMEOUT_MS);
+
+	if (rv) {
+		printc_err("ftdi: %s failed: %s\n", what, libusb_strerror(rv));
 		return -1;
 	}
 
 	return 0;
 }
 
-int configure_ftdi(struct usb_dev_handle *h, int baud_rate)
+int configure_ftdi(libusb_device_handle *h, int baud_rate)
 {
 	if (do_cfg(h, "reset FTDI",
 		   FTDI_SIO_RESET, FTDI_SIO_RESET_SIO) < 0 ||
@@ -103,53 +105,51 @@ int configure_ftdi(struct usb_dev_handle *h, int baud_rate)
 	return 0;
 }
 
-static int open_device(struct ftdi_transport *tr, struct usb_device *dev,
+static int open_device(struct ftdi_transport *tr, libusb_device *dev,
 		       int baud_rate)
 {
 #ifdef __linux__
-	int driver;
-	char drv_name[128];
+	int drv;
 #endif
+	int rv;
 
-	printc_dbg("ftdi: trying to open %s\n", dev->filename);
-	tr->handle = usb_open(dev);
-	if (!tr->handle) {
+	printc_dbg("ftdi: trying to open device\n");
+	if ((rv = libusb_open(dev, &tr->handle))) {
 		printc_err("ftdi: can't open device: %s\n",
-			   usb_strerror());
+			   libusb_strerror(rv));
 		return -1;
 	}
 
 #ifdef __linux__
-	driver = usb_get_driver_np(tr->handle, USB_INTERFACE,
-				   drv_name, sizeof(drv_name));
-	if (driver >= 0) {
-		printc_dbg("Detaching kernel driver \"%s\"\n", drv_name);
-		if (usb_detach_kernel_driver_np(tr->handle, USB_INTERFACE) < 0)
-			printc_err("warning: ftdi: can't detach "
-				   "kernel driver: %s\n", usb_strerror());
+	drv = libusb_kernel_driver_active(tr->handle, USB_INTERFACE);
+	printc(__FILE__" : driver %d\n", drv);
+	if (drv > 0) {
+		if (libusb_detach_kernel_driver(tr->handle,
+						USB_INTERFACE))
+			pr_error(__FILE__": warning: can't detach "
+			       "kernel driver");
 	}
 #endif
 
 #ifdef __Windows__
-	if (usb_set_configuration(tr->handle, USB_CONFIG) < 0) {
+	if ((rv = libusb_set_configuration(tr->handle, USB_CONFIG))) {
 		printc_err("ftdi: can't set configuration: %s\n",
-			   usb_strerror());
-		usb_close(tr->handle);
+			   libusb_strerror(rv));
+		libusb_close(tr->handle);
 		return -1;
 	}
 #endif
 
-	if (usb_claim_interface(tr->handle, USB_INTERFACE) < 0) {
+	if ((rv = libusb_claim_interface(tr->handle, USB_INTERFACE))) {
 		printc_err("ftdi: can't claim interface: %s\n",
-			   usb_strerror());
-		usb_close(tr->handle);
+			   libusb_strerror(rv));
+		libusb_close(tr->handle);
 		return -1;
 	}
 
-	if (configure_ftdi(tr->handle, baud_rate) < 0) {
-		printc_err("ftdi: failed to configure device: %s\n",
-			   usb_strerror());
-		usb_close(tr->handle);
+	if (configure_ftdi(tr->handle, baud_rate)) {
+		printc_err("ftdi: failed to configure device\n");
+		libusb_close(tr->handle);
 		return -1;
 	}
 
@@ -160,7 +160,7 @@ static void tr_destroy(transport_t tr_base)
 {
 	struct ftdi_transport *tr = (struct ftdi_transport *)tr_base;
 
-	usb_close(tr->handle);
+	libusb_close(tr->handle);
 	free(tr);
 }
 
@@ -168,19 +168,18 @@ static int tr_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 {
 	struct ftdi_transport *tr = (struct ftdi_transport *)tr_base;
 	time_t deadline = time(NULL) + TIMEOUT_S;
-	char tmpbuf[FTDI_PACKET_SIZE];
+	unsigned char tmpbuf[FTDI_PACKET_SIZE];
 
 	if (max_len > FTDI_PACKET_SIZE - 2)
 		max_len = FTDI_PACKET_SIZE - 2;
 
 	while(time(NULL) < deadline) {
-		int r = usb_bulk_read(tr->handle, EP_IN,
-				      tmpbuf, max_len + 2,
-				      TIMEOUT_S * 1000);
+		int r, rv;
 
-		if (r <= 0) {
+		if ((rv = libusb_bulk_transfer(tr->handle, EP_IN, tmpbuf, max_len + 2,
+				                       &r, TIMEOUT_S * 1000))) {
 			printc_err("ftdi: usb_bulk_read: %s\n",
-				   usb_strerror());
+				   libusb_strerror(rv));
 			return -1;
 		}
 
@@ -207,13 +206,12 @@ static int tr_send(transport_t tr_base, const uint8_t *databuf, int len)
 	debug_hexdump("ftdi: tr_send", databuf, len);
 #endif
 	while (len) {
-		int r = usb_bulk_write(tr->handle, EP_OUT,
-				       (char *)databuf, len,
-				       TIMEOUT_S * 1000);
+		int r, rv;
 
-		if (r <= 0) {
+		if ((rv = libusb_bulk_transfer(tr->handle, EP_OUT, (unsigned char *) databuf,
+				                 len, &r, TIMEOUT_S * 1000))) {
 			printc_err("ftdi: usb_bulk_write: %s\n",
-				   usb_strerror());
+				   libusb_strerror(rv));
 			return -1;
 		}
 
@@ -261,7 +259,7 @@ transport_t ftdi_open(const char *devpath,
 		      int baud_rate)
 {
 	struct ftdi_transport *tr = malloc(sizeof(*tr));
-	struct usb_device *dev;
+	libusb_device *dev;
 
 	if (!tr) {
 		pr_error("ftdi: can't allocate memory");
@@ -270,9 +268,7 @@ transport_t ftdi_open(const char *devpath,
 
 	tr->base.ops = &ftdi_class;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	libusb_init(NULL);
 
 	if (devpath)
 		dev = usbutil_find_by_loc(devpath);
