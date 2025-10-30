@@ -383,9 +383,7 @@ static int parse_cmdline_args(int argc, char **argv,
 			break;
 
 		case LOPT_USB_LIST:
-			usb_init();
-			usb_find_busses();
-			usb_find_devices();
+			libusb_init(NULL);
 			usbutil_list();
 			exit(0);
 

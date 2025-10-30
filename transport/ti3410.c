@@ -20,14 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#if !defined(__Windows__) || defined(__MINGW32__)
-#include <usb.h>
-#else
-#include <lusb0_usb.h>
-#endif
-
+#include <libusb.h>
 #include <time.h>
-
 #include "ti3410.h"
 #include "util.h"
 #include "usbutil.h"
@@ -123,7 +117,7 @@
 
 struct ti3410_transport {
 	struct transport        base;
-	struct usb_dev_handle	*hnd;
+	libusb_device_handle	*hnd;
 };
 
 #define USB_FET_VENDOR			0x0451
@@ -141,39 +135,54 @@ struct ti3410_transport {
 #define READ_TIMEOUT			5000
 
 static int open_device(struct ti3410_transport *tr,
-		       struct usb_device *dev)
+		       libusb_device *dev)
 {
-	struct usb_dev_handle *hnd;
+	libusb_device_handle *hnd;
+	struct libusb_config_descriptor *c;
+#if defined(__linux__)
+	int drv;
+#endif
+	int config;
 
-	hnd = usb_open(dev);
-	if (!hnd) {
+	if (libusb_open(dev, &hnd)) {
 		pr_error("ti3410: failed to open USB device");
 		return -1;
 	}
 
 #if defined(__linux__)
-        if (usb_detach_kernel_driver_np(hnd, USB_FET_INTERFACE) < 0)
-                pr_error("ti3410: warning: can't "
-                         "detach kernel driver");
+	drv = libusb_kernel_driver_active(hnd, USB_FET_INTERFACE);
+	printc(__FILE__" : driver %d\n", drv);
+	if (drv > 0) {
+		if (libusb_detach_kernel_driver(hnd, USB_FET_INTERFACE))
+			pr_error("ti3410: warning: can't "
+					 "detach kernel driver");
+	}
 #endif
 
 	/* This device has two configurations -- we need the one which
 	 * has two bulk endpoints and a control.
 	 */
-	if (dev->config->bConfigurationValue == TI_BOOT_CONFIG) {
+	if (!libusb_get_active_config_descriptor(dev, &c)) {
+		config = c->bConfigurationValue;
+		libusb_free_config_descriptor(c);
+	} else {
+		config = TI_BOOT_CONFIG;
+	}
+
+	if (config == TI_BOOT_CONFIG) {
 		printc_dbg("TI3410 device is in boot config, "
 			   "setting active\n");
 
-		if (usb_set_configuration(hnd, TI_ACTIVE_CONFIG) < 0) {
+		if (libusb_set_configuration(hnd, TI_ACTIVE_CONFIG) < 0) {
 			pr_error("ti3410: failed to set active config");
-			usb_close(hnd);
+			libusb_close(hnd);
 			return -1;
 		}
 	}
 
-	if (usb_claim_interface(hnd, USB_FET_INTERFACE) < 0) {
+	if (libusb_claim_interface(hnd, USB_FET_INTERFACE) < 0) {
 		pr_error("ti3410: can't claim interface");
-		usb_close(hnd);
+		libusb_close(hnd);
 		return -1;
 	}
 
@@ -194,11 +203,11 @@ static int set_termios(struct ti3410_transport *tr)
 		0x00  /* UART mode = RS232 */
 	};
 
-	if (usb_control_msg(tr->hnd,
-	    USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	if (libusb_control_transfer(tr->hnd,
+	    LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 	    TI_SET_CONFIG,
 	    0,
-	    TI_UART1_PORT, (char *)tios_data, sizeof(tios_data), TIMEOUT) < 0) {
+	    TI_UART1_PORT, (unsigned char *) tios_data, sizeof(tios_data), TIMEOUT) < 0) {
 		pr_error("ti3410: TI_SET_CONFIG failed");
 		return -1;
 	}
@@ -217,11 +226,11 @@ static int set_mcr(struct ti3410_transport *tr)
 		TI_MCR_RTS | TI_MCR_DTR /* data */
 	};
 
-	if (usb_control_msg(tr->hnd,
-	    USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	if (libusb_control_transfer(tr->hnd,
+	    LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 	    TI_WRITE_DATA,
 	    0,
-	    TI_RAM_PORT, (char *)wb_data, sizeof(wb_data), TIMEOUT) < 0) {
+	    TI_RAM_PORT, (unsigned char *) wb_data, sizeof(wb_data), TIMEOUT) < 0) {
 		pr_error("ti3410: TI_SET_CONFIG failed");
 		return -1;
 	}
@@ -237,8 +246,8 @@ static int do_open_start(struct ti3410_transport *tr)
 	if (set_mcr(tr) < 0)
 		return -1;
 
-	if (usb_control_msg(tr->hnd,
-	    USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	if (libusb_control_transfer(tr->hnd,
+	    LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 	    TI_OPEN_PORT,
 	    TI_PIPE_MODE_CONTINOUS | TI_PIPE_TIMEOUT_ENABLE |
 	    (TI_TRANSFER_TIMEOUT << 2),
@@ -247,8 +256,8 @@ static int do_open_start(struct ti3410_transport *tr)
 		return -1;
 	}
 
-	if (usb_control_msg(tr->hnd,
-	    USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	if (libusb_control_transfer(tr->hnd,
+	    LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 	    TI_START_PORT,
 	    0,
 	    TI_UART1_PORT, NULL, 0, TIMEOUT) < 0) {
@@ -262,9 +271,10 @@ static int do_open_start(struct ti3410_transport *tr)
 static int interrupt_flush(struct ti3410_transport *tr)
 {
 	uint8_t buf[2];
+	int rlen;
 
-	return usb_interrupt_read(tr->hnd, USB_FET_INT_EP,
-			          (char *)buf, 2, TIMEOUT);
+	return libusb_interrupt_transfer(tr->hnd, USB_FET_INT_EP,
+			          buf, 2, &rlen, TIMEOUT) ? 0 : rlen;
 }
 
 static int setup_port(struct ti3410_transport *tr)
@@ -274,8 +284,8 @@ static int setup_port(struct ti3410_transport *tr)
 	if (do_open_start(tr) < 0)
 		return -1;
 
-	if (usb_control_msg(tr->hnd,
-	    USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	if (libusb_control_transfer(tr->hnd,
+	    LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 	    TI_PURGE_PORT,
 	    TI_PURGE_INPUT,
 	    TI_UART1_PORT, NULL, 0, TIMEOUT) < 0) {
@@ -286,8 +296,8 @@ static int setup_port(struct ti3410_transport *tr)
 	interrupt_flush(tr);
 	interrupt_flush(tr);
 
-	if (usb_control_msg(tr->hnd,
-	    USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	if (libusb_control_transfer(tr->hnd,
+	    LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 	    TI_PURGE_PORT,
 	    TI_PURGE_OUTPUT,
 	    TI_UART1_PORT, NULL, 0, TIMEOUT) < 0) {
@@ -297,8 +307,8 @@ static int setup_port(struct ti3410_transport *tr)
 
 	interrupt_flush(tr);
 
-	if (usb_clear_halt(tr->hnd, USB_FET_IN_EP) < 0 ||
-	    usb_clear_halt(tr->hnd, USB_FET_OUT_EP) < 0) {
+	if (libusb_clear_halt(tr->hnd, USB_FET_IN_EP) < 0 ||
+	    libusb_clear_halt(tr->hnd, USB_FET_OUT_EP) < 0) {
 		pr_error("ti3410: failed to clear halt status");
 		return -1;
 	}
@@ -311,8 +321,8 @@ static int setup_port(struct ti3410_transport *tr)
 
 static void teardown_port(struct ti3410_transport *tr)
 {
-	if (usb_control_msg(tr->hnd,
-	    USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	if (libusb_control_transfer(tr->hnd,
+	    LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
 	    TI_CLOSE_PORT,
 	    0,
 	    TI_UART1_PORT, NULL, 0, TIMEOUT) < 0)
@@ -325,9 +335,8 @@ static int ti3410_send(transport_t tr_base, const uint8_t *data, int len)
 	int sent;
 
 	while (len) {
-		sent = usb_bulk_write(tr->hnd, USB_FET_OUT_EP,
-				      (char *)data, len, TIMEOUT);
-		if (sent <= 0) {
+		if (libusb_bulk_transfer(tr->hnd, USB_FET_OUT_EP,
+								 (unsigned char *) data, len, &sent, TIMEOUT)) {
 			pr_error("ti3410: can't send data");
 			return -1;
 		}
@@ -343,20 +352,19 @@ static int ti3410_recv(transport_t tr_base, uint8_t *databuf, int max_len)
 {
 	struct ti3410_transport *tr = (struct ti3410_transport *)tr_base;
 	time_t deadline = time(NULL) + READ_TIMEOUT / 1000;
-	int rlen;
 
 	while (time(NULL) < deadline) {
-		rlen = usb_bulk_read(tr->hnd, USB_FET_IN_EP, (char *)databuf,
-				     max_len, READ_TIMEOUT);
+		int rlen, rv;
+
+		if ((rv = libusb_bulk_transfer(tr->hnd, USB_FET_IN_EP, databuf,
+				     max_len, &rlen, READ_TIMEOUT))) {
+			printc_err("ti3410: usb_bulk_read: %s\n",
+				   libusb_strerror(rv));
+			return -1;
+		}
 
 		if (rlen > 0)
 			return rlen;
-
-		if (rlen < 0) {
-			printc_err("ti3410: usb_bulk_read: %s\n",
-				   usb_strerror());
-			return -1;
-		}
 	}
 
 	printc_err("ti3410: read timeout\n");
@@ -471,28 +479,29 @@ static void prepare_firmware(struct firmware *f)
 		   f->size, cksum);
 }
 
-static int do_download(struct usb_device *dev, const struct firmware *f)
+static int do_download(libusb_device *dev, const struct firmware *f)
 {
-	struct usb_dev_handle *hnd;
+	libusb_device_handle *hnd;
 	int offset = 0;
 
 	printc_dbg("Starting download...\n");
 
-	hnd = usb_open(dev);
-	if (!hnd) {
+	if (libusb_open(dev, &hnd)) {
 		pr_error("ti3410: failed to open USB device");
 		return -1;
 	}
 
 #if defined(__linux__)
-        if (usb_detach_kernel_driver_np(hnd, USB_FDL_INTERFACE) < 0)
-                pr_error("ti3410: warning: can't "
-                         "detach kernel driver");
+	if (libusb_kernel_driver_active(hnd, USB_FET_INTERFACE) > 0) {
+		if (libusb_detach_kernel_driver(hnd, USB_FET_INTERFACE))
+			pr_error("ti3410: warning: can't "
+					 "detach kernel driver");
+	}
 #endif
 
-	if (usb_claim_interface(hnd, USB_FDL_INTERFACE) < 0) {
+	if (libusb_claim_interface(hnd, USB_FDL_INTERFACE) < 0) {
 		pr_error("ti3410: can't claim interface");
-		usb_close(hnd);
+		libusb_close(hnd);
 		return -1;
 	}
 
@@ -503,11 +512,9 @@ static int do_download(struct usb_device *dev, const struct firmware *f)
 		if (plen > TI_DOWNLOAD_MAX_PACKET_SIZE)
 			plen = TI_DOWNLOAD_MAX_PACKET_SIZE;
 
-                r = usb_bulk_write(hnd, USB_FDL_OUT_EP,
-				   (char *)f->buf + offset, plen, TIMEOUT);
-		if (r < 0) {
+		if (libusb_bulk_transfer(hnd, USB_FDL_OUT_EP, (unsigned char *) f->buf + offset, plen, &r, TIMEOUT)) {
 			pr_error("ti3410: bulk write failed");
-			usb_close(hnd);
+			libusb_close(hnd);
 			return -1;
 		}
 
@@ -515,14 +522,14 @@ static int do_download(struct usb_device *dev, const struct firmware *f)
 	}
 
 	delay_ms(100);
-	if (usb_reset(hnd) < 0)
+	if (libusb_reset_device(hnd) < 0)
 		pr_error("ti3410: warning: reset failed");
 
-	usb_close(hnd);
+	libusb_close(hnd);
 	return 0;
 }
 
-static int download_firmware(struct usb_device *dev)
+static int download_firmware(libusb_device *dev)
 {
 	struct firmware frm;
 
@@ -563,7 +570,8 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial,
 		int has_vid_pid, uint16_t vid, uint16_t pid)
 {
 	struct ti3410_transport *tr = malloc(sizeof(*tr));
-	struct usb_device *dev;
+	libusb_device *dev;
+	struct libusb_device_descriptor desc;
 
 	if (!tr) {
 		pr_error("ti3410: can't allocate memory");
@@ -572,9 +580,7 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial,
 
 	tr->base.ops = &ti3410_transport;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	libusb_init(NULL);
 
 	if (devpath)
 		dev = usbutil_find_by_loc(devpath);
@@ -588,14 +594,16 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial,
 		return NULL;
 	}
 
-	if (dev->descriptor.bNumConfigurations == 1) {
+	if (libusb_get_device_descriptor(dev, &desc))
+		return NULL;
+
+	if (desc.bNumConfigurations == 1) {
 		if (download_firmware(dev) < 0) {
 			printc_err("ti3410: firmware download failed\n");
 			free(tr);
 			return NULL;
 		}
-
-		usb_find_devices();
+		libusb_unref_device(dev);
 
 		if (devpath)
 			dev = usbutil_find_by_loc(devpath);
@@ -619,7 +627,7 @@ transport_t ti3410_open(const char *devpath, const char *requested_serial,
 	if (setup_port(tr) < 0) {
 		printc_err("ti3410: failed to set up port\n");
 		teardown_port(tr);
-		usb_close(tr->hnd);
+		libusb_close(tr->hnd);
 		free(tr);
 		return NULL;
 	}
