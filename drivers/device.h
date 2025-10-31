@@ -82,6 +82,7 @@ struct device_args {
 	int			vcc_mv;
 	const char		*path;
 	const char		*forced_chip_id;
+	const char		*expect_chip_id;
 	const char		*requested_serial;
 	const char		*require_fwupdate;
 	const char		*bsl_entry_seq;
