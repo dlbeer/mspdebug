@@ -139,6 +139,13 @@ static int init_device(struct jtdev *p)
     return -1;
   }
 
+	// JTAG fuse check has been performed, so we can now switch to a
+	// higher-speed physical transport suitable for ~350 kHz TCLK strobes used
+	// in (and required for) flash programming. This function is optional.
+  if (p->f->jtdev_set_fast_baud && p->f->jtdev_set_fast_baud(p, true) < 0) {
+    return -1;
+  }
+
   return 0;
 }
 
@@ -415,6 +422,56 @@ static device_t bp_open(const struct device_args *args)
 }
 
 /*----------------------------------------------------------------------------*/
+
+
+static device_t ftdi_bitbang_open(const struct device_args *args)
+{
+  struct pif_device *dev;
+  const uint16_t *vid;
+  const uint16_t *pid;
+
+  if (args->flags & DEVICE_FLAG_TTY) {
+    printc_err("ftdi bitbang: this driver does not support TTY USB access\n");
+    return NULL;
+  }
+
+  if (!(args->flags & DEVICE_FLAG_JTAG)) {
+    printc_err("ftdi bitbang: this driver does not support Spy-Bi-Wire\n");
+    return NULL;
+  }
+
+  dev = malloc(sizeof(*dev));
+  if (!dev) {
+    printc_err("ftdi bitbang: malloc: %s\n", last_error());
+    return NULL;
+  }
+
+  memset(dev, 0, sizeof(*dev));
+  dev->base.type = &device_pif;
+  dev->base.max_breakpoints = 2; //supported by all devices
+  dev->base.need_probe = 1;
+  dev->jtag.f = &jtdev_func_ftdi_bitbang;
+
+  vid = (args->flags & DEVICE_FLAG_HAS_VID_PID) ? &args->vid : NULL;
+  pid = (args->flags & DEVICE_FLAG_HAS_VID_PID) ? &args->pid : NULL;
+
+  // note: _ex variant
+  if (dev->jtag.f->jtdev_open_ex(&dev->jtag, NULL, vid, pid) < 0) {
+    free(dev);
+    return NULL;
+  }
+
+  if (init_device(&dev->jtag) < 0) {
+    printc_err("ftdi bitbang: initialization failed\n");
+    dev->jtag.f->jtdev_close(&dev->jtag);
+    free(dev);
+    return NULL;
+  }
+
+  return &dev->base;
+}
+
+/*----------------------------------------------------------------------------*/
 static void pif_destroy(device_t dev_base)
 {
   struct pif_device *dev = (struct pif_device *)dev_base;
@@ -461,6 +518,21 @@ const struct device_class device_bp = {
   .name     = "bus-pirate",
   .help     = "Bus Pirate JTAG, MISO-TDO, MOSI-TDI, CS-TMS, AUX-RESET, CLK-TCK",
   .open     = bp_open,
+  .destroy  = pif_destroy,
+  .readmem  = pif_readmem,
+  .writemem = pif_writemem,
+  .getregs  = pif_getregs,
+  .setregs  = pif_setregs,
+  .ctl      = pif_ctl,
+  .poll     = pif_poll,
+  .erase    = pif_erase,
+  .getconfigfuses = pif_getconfigfuses
+};
+
+const struct device_class device_ftdi_bitbang = {
+  .name     = "ftdi-bitbang",
+  .help     = "FTDI in Bitbang mode (FT232R, FT2232H, FT4232H) JTAG, RTS-TDO, RXD-TDI, CTS-TMS, DCD-RESET, TXD-TCK",
+  .open     = ftdi_bitbang_open,
   .destroy  = pif_destroy,
   .readmem  = pif_readmem,
   .writemem = pif_writemem,
