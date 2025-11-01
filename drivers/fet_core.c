@@ -226,6 +226,8 @@ static int identify_new(struct fet_device *dev, const char *force_id)
 		   ramSize / 1024);
 
 	show_dev_info(r->name, dev);
+	/* populate chip entry based on the detected name */
+	dev->base.chip = chipinfo_find_by_name(r->name);
 
 	if (fet_proto_xfer(&dev->proto, C_IDENT3,
 			   r->msg2b_data, r->msg2b_len, 0) < 0)
@@ -344,6 +346,8 @@ static int identify_olimex(struct fet_device *dev, const char *force_id)
 		   ramSize, ramSize / 1024);
 
 	show_dev_info(r->name, dev);
+	/* populate chip entry based on the detected name */
+	dev->base.chip = chipinfo_find_by_name(r->name);
 
 	if (fet_proto_xfer(&dev->proto, C_IDENT3,
 			   r->msg2b_data, r->msg2b_len, 0) < 0)
