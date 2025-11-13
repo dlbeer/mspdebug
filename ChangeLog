@@ -1,3 +1,10 @@
+Version 0.26 - 14 Nov 2025
+	* Various bug fixes and improvements.
+	* Update chipinfo database.
+	* Support for BSL entry password.
+	* MSP430X simulation.
+	* Support for mehfet.
+
 Version 0.25 - 24 Jul 2017
 	* Various bug fixes and improvements.
 	* flash_bsl entry using Linux GPIO interface.
