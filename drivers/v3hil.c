@@ -326,7 +326,7 @@ int v3hil_stop_jtag(struct v3hil *h)
 
 int v3hil_sync(struct v3hil *h)
 {
-	uint8_t data[32], datalen = 21;
+	uint8_t data[64], datalen = 21;
 
 	h->cal.is_cal = 0;
 
