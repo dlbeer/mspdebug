@@ -34,7 +34,7 @@ Compiling from source
 Ensure that you have the necessary packages to compile programs that use
 libusb (on Debian or Ubuntu systems, you might need to do apt-get
 install libusb-dev | on Arch systems, you might need to do sudo 
-pacman -S libusb-compact). After that, unpack and compile the source code 
+pacman -S libusb-compat). After that, unpack and compile the source code 
 with:
 
     tar xvfz mspdebug-version.tar.gz

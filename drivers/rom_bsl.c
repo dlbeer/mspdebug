@@ -434,7 +434,7 @@ static device_t rom_bsl_open(const struct device_args *args)
 	struct rom_bsl_device *dev;
 
 	if (!(args->flags & DEVICE_FLAG_TTY)) {
-		printc_err("rom_bsl: raw USB access is not supported");
+		printc_err("rom_bsl: raw USB access is not supported\n");
 		return NULL;
 	}
 

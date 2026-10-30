@@ -639,14 +639,14 @@ static device_t flash_bsl_open(const struct device_args *args)
 
 	if (flash_bsl_send(dev, tx_bsl_version_command,
 			   sizeof(tx_bsl_version_command)) < 0) {
-		printc_err("flash_bsl: failed to read BSL version");
+		printc_err("flash_bsl: failed to read BSL version\n");
 		goto fail;
 	}
 
 	if (flash_bsl_recv(dev, tx_bsl_version_response,
 	    sizeof(tx_bsl_version_response)) <
 	    sizeof(tx_bsl_version_response)) {
-		printc_err("flash_bsl: BSL responded with invalid version");
+		printc_err("flash_bsl: BSL responded with invalid version\n");
 		goto fail;
 	}
 
